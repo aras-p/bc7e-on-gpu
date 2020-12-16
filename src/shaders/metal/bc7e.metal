@@ -30,7 +30,7 @@ using namespace metal;
 #define INT64_MAX (0x7FFFFFFFFFFFFFFFULL)
 #endif
 
-struct bc7e_compress_block_params
+struct bc7e_compress_block_params // note: should match C++ code struct
 {
     uint32_t m_max_partitions_mode[8];
 
@@ -323,14 +323,14 @@ static const constant int g_bc7_alpha_precision_table[8] = { 0, 0, 0, 0, 6, 8, 7
 static const constant int g_bc7_alpha_precision_plus_pbit_table[8] = { 0, 0, 0, 0, 6, 8, 8, 6 };
 static bool get_bc7_mode_has_seperate_alpha_selectors(int mode) { return (mode == 4) || (mode == 5); }
 
-struct endpoint_err
+struct endpoint_err // note: should match C++ code struct
 {
     uint16_t m_error;
     uint8_t m_lo;
     uint8_t m_hi;
 };
 
-struct OptimalEndpointTables
+struct OptimalEndpointTables // note: should match C++ code struct
 {
     endpoint_err mode_1[256][2]; // [c][pbit]
     endpoint_err mode_7[256][2][2]; // [c][pbit][hp][lp]
@@ -4244,7 +4244,7 @@ static void handle_opaque_block_mode6(thread void *varying pBlock, const varying
     encode_bc7_block_mode6(pBlock, &opt_results);
 }
 
-struct Globals
+struct Globals // note: should match C++ code struct
 {
     uint width, height;
     uint widthInBlocks, heightInBlocks;

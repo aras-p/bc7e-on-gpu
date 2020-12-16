@@ -20,6 +20,259 @@ static const char* kTestFiles[] =
     //"textures/Gradients.png",
 };
 
+struct Globals // note: should match Metal code struct
+{
+    int width, height;
+    int widthInBlocks, heightInBlocks;
+    ispc::bc7e_compress_block_params params;
+};
+
+struct endpoint_err // note: should match Metal code struct
+{
+    uint16_t m_error;
+    uint8_t m_lo;
+    uint8_t m_hi;
+};
+
+struct OptimalEndpointTables // note: should match Metal code struct
+{
+    endpoint_err mode_1[256][2]; // [c][pbit]
+    endpoint_err mode_7[256][2][2]; // [c][pbit][hp][lp]
+    endpoint_err mode_6[256][2][2]; // [c][hp][lp]
+    uint32_t mode_4_3[256]; // [c]
+    uint32_t mode_4_2[256]; // [c]
+    endpoint_err mode_0[256][2][2]; // [c][hp][lp]
+};
+
+static OptimalEndpointTables s_Tables;
+
+// initialization code ported from bc7e.ispc
+static const uint32_t g_bc7_weights2[4] = { 0, 21, 43, 64 };
+static const uint32_t g_bc7_weights3[8] = { 0, 9, 18, 27, 37, 46, 55, 64 };
+static const uint32_t g_bc7_weights4[16] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
+static const uint32_t BC7E_MODE_1_OPTIMAL_INDEX = 2;
+static const uint32_t BC7E_MODE_7_OPTIMAL_INDEX = 1;
+static const uint32_t BC7E_MODE_6_OPTIMAL_INDEX = 5;
+static const uint32_t BC7E_MODE_4_OPTIMAL_INDEX3 = 2;
+static const uint32_t BC7E_MODE_4_OPTIMAL_INDEX2 = 1;
+static const uint32_t BC7E_MODE_0_OPTIMAL_INDEX = 2;
+
+
+static void metal_bc7e_compress_block_init()
+{
+    // Mode 0: 444.1
+    for (int c = 0; c < 256; c++)
+    {
+        for (uint32_t hp = 0; hp < 2; hp++)
+        {
+            for (uint32_t lp = 0; lp < 2; lp++)
+            {
+                endpoint_err best;
+                best.m_error = (uint16_t)UINT16_MAX;
+
+                for (uint32_t l = 0; l < 16; l++)
+                {
+                    uint32_t low = ((l << 1) | lp) << 3;
+                    low |= (low >> 5);
+
+                    for (uint32_t h = 0; h < 16; h++)
+                    {
+                        uint32_t high = ((h << 1) | hp) << 3;
+                        high |= (high >> 5);
+
+                        const int k = (low * (64 - g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX] + 32) >> 6;
+
+                        const int err = (k - c) * (k - c);
+                        if (err < best.m_error)
+                        {
+                            best.m_error = (uint16_t)err;
+                            best.m_lo = (uint8_t)l;
+                            best.m_hi = (uint8_t)h;
+                        }
+                    } // h
+                } // l
+
+                s_Tables.mode_0[c][hp][lp] = best;
+            } // lp
+        } // hp
+    } // c
+
+    // Mode 1: 666.1
+    for (int c = 0; c < 256; c++)
+    {
+        for (uint32_t lp = 0; lp < 2; lp++)
+        {
+            endpoint_err best;
+            best.m_error = (uint16_t)UINT16_MAX;
+
+            for (uint32_t l = 0; l < 64; l++)
+            {
+                uint32_t low = ((l << 1) | lp) << 1;
+                low |= (low >> 7);
+
+                for (uint32_t h = 0; h < 64; h++)
+                {
+                    uint32_t high = ((h << 1) | lp) << 1;
+                    high |= (high >> 7);
+
+                    const int k = (low * (64 - g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX] + 32) >> 6;
+
+                    const int err = (k - c) * (k - c);
+                    if (err < best.m_error)
+                    {
+                        best.m_error = (uint16_t)err;
+                        best.m_lo = (uint8_t)l;
+                        best.m_hi = (uint8_t)h;
+                    }
+                } // h
+            } // l
+
+            s_Tables.mode_1[c][lp] = best;
+        } // lp
+    } // c
+
+    // Mode 6: 777.1 4-bit indices
+    for (int c = 0; c < 256; c++)
+    {
+        for (uint32_t hp = 0; hp < 2; hp++)
+        {
+            for (uint32_t lp = 0; lp < 2; lp++)
+            {
+                endpoint_err best;
+                best.m_error = (uint16_t)UINT16_MAX;
+
+                for (uint32_t l = 0; l < 128; l++)
+                {
+                    uint32_t low = (l << 1) | lp;
+                
+                    for (uint32_t h = 0; h < 128; h++)
+                    {
+                        uint32_t high = (h << 1) | hp;
+                    
+                        const int k = (low * (64 - g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX]) + high * g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6;
+
+                        const int err = (k - c) * (k - c);
+                        if (err < best.m_error)
+                        {
+                            best.m_error = (uint16_t)err;
+                            best.m_lo = (uint8_t)l;
+                            best.m_hi = (uint8_t)h;
+                        }
+                    } // h
+                } // l
+
+                s_Tables.mode_6[c][hp][lp] = best;
+            } // lp
+        } // hp
+    } // c
+
+    //Mode 4: 555 3-bit indices
+    for (int c = 0; c < 256; c++)
+    {
+        endpoint_err best;
+        best.m_error = (uint16_t)UINT16_MAX;
+        best.m_lo = 0;
+        best.m_hi = 0;
+
+        for (uint32_t l = 0; l < 32; l++)
+        {
+            uint32_t low = l << 3;
+            low |= (low >> 5);
+
+            for (uint32_t h = 0; h < 32; h++)
+            {
+                uint32_t high = h << 3;
+                high |= (high >> 5);
+
+                const int k = (low * (64 - g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3]) + high * g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3] + 32) >> 6;
+
+                const int err = (k - c) * (k - c);
+                if (err < best.m_error)
+                {
+                    best.m_error = (uint16_t)err;
+                    best.m_lo = (uint8_t)l;
+                    best.m_hi = (uint8_t)h;
+                }
+            } // h
+        } // l
+
+        s_Tables.mode_4_3[c] = (uint32_t)best.m_lo | (((uint32_t)best.m_hi) << 8);
+    } // c
+    
+    // Mode 4: 555 2-bit indices
+    for (int c = 0; c < 256; c++)
+    {
+        endpoint_err best;
+        best.m_error = (uint16_t)UINT16_MAX;
+        best.m_lo = 0;
+        best.m_hi = 0;
+
+        for (uint32_t l = 0; l < 32; l++)
+        {
+            uint32_t low = l << 3;
+            low |= (low >> 5);
+
+            for (uint32_t h = 0; h < 32; h++)
+            {
+                uint32_t high = h << 3;
+                high |= (high >> 5);
+
+                const int k = (low * (64 - g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2]) + high * g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2] + 32) >> 6;
+
+                const int err = (k - c) * (k - c);
+                if (err < best.m_error)
+                {
+                    best.m_error = (uint16_t)err;
+                    best.m_lo = (uint8_t)l;
+                    best.m_hi = (uint8_t)h;
+                }
+            } // h
+        } // l
+
+        s_Tables.mode_4_2[c] = (uint32_t)best.m_lo | (((uint32_t)best.m_hi) << 8);
+    } // c
+
+    // Mode 7: 555.1 2-bit indices
+    for (int c = 0; c < 256; c++)
+    {
+        endpoint_err best;
+        best.m_error = (uint16_t)UINT16_MAX;
+        best.m_lo = 0;
+        best.m_hi = 0;
+
+        for (uint32_t hp = 0; hp < 2; hp++)
+        {
+            for (uint32_t lp = 0; lp < 2; lp++)
+            {
+                for (uint32_t l = 0; l < 32; l++)
+                {
+                    uint32_t low = ((l << 1) | lp) << 2;
+                    low |= (low >> 6);
+
+                    for (uint32_t h = 0; h < 32; h++)
+                    {
+                        uint32_t high = ((h << 1) | hp) << 2;
+                        high |= (high >> 6);
+
+                        const int k = (low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6;
+
+                        const int err = (k - c) * (k - c);
+                        if (err < best.m_error)
+                        {
+                            best.m_error = (uint16_t)err;
+                            best.m_lo = (uint8_t)l;
+                            best.m_hi = (uint8_t)h;
+                        }
+                    } // h
+                } // l
+
+                s_Tables.mode_7[c][hp][lp] = best;
+            
+            } // hp
+        } // lp
+    } // c
+}
+
 
 static void create_folder(const char* path)
 {
@@ -35,6 +288,7 @@ static void Initialize()
 {
     stm_setup();
     ispc::bc7e_compress_block_init();
+    metal_bc7e_compress_block_init();
     ic::init_pfor();
     if (!SmolComputeCreate())
     {
@@ -128,7 +382,6 @@ static void* ReadFile(const char* path, size_t* outSize)
     return buffer;
 }
 
-
 static bool TestOnFile(const char* fileName)
 {
     // load input image file
@@ -199,28 +452,27 @@ static bool TestOnFile(const char* fileName)
     
     // compress with smol-compute
     {
-        struct Globals
-        {
-            int width, height;
-            int widthInBlocks, heightInBlocks;
-            ispc::bc7e_compress_block_params params;
-        };
         Globals glob = {width, height, widthInBlocks, heightInBlocks, settings};
 
         size_t kernelSourceSize = 0;
         void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
+        printf("  compile Metal compression shader...\n");
         SmolKernel* kernel = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks");
+        printf("  compiled\n");
 
+        SmolBuffer* bufTables = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Constant);
         SmolBuffer* bufGlob = SmolBufferCreate(sizeof(glob), SmolBufferType::Constant);
         SmolBuffer* bufInput = SmolBufferCreate(width * height * 4, SmolBufferType::Structured, 4);
         SmolBuffer* bufOutput = SmolBufferCreate(compressedSize, SmolBufferType::Structured, blockBytes);
+        SmolBufferSetData(bufTables, &s_Tables, sizeof(s_Tables));
         SmolBufferSetData(bufGlob, &glob, sizeof(glob));
         SmolBufferSetData(bufInput, rgba, width * height * 4);
         
         SmolKernelSet(kernel);
-        SmolKernelSetBuffer(bufInput, 0, SmolBufferBinding::Constant);
-        SmolKernelSetBuffer(bufInput, 1, SmolBufferBinding::Input);
-        SmolKernelSetBuffer(bufOutput, 2, SmolBufferBinding::Output);
+        SmolKernelSetBuffer(bufTables, 0, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(bufGlob, 1, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(bufInput, 2, SmolBufferBinding::Input);
+        SmolKernelSetBuffer(bufOutput, 3, SmolBufferBinding::Output);
         SmolKernelDispatch(widthInBlocks, heightInBlocks, 1, 4, 4, 1);
 
         SmolBufferGetData(bufOutput, resGot, compressedSize);
