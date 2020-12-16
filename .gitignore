@@ -1,3 +1,4 @@
 .DS_Store
 xcuserdata
 external/bc7e/bc7e_ispc.h
+artifacts/

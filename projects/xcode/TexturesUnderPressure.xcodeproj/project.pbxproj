@@ -11,6 +11,8 @@
 		2B2353862589F41B00C47578 /* externals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B2353852589F41B00C47578 /* externals.cpp */; };
 		2B2353892589F47B00C47578 /* externals.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2B2353882589F47B00C47578 /* externals.mm */; };
 		2B23538F2589F4EB00C47578 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B23538E2589F4EB00C47578 /* Metal.framework */; };
+		2B2353972589FF4C00C47578 /* bc7e.metal in Sources */ = {isa = PBXBuildFile; fileRef = 2B2353962589FF4C00C47578 /* bc7e.metal */; };
+		2B23539B258A1E1B00C47578 /* bc7decomp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B23539A258A1E1B00C47578 /* bc7decomp.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -36,6 +38,10 @@
 		2B2353852589F41B00C47578 /* externals.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = externals.cpp; sourceTree = "<group>"; };
 		2B2353882589F47B00C47578 /* externals.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = externals.mm; sourceTree = "<group>"; };
 		2B23538E2589F4EB00C47578 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		2B2353962589FF4C00C47578 /* bc7e.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = bc7e.metal; sourceTree = "<group>"; };
+		2B235399258A1E1B00C47578 /* bc7decomp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bc7decomp.h; path = bc7enc/bc7decomp.h; sourceTree = "<group>"; };
+		2B23539A258A1E1B00C47578 /* bc7decomp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bc7decomp.cpp; path = bc7enc/bc7decomp.cpp; sourceTree = "<group>"; };
+		2B23539D258A1E2200C47578 /* stb_image_write.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image_write.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +89,9 @@
 		2B2353782589F20400C47578 /* external */ = {
 			isa = PBXGroup;
 			children = (
+				2B23539D258A1E2200C47578 /* stb_image_write.h */,
+				2B23539A258A1E1B00C47578 /* bc7decomp.cpp */,
+				2B235399258A1E1B00C47578 /* bc7decomp.h */,
 				2B23537D2589F23500C47578 /* bc7e.ispc */,
 				2B23537B2589F22F00C47578 /* ic_pfor.h */,
 				2B23537A2589F22F00C47578 /* smolcompute.h */,
@@ -104,6 +113,7 @@
 		2B2353842589F3FE00C47578 /* metal */ = {
 			isa = PBXGroup;
 			children = (
+				2B2353962589FF4C00C47578 /* bc7e.metal */,
 			);
 			path = metal;
 			sourceTree = "<group>";
@@ -197,9 +207,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B2353972589FF4C00C47578 /* bc7e.metal in Sources */,
 				2B2353862589F41B00C47578 /* externals.cpp in Sources */,
 				2B2353892589F47B00C47578 /* externals.mm in Sources */,
 				2B2353802589F3F200C47578 /* testmain.cpp in Sources */,
+				2B23539B258A1E1B00C47578 /* bc7decomp.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
