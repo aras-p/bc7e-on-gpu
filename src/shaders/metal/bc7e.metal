@@ -4297,14 +4297,14 @@ kernel void bc7e_compress_blocks(
     const bool has_alpha = (lo_a < 255);
     uint pBlock[4];
     
-    if (has_alpha)
-        handle_alpha_block(&pBlock, temp_pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
-    else
+    //if (has_alpha) //@TODO: only opaque mode6 for now
+    //    handle_alpha_block(&pBlock, temp_pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
+    //else
     {
-        if (glob.params.m_mode6_only)
+        //if (glob.params.m_mode6_only)
             handle_opaque_block_mode6(&pBlock, temp_pixels, &glob.params, &params, tables);
-        else
-            handle_opaque_block(&pBlock, temp_pixels, &glob.params, &params, tables);
+        //else
+        //    handle_opaque_block(&pBlock, temp_pixels, &glob.params, &params, tables);
     }
     uint block_index = id.y * glob.widthInBlocks + id.x;
     bufOutput[block_index] = uint4(pBlock[0], pBlock[1], pBlock[2], pBlock[3]);

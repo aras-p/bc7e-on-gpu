@@ -16,7 +16,8 @@
 
 static const char* kTestFiles[] =
 {
-    "textures/16x16.png",
+    "textures/2dSignsCrop.png",
+    //"textures/16x16.png",
     //"textures/Gradients.png",
 };
 
