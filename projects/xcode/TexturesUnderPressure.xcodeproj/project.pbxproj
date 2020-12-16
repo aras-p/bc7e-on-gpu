@@ -7,7 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2B2353712589F1C400C47578 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B2353702589F1C400C47578 /* main.cpp */; };
+		2B2353802589F3F200C47578 /* testmain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B23537F2589F3F200C47578 /* testmain.cpp */; };
+		2B2353862589F41B00C47578 /* externals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B2353852589F41B00C47578 /* externals.cpp */; };
+		2B2353892589F47B00C47578 /* externals.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2B2353882589F47B00C47578 /* externals.mm */; };
+		2B23538F2589F4EB00C47578 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B23538E2589F4EB00C47578 /* Metal.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,12 +27,15 @@
 
 /* Begin PBXFileReference section */
 		2B23536D2589F1C400C47578 /* TexturesUnderPressure */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = TexturesUnderPressure; sourceTree = BUILT_PRODUCTS_DIR; };
-		2B2353702589F1C400C47578 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		2B2353792589F22F00C47578 /* sokol_time.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sokol_time.h; sourceTree = "<group>"; };
 		2B23537A2589F22F00C47578 /* smolcompute.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = smolcompute.h; sourceTree = "<group>"; };
 		2B23537B2589F22F00C47578 /* ic_pfor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ic_pfor.h; sourceTree = "<group>"; };
 		2B23537C2589F22F00C47578 /* stb_image.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image.h; sourceTree = "<group>"; };
 		2B23537D2589F23500C47578 /* bc7e.ispc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = bc7e.ispc; path = bc7e/bc7e.ispc; sourceTree = "<group>"; };
+		2B23537F2589F3F200C47578 /* testmain.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = testmain.cpp; sourceTree = "<group>"; };
+		2B2353852589F41B00C47578 /* externals.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = externals.cpp; sourceTree = "<group>"; };
+		2B2353882589F47B00C47578 /* externals.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = externals.mm; sourceTree = "<group>"; };
+		2B23538E2589F4EB00C47578 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,6 +43,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B23538F2589F4EB00C47578 /* Metal.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -49,6 +56,7 @@
 				2B2353782589F20400C47578 /* external */,
 				2B23536F2589F1C400C47578 /* src */,
 				2B23536E2589F1C400C47578 /* Products */,
+				2B23538D2589F4EB00C47578 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -63,7 +71,10 @@
 		2B23536F2589F1C400C47578 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				2B2353702589F1C400C47578 /* main.cpp */,
+				2B2353882589F47B00C47578 /* externals.mm */,
+				2B2353852589F41B00C47578 /* externals.cpp */,
+				2B2353832589F3F900C47578 /* shaders */,
+				2B23537F2589F3F200C47578 /* testmain.cpp */,
 			);
 			name = src;
 			path = ../../src;
@@ -80,6 +91,29 @@
 			);
 			name = external;
 			path = ../../external;
+			sourceTree = "<group>";
+		};
+		2B2353832589F3F900C47578 /* shaders */ = {
+			isa = PBXGroup;
+			children = (
+				2B2353842589F3FE00C47578 /* metal */,
+			);
+			path = shaders;
+			sourceTree = "<group>";
+		};
+		2B2353842589F3FE00C47578 /* metal */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = metal;
+			sourceTree = "<group>";
+		};
+		2B23538D2589F4EB00C47578 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2B23538E2589F4EB00C47578 /* Metal.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -138,7 +172,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2B2353712589F1C400C47578 /* main.cpp in Sources */,
+				2B2353862589F41B00C47578 /* externals.cpp in Sources */,
+				2B2353892589F47B00C47578 /* externals.mm in Sources */,
+				2B2353802589F3F200C47578 /* testmain.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -196,7 +232,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -249,7 +285,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
