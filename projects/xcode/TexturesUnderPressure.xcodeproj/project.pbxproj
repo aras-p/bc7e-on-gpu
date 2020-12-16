@@ -123,6 +123,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2B2353742589F1C400C47578 /* Build configuration list for PBXNativeTarget "TexturesUnderPressure" */;
 			buildPhases = (
+				2B2353932589F56900C47578 /* Compile ISPC sources */,
 				2B2353692589F1C400C47578 /* Sources */,
 				2B23536A2589F1C400C47578 /* Frameworks */,
 				2B23536B2589F1C400C47578 /* CopyFiles */,
@@ -166,6 +167,30 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		2B2353932589F56900C47578 /* Compile ISPC sources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../external/bc7e/bc7e.ispc",
+			);
+			name = "Compile ISPC sources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/../../external/bc7e/bc7e_ispc.h",
+				"$(OBJROOT)/bc7e.o",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd ${SRCROOT}/../..\nchmod 755 tools/ispc_osx\necho Compile ISPC: bc7e.ispc\ntools/ispc_osx -O0 external/bc7e/bc7e.ispc -o \"${OBJROOT}/bc7e.o\" -h external/bc7e/bc7e_ispc.h --arch=x86-64 --target=avx2 --opt=disable-fma --opt=disable-assertions \n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2B2353692589F1C400C47578 /* Sources */ = {
@@ -296,6 +321,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				OTHER_LDFLAGS = "\"$(OBJROOT)/bc7e.o\"";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -304,6 +330,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				OTHER_LDFLAGS = "\"$(OBJROOT)/bc7e.o\"";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
