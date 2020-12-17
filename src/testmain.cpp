@@ -506,7 +506,7 @@ static bool TestOnFile(TestFile& tf)
         SmolKernelSetBuffer(s_Bc7GlobBuffer, 1, SmolBufferBinding::Constant);
         SmolKernelSetBuffer(s_Bc7InputBuffer, 2, SmolBufferBinding::Input);
         SmolKernelSetBuffer(s_Bc7OutputBuffer, 3, SmolBufferBinding::Output);
-        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 4, 4, 1);
+        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 32, 1, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());
         float sec = stm_sec(stm_since(t0));
