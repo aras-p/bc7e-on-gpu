@@ -2275,7 +2275,7 @@ struct bc7_optimization_results
     uint32_t m_index_selector;
 };
 
-static void encode_bc7_block(thread void *pBlock, const varying bc7_optimization_results *uniform pResults)
+static uint4 encode_bc7_block(const varying bc7_optimization_results *uniform pResults)
 {
     const uint32_t best_mode = pResults->m_mode;
 
@@ -2393,9 +2393,7 @@ static void encode_bc7_block(thread void *pBlock, const varying bc7_optimization
         }
     }
 
-    uint8_t thread *pBlock_bytes = (thread uint8_t *)(pBlock);
-    for (int i = 0; i < BC7E_BLOCK_SIZE; ++i)
-        pBlock_bytes[i] = 0;
+    uint8_t pBlock_bytes[16] = {0};
 
     uint32_t cur_bit_ofs = 0;
         
@@ -2464,6 +2462,7 @@ static void encode_bc7_block(thread void *pBlock, const varying bc7_optimization
     }
 
     assert(cur_bit_ofs == 128);
+    return *(thread uint4*)pBlock_bytes;
 }
 
 static inline uint4 encode_bc7_block_mode6(varying bc7_optimization_results *uniform pResults)
@@ -2911,7 +2910,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
     pOpt_results5->m_partition = 0;
 }
 
-static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, int lo_a, int hi_a, const device OptimalEndpointTables* tables)
+static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, int lo_a, int hi_a, const device OptimalEndpointTables* tables)
 {
     pParams->m_perceptual = pComp_params->m_perceptual;
 
@@ -3248,10 +3247,10 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
         }
     }
 
-    encode_bc7_block(pBlock, &opt_results);
+    return encode_bc7_block(&opt_results);
 }
 
-static void handle_opaque_block(thread void *varying pBlock, const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
+static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
 {
     int selectors_temp[16];
         
@@ -3916,7 +3915,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
         } // rotation
     }
     
-    encode_bc7_block(pBlock, &opt_results);
+    return encode_bc7_block(&opt_results);
 }
 
 static uint4 handle_opaque_block_mode6(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
@@ -4005,14 +4004,14 @@ kernel void bc7e_compress_blocks(
     const bool has_alpha = (lo_a < 255);
     uint4 block;
     
-    //if (has_alpha) //@TODO: only opaque mode6 for now
-    //    handle_alpha_block(&pBlock, temp_pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
-    //else
+    if (has_alpha) //@TODO: only opaque mode6 for now
+        block = handle_alpha_block(temp_pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
+    else
     {
-        //if (glob.params.m_mode6_only)
+        //if (glob.params.m_mode6_only) //@TODO: only mode 6 for now
             block = handle_opaque_block_mode6(temp_pixels, &glob.params, &params, tables);
         //else
-        //    handle_opaque_block(&pBlock, temp_pixels, &glob.params, &params, tables);
+        //    block = handle_opaque_block(temp_pixels, &glob.params, &params, tables);
     }
     uint block_index = id.y * glob.widthInBlocks + id.x;
     bufOutput[block_index] = block;
