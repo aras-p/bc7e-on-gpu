@@ -14,10 +14,6 @@ using namespace metal;
 #define BC7E_MAX_PARTITIONS7 (64)
 #define BC7E_MAX_UBER_LEVEL (4)
 
-#ifndef UINT16_MAX
-#define UINT16_MAX (0xFFFF)
-#endif
-
 #ifndef UINT_MAX
 #define UINT_MAX (0xFFFFFFFFU)
 #endif
@@ -26,7 +22,7 @@ struct bc7e_compress_block_params // note: should match C++ code struct
 {
     uint32_t m_max_partitions_mode[8];
 
-    uint32_t m_weights[4];
+    uint4    m_weights;
 
     uint32_t m_uber_level;
     uint32_t m_refinement_passes;
@@ -69,28 +65,21 @@ struct bc7e_compress_block_params // note: should match C++ code struct
 };
 
 static inline int32_t clampi(int32_t value, int32_t low, int32_t high) { return clamp(value, low, high); }
-static inline uint32_t clampu(uint32_t value, uint32_t low, uint32_t high) { return clamp(value, low, high); }
-static inline float clampf(float value, float low, float high) { return clamp(value, low, high); }
 
-static inline uint8_t minimumub(uint8_t a, uint8_t b) { return min(a, b); }
 static inline int32_t minimumi(int32_t a, int32_t b) { return min(a, b); }
 static inline uint32_t minimumu(uint32_t a, uint32_t b) { return min(a, b); }
 static inline float minimumf(float a, float b) { return min(a, b); }
                 
-static inline uint8_t maximumub(uint8_t a, uint8_t b) { return max(a, b); }
-static inline int32_t maximumi(int32_t a, int32_t b) { return max(a, b); }
 static inline uint32_t maximumu(uint32_t a, uint32_t b) { return max(a, b); }
 static inline float maximumf(float a, float b) { return max(a, b); }
                 
 static inline int32_t iabs32(int32_t v) { uint32_t msk = v >> 31; return (v ^ msk) - msk; }
 
-static inline void swapub(varying uint8_t *uniform a, varying uint8_t *uniform b) { uint8_t t = *a; *a = *b; *b = t; }
 static inline void swapi(varying int32_t *uniform a, varying int32_t *uniform b) { int32_t t = *a; *a = *b; *b = t; }
 static inline void swapu(varying uint32_t *uniform a, varying uint32_t *uniform b) { uint32_t t = *a; *a = *b; *b = t; }
 static inline void swapf(varying float *uniform a, varying float *uniform b) { float t = *a; *a = *b; *b = t; }
 
 static inline float square(float s) { return s * s; }
-static inline int square(int s) { return s * s; }
 
 struct color_quad_u8
 {
@@ -106,26 +95,6 @@ struct color_quad_f
 {
     float m_c[4];
 };
-
-static inline color_quad_i component_min_rgb(const varying color_quad_i * uniform pA, const varying color_quad_i * uniform pB)
-{
-    color_quad_i res;
-    res.m_c[0] = minimumi(pA->m_c[0], pB->m_c[0]);
-    res.m_c[1] = minimumi(pA->m_c[1], pB->m_c[1]);
-    res.m_c[2] = minimumi(pA->m_c[2], pB->m_c[2]);
-    res.m_c[3] = 255;
-    return res;
-}
-
-static inline color_quad_i component_max_rgb(const varying color_quad_i * uniform pA, const varying color_quad_i * uniform pB)
-{
-    color_quad_i res;
-    res.m_c[0] = maximumi(pA->m_c[0], pB->m_c[0]);
-    res.m_c[1] = maximumi(pA->m_c[1], pB->m_c[1]);
-    res.m_c[2] = maximumi(pA->m_c[2], pB->m_c[2]);
-    res.m_c[3] = 255;
-    return res;
-}
 
 static inline varying color_quad_i *color_quad_i_set_clamped(varying color_quad_i * uniform pRes, varying int32_t r, varying int32_t g, varying int32_t b, varying int32_t a)
 {
@@ -302,7 +271,6 @@ static const constant int g_bc7_table_anchor_index_third_subset_2[64] =
 
 static const constant int g_bc7_num_subsets[8] = { 3, 2, 3, 2, 1, 1, 1, 2 };
 static const constant int g_bc7_partition_bits[8] = { 4, 6, 6, 6, 0, 0, 0, 6 };
-static const constant int g_bc7_rotation_bits[8] = { 0, 0, 0, 0, 2, 2, 0, 0 };
 static const constant int g_bc7_color_index_bitcount[8] = { 3, 3, 2, 2, 2, 2, 4, 2 };
 static int get_bc7_color_index_size(int mode, int index_selection_bit) { return g_bc7_color_index_bitcount[mode] + index_selection_bit; }
 static const constant int g_bc7_alpha_index_bitcount[8] = { 0, 0, 0, 0, 3, 2, 4, 2 };
@@ -310,9 +278,7 @@ static int get_bc7_alpha_index_size(int mode, int index_selection_bit) { return 
 static const constant int g_bc7_mode_has_p_bits[8] = { 1, 1, 0, 1, 0, 0, 1, 1 };
 static const constant int g_bc7_mode_has_shared_p_bits[8] = { 0, 1, 0, 0, 0, 0, 0, 0 };
 static const constant int g_bc7_color_precision_table[8] = { 4, 6, 5, 7, 5, 7, 7, 5 };
-static const constant int g_bc7_color_precision_plus_pbit_table[8] = { 5, 7, 5, 8, 5, 7, 8, 6 };
 static const constant int g_bc7_alpha_precision_table[8] = { 0, 0, 0, 0, 6, 8, 7, 5 };
-static const constant int g_bc7_alpha_precision_plus_pbit_table[8] = { 0, 0, 0, 0, 6, 8, 8, 6 };
 static bool get_bc7_mode_has_seperate_alpha_selectors(int mode) { return (mode == 4) || (mode == 5); }
 
 struct endpoint_err // note: should match C++ code struct
@@ -477,7 +443,7 @@ struct color_cell_compressor_params
     const constant uint32_t* m_pSelector_weights;
     const constant vec4F* m_pSelector_weightsx;
     uniform uint32_t m_comp_bits;
-    uniform uint32_t m_weights[4];
+    uint4 m_weights;
     uniform bool m_has_alpha;
     uniform bool m_has_pbits;
     uniform bool m_endpoints_share_pbit;
@@ -491,10 +457,7 @@ static inline void color_cell_compressor_params_clear(thread color_cell_compress
     p->m_pSelector_weightsx = nullptr;
     p->m_comp_bits = 0;
     p->m_perceptual = false;
-    p->m_weights[0] = 1;
-    p->m_weights[1] = 1;
-    p->m_weights[2] = 1;
-    p->m_weights[3] = 1;
+    p->m_weights = 1;
     p->m_has_alpha = false;
     p->m_has_pbits = false;
     p->m_endpoints_share_pbit = false;
@@ -531,7 +494,7 @@ static inline color_quad_i scale_color(const varying color_quad_i *uniform pC, c
 static const constant float pr_weight = (.5f / (1.0f - .2126f)) * (.5f / (1.0f - .2126f));
 static const constant float pb_weight = (.5f / (1.0f - .0722f)) * (.5f / (1.0f - .0722f));
 
-static inline uint32_t compute_color_distance_rgb(const varying color_quad_i * uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, const uint32_t uniform weights[4])
+static inline uint32_t compute_color_distance_rgb(const varying color_quad_i * uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, uint4 weights)
 {
     if (perceptual)
     {
@@ -559,7 +522,7 @@ static inline uint32_t compute_color_distance_rgb(const varying color_quad_i * u
     }
 }
 
-static inline uint32_t compute_color_distance_rgba(const varying color_quad_i *uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, const uint32_t uniform weights[4])
+static inline uint32_t compute_color_distance_rgba(const varying color_quad_i *uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, uint4 weights)
 {
     float da = (float)pE1->m_c[3] - (float)pE2->m_c[3];
     float a_err = weights[3] * (da * da);
@@ -1439,8 +1402,6 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
             const uniform int iscalep = (1 << (pParams->m_comp_bits + 1)) - 1;
             const uniform float scalep = (float)iscalep;
 
-            const uniform int32_t totalComps = pParams->m_has_alpha ? 4 : 3;
-
             if (!pParams->m_endpoints_share_pbit)
             {
                 color_quad_i lo[2], hi[2];
@@ -2285,21 +2246,6 @@ static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
     return total_err;
 }
 
-static void copy_weights(thread color_cell_compressor_params& params, const constant bc7e_compress_block_params* pComp_params)
-{
-    params.m_weights[0] = pComp_params->m_weights[0];
-    params.m_weights[1] = pComp_params->m_weights[1];
-    params.m_weights[2] = pComp_params->m_weights[2];
-    params.m_weights[3] = pComp_params->m_weights[3];
-}
-static void copy_weights(thread color_cell_compressor_params& params, const thread color_cell_compressor_params *uniform pComp_params)
-{
-    params.m_weights[0] = pComp_params->m_weights[0];
-    params.m_weights[1] = pComp_params->m_weights[1];
-    params.m_weights[2] = pComp_params->m_weights[2];
-    params.m_weights[3] = pComp_params->m_weights[3];
-}
-
 static uint32_t estimate_partition(uniform uint32_t mode, const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params)
 {
     const uniform uint32_t total_subsets = g_bc7_num_subsets[mode];
@@ -2317,15 +2263,9 @@ static uint32_t estimate_partition(uniform uint32_t mode, const varying color_qu
     params.m_pSelector_weights = (g_bc7_color_index_bitcount[mode] == 2) ? g_bc7_weights2 : g_bc7_weights3;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
-    copy_weights(params, pComp_params);
-    
-    if (mode >= 6)
-    {
-        params.m_weights[0] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[0];
-        params.m_weights[1] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[1];
-        params.m_weights[2] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[2];
-        params.m_weights[3] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[3];
-    }
+    params.m_weights = pComp_params->m_weights;
+
+    // Note: m_mode67_error_weight_mul was always 1, removed
 
     params.m_perceptual = pComp_params->m_perceptual;
 
@@ -2423,15 +2363,9 @@ static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const var
     params.m_pSelector_weights = (g_bc7_color_index_bitcount[mode] == 2) ? g_bc7_weights2 : g_bc7_weights3;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
-    copy_weights(params, pComp_params);
+    params.m_weights = pComp_params->m_weights;
 
-    if (mode >= 6)
-    {
-        params.m_weights[0] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[0];
-        params.m_weights[1] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[1];
-        params.m_weights[2] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[2];
-        params.m_weights[3] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[3];
-    }
+    // Note: m_mode67_error_weight_mul was always 1, removed
 
     params.m_perceptual = pComp_params->m_perceptual;
 
@@ -2752,7 +2686,7 @@ static void encode_bc7_block(thread void *pBlock, const varying bc7_optimization
     assert(cur_bit_ofs == 128);
 }
 
-static inline void encode_bc7_block_mode6(thread void *pBlock, varying bc7_optimization_results *uniform pResults)
+static inline uint4 encode_bc7_block_mode6(varying bc7_optimization_results *uniform pResults)
 {
     color_quad_i low, high;
     uint32_t pbits[2];
@@ -2820,7 +2754,7 @@ static inline void encode_bc7_block_mode6(thread void *pBlock, varying bc7_optim
     r.w |= ((invert_selectors ^ pResults->m_selectors[14]) << 24);
     r.w |= ((invert_selectors ^ pResults->m_selectors[15]) << 28);
 
-    *((thread uint4*)(pBlock)) = r;
+    return r;
 }
 
 static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, uint32_t lo_a, uint32_t hi_a,
@@ -3216,9 +3150,10 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
             if ((pComp_params->m_mode4_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
-            copy_weights(params4, pParams);
-            if (rotation)
-                swapu(&params4.m_weights[rotation - 1], &params4.m_weights[3]);
+            params4.m_weights = pParams->m_weights;
+            if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
+            if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
+            if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
                             
             color_quad_i rot_pixels[16];
             const varying color_quad_i *uniform pTrial_pixels = pPixels;
@@ -3273,10 +3208,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
     {
         uniform color_cell_compressor_params params6 = *pParams;
 
-        params6.m_weights[0] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[0];
-        params6.m_weights[1] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[1];
-        params6.m_weights[2] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[2];
-        params6.m_weights[3] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[3];
+        // Note: m_mode67_error_weight_mul was always 1, removed
 
         color_cell_compressor_results results6;
         
@@ -3329,9 +3261,10 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
             if ((pComp_params->m_mode5_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
-            copy_weights(params5, pParams);
-            if (rotation)
-                swapu(&params5.m_weights[rotation - 1], &params5.m_weights[3]);
+            params5.m_weights = pParams->m_weights;
+            if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
+            if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
+            if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
 
             color_quad_i rot_pixels[16];
             const varying color_quad_i *uniform pTrial_pixels = pPixels;
@@ -3378,10 +3311,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
 
         uniform color_cell_compressor_params params7 = *pParams;
         
-        params7.m_weights[0] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[0];
-        params7.m_weights[1] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[1];
-        params7.m_weights[2] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[2];
-        params7.m_weights[3] *= pComp_params->m_alpha_settings.m_mode67_error_weight_mul[3];
+        // Note: m_mode67_error_weight_mul was always 1, removed
         
         params7.m_pSelector_weights = g_bc7_weights2;
         params7.m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
@@ -3998,9 +3928,10 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
             if ((pComp_params->m_mode5_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
-            copy_weights(params5, pParams);
-            if (rotation)
-                swapu(&params5.m_weights[rotation - 1], &params5.m_weights[3]);
+            params5.m_weights = pParams->m_weights;
+            if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
+            if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
+            if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
 
             color_quad_i rot_pixels[16];
             const varying color_quad_i *uniform pTrial_pixels = pPixels;
@@ -4144,9 +4075,10 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
             if ((pComp_params->m_mode4_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
-            copy_weights(params4, pParams);
-            if (rotation)
-                swapu(&params4.m_weights[rotation - 1], &params4.m_weights[3]);
+            params4.m_weights = pParams->m_weights;
+            if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
+            if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
+            if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
                             
             color_quad_i rot_pixels[16];
             const varying color_quad_i *uniform pTrial_pixels = pPixels;
@@ -4199,7 +4131,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
     encode_bc7_block(pBlock, &opt_results);
 }
 
-static void handle_opaque_block_mode6(thread void *varying pBlock, const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
+static uint4 handle_opaque_block_mode6(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
 {
     int selectors_temp[16];
         
@@ -4235,7 +4167,7 @@ static void handle_opaque_block_mode6(thread void *varying pBlock, const varying
     opt_results.m_pbits[0][0] = results6.m_pbits[0];
     opt_results.m_pbits[0][1] = results6.m_pbits[1];
         
-    encode_bc7_block_mode6(pBlock, &opt_results);
+    return encode_bc7_block_mode6(&opt_results);
 }
 
 struct Globals // note: should match C++ code struct
@@ -4258,10 +4190,7 @@ kernel void bc7e_compress_blocks(
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params);
     
-    params.m_weights[0] = glob.params.m_weights[0];
-    params.m_weights[1] = glob.params.m_weights[1];
-    params.m_weights[2] = glob.params.m_weights[2];
-    params.m_weights[3] = glob.params.m_weights[3];
+    params.m_weights = glob.params.m_weights;
     
     // load 4x4 block of pixels
     color_quad_i temp_pixels[16];
@@ -4289,17 +4218,17 @@ kernel void bc7e_compress_blocks(
     }
     
     const bool has_alpha = (lo_a < 255);
-    uint pBlock[4];
+    uint4 block;
     
     //if (has_alpha) //@TODO: only opaque mode6 for now
     //    handle_alpha_block(&pBlock, temp_pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
     //else
     {
         //if (glob.params.m_mode6_only)
-            handle_opaque_block_mode6(&pBlock, temp_pixels, &glob.params, &params, tables);
+            block = handle_opaque_block_mode6(temp_pixels, &glob.params, &params, tables);
         //else
         //    handle_opaque_block(&pBlock, temp_pixels, &glob.params, &params, tables);
     }
     uint block_index = id.y * glob.widthInBlocks + id.x;
-    bufOutput[block_index] = uint4(pBlock[0], pBlock[1], pBlock[2], pBlock[3]);
+    bufOutput[block_index] = block;
 }
