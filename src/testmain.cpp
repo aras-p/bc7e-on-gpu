@@ -19,12 +19,15 @@
 static const char* kTestFileNames[] =
 {
     "textures/2dSignsCrop.png",
-    //"textures/16x16.png",
-    "textures/Gradients.png",
+    "textures/16x16.png",
     "textures/AoCrop-gray.png",
+    "textures/DecalRust.png",
+    "textures/EllenBodyCrop_MADS.png",
     "textures/frymire_1024.png",
-    "textures/normal-b-crop-nm.png",
+    "textures/Gradients.png",
+    "textures/Gradients2.png",
     "textures/GrassWindCrop.png",
+    "textures/normal-b-crop-nm.png",
     "textures/RgbColCrop.png",
     "textures/train-nm.png",
 };
