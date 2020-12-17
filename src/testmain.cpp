@@ -458,8 +458,9 @@ static bool TestOnFile(const char* fileName)
         size_t kernelSourceSize = 0;
         void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
         printf("  compile Metal compression shader...\n");
+        uint64_t tComp0 = stm_now();
         SmolKernel* kernel = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks");
-        printf("  compiled\n");
+        printf("  compiled in %.1fs\n", stm_sec(stm_since(tComp0)));
 
         SmolBuffer* bufTables = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Constant);
         SmolBuffer* bufGlob = SmolBufferCreate(sizeof(glob), SmolBufferType::Constant);

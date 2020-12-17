@@ -1903,6 +1903,7 @@ static uint64_t color_cell_compression(uniform uint32_t mode, const thread color
             return 0;
     }
 
+    /* //@TODO: disable uber part for now
     if (pComp_params->m_uber_level > 0)
     {
         int selectors_temp[16], selectors_temp1[16];
@@ -2038,6 +2039,7 @@ static uint64_t color_cell_compression(uniform uint32_t mode, const thread color
             }
         }
     }
+     */
 
     if ((mode <= 2) || (mode == 4) || (mode >= 6))
     {
