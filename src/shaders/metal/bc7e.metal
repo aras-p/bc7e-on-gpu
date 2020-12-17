@@ -2471,10 +2471,14 @@ static inline uint4 encode_bc7_block_mode6(varying bc7_optimization_results *uni
     uint32_t pbits[2];
         
     uint32_t invert_selectors = 0;
+    uint32_t invert_maskz = 0;
+    uint32_t invert_maskw = 0;
     if (pResults->m_selectors[0] & 8)
     {
         invert_selectors = 15;
-                            
+        invert_maskz = 0xFFFFFFF0;
+        invert_maskw = 0xFFFFFFFF;
+
         low = pResults->m_high[0];
         high = pResults->m_low[0];
 
@@ -2513,25 +2517,27 @@ static inline uint4 encode_bc7_block_mode6(varying bc7_optimization_results *uni
     
     r.z |= ((invert_selectors ^ pResults->m_selectors[0]) << 1);
 
-    // TODO: Just invert all these bits in one single operation, not as individual
-    r.z |= ((invert_selectors ^ pResults->m_selectors[1]) << 4);
-    r.z |= ((invert_selectors ^ pResults->m_selectors[2]) << 8);
-    r.z |= ((invert_selectors ^ pResults->m_selectors[3]) << 12);
-    r.z |= ((invert_selectors ^ pResults->m_selectors[4]) << 16);
+    r.z |= pResults->m_selectors[1] << 4;
+    r.z |= pResults->m_selectors[2] << 8;
+    r.z |= pResults->m_selectors[3] << 12;
+    r.z |= pResults->m_selectors[4] << 16;
     
-    r.z |= ((invert_selectors ^ pResults->m_selectors[5]) << 20);
-    r.z |= ((invert_selectors ^ pResults->m_selectors[6]) << 24);
-    r.z |= ((invert_selectors ^ pResults->m_selectors[7]) << 28);
-    r.w |= ((invert_selectors ^ pResults->m_selectors[8]) << 0);
+    r.z |= pResults->m_selectors[5] << 20;
+    r.z |= pResults->m_selectors[6] << 24;
+    r.z |= pResults->m_selectors[7] << 28;
+    r.w |= pResults->m_selectors[8] << 0;
 
-    r.w |= ((invert_selectors ^ pResults->m_selectors[9]) << 4);
-    r.w |= ((invert_selectors ^ pResults->m_selectors[10]) << 8);
-    r.w |= ((invert_selectors ^ pResults->m_selectors[11]) << 12);
-    r.w |= ((invert_selectors ^ pResults->m_selectors[12]) << 16);
+    r.w |= pResults->m_selectors[9] << 4;
+    r.w |= pResults->m_selectors[10] << 8;
+    r.w |= pResults->m_selectors[11] << 12;
+    r.w |= pResults->m_selectors[12] << 16;
 
-    r.w |= ((invert_selectors ^ pResults->m_selectors[13]) << 20);
-    r.w |= ((invert_selectors ^ pResults->m_selectors[14]) << 24);
-    r.w |= ((invert_selectors ^ pResults->m_selectors[15]) << 28);
+    r.w |= pResults->m_selectors[13] << 20;
+    r.w |= pResults->m_selectors[14] << 24;
+    r.w |= pResults->m_selectors[15] << 28;
+    
+    r.z ^= invert_maskz;
+    r.w ^= invert_maskw;
 
     return r;
 }
