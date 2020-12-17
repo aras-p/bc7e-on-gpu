@@ -22,14 +22,6 @@ using namespace metal;
 #define UINT_MAX (0xFFFFFFFFU)
 #endif
 
-#ifndef UINT64_MAX
-#define UINT64_MAX (0xFFFFFFFFFFFFFFFFULL)
-#endif
-
-#ifndef INT64_MAX
-#define INT64_MAX (0x7FFFFFFFFFFFFFFFULL)
-#endif
-
 struct bc7e_compress_block_params // note: should match C++ code struct
 {
     uint32_t m_max_partitions_mode[8];
@@ -510,7 +502,7 @@ static inline void color_cell_compressor_params_clear(thread color_cell_compress
 
 struct color_cell_compressor_results
 {
-    uint64_t m_best_overall_err;
+    uint32_t m_best_overall_err;
     color_quad_i m_low_endpoint;
     color_quad_i m_high_endpoint;
     uint32_t m_pbits[2];
@@ -539,7 +531,7 @@ static inline color_quad_i scale_color(const varying color_quad_i *uniform pC, c
 static const constant float pr_weight = (.5f / (1.0f - .2126f)) * (.5f / (1.0f - .2126f));
 static const constant float pb_weight = (.5f / (1.0f - .0722f)) * (.5f / (1.0f - .0722f));
 
-static inline uint64_t compute_color_distance_rgb(const varying color_quad_i * uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, const uint32_t uniform weights[4])
+static inline uint32_t compute_color_distance_rgb(const varying color_quad_i * uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, const uint32_t uniform weights[4])
 {
     if (perceptual)
     {
@@ -555,7 +547,7 @@ static inline uint64_t compute_color_distance_rgb(const varying color_quad_i * u
         float dcr = cr1 - cr2;
         float dcb = cb1 - cb2;
 
-        return (int64_t)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb));
+        return (int32_t)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb));
     }
     else
     {
@@ -563,11 +555,11 @@ static inline uint64_t compute_color_distance_rgb(const varying color_quad_i * u
         float dg = (float)pE1->m_c[1] - (float)pE2->m_c[1];
         float db = (float)pE1->m_c[2] - (float)pE2->m_c[2];
         
-        return (int64_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db);
+        return (int32_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db);
     }
 }
 
-static inline uint64_t compute_color_distance_rgba(const varying color_quad_i *uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, const uint32_t uniform weights[4])
+static inline uint32_t compute_color_distance_rgba(const varying color_quad_i *uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, const uint32_t uniform weights[4])
 {
     float da = (float)pE1->m_c[3] - (float)pE2->m_c[3];
     float a_err = weights[3] * (da * da);
@@ -586,7 +578,7 @@ static inline uint64_t compute_color_distance_rgba(const varying color_quad_i *u
         float dcr = cr1 - cr2;
         float dcb = cb1 - cb2;
 
-        return (int64_t)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb) + a_err);
+        return (int32_t)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb) + a_err);
     }
     else
     {
@@ -594,11 +586,11 @@ static inline uint64_t compute_color_distance_rgba(const varying color_quad_i *u
         float dg = (float)pE1->m_c[1] - (float)pE2->m_c[1];
         float db = (float)pE1->m_c[2] - (float)pE2->m_c[2];
         
-        return (int64_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db + a_err);
+        return (int32_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db + a_err);
     }
 }
 
-static uint64_t pack_mode1_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
+static uint32_t pack_mode1_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
     varying int *uniform pSelectors, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
 {
     uint32_t best_err = UINT_MAX;
@@ -641,7 +633,7 @@ static uint64_t pack_mode1_to_one_color(const thread color_cell_compressor_param
 
     p.m_c[3] = 255;
 
-    uint64_t total_err = 0;
+    uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
         total_err += compute_color_distance_rgb(&p, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
 
@@ -650,7 +642,7 @@ static uint64_t pack_mode1_to_one_color(const thread color_cell_compressor_param
     return total_err;
 }
 
-static uint64_t pack_mode24_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
+static uint32_t pack_mode24_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
     varying int *uniform pSelectors, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
 {
     uint32_t er, eg, eb;
@@ -692,7 +684,7 @@ static uint64_t pack_mode24_to_one_color(const thread color_cell_compressor_para
     
     p.m_c[3] = 255;
 
-    uint64_t total_err = 0;
+    uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
         total_err += compute_color_distance_rgb(&p, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
 
@@ -701,7 +693,7 @@ static uint64_t pack_mode24_to_one_color(const thread color_cell_compressor_para
     return total_err;
 }
 
-static uint64_t pack_mode0_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
+static uint32_t pack_mode0_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
     varying int *uniform pSelectors, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
 {
     uint32_t best_err = UINT_MAX;
@@ -746,7 +738,7 @@ static uint64_t pack_mode0_to_one_color(const thread color_cell_compressor_param
     
     p.m_c[3] = 255;
 
-    uint64_t total_err = 0;
+    uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
         total_err += compute_color_distance_rgb(&p, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
 
@@ -755,7 +747,7 @@ static uint64_t pack_mode0_to_one_color(const thread color_cell_compressor_param
     return total_err;
 }
 
-static uint64_t pack_mode6_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b, uint32_t a,
+static uint32_t pack_mode6_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b, uint32_t a,
     varying int *uniform pSelectors, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
 {
     uint32_t best_err = UINT_MAX;
@@ -801,7 +793,7 @@ static uint64_t pack_mode6_to_one_color(const thread color_cell_compressor_param
         p.m_c[i] = (low * (64 - g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX]) + high * g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6;
     }
 
-    uint64_t total_err = 0;
+    uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
         total_err += compute_color_distance_rgba(&p, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
 
@@ -810,7 +802,7 @@ static uint64_t pack_mode6_to_one_color(const thread color_cell_compressor_param
     return total_err;
 }
 
-static uint64_t pack_mode7_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b, uint32_t a,
+static uint32_t pack_mode7_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b, uint32_t a,
     varying int *uniform pSelectors, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
 {
     uint32_t best_err = UINT_MAX;
@@ -856,7 +848,7 @@ static uint64_t pack_mode7_to_one_color(const thread color_cell_compressor_param
         p.m_c[i] = (low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6;
     }
 
-    uint64_t total_err = 0;
+    uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
         total_err += compute_color_distance_rgba(&p, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
 
@@ -865,7 +857,7 @@ static uint64_t pack_mode7_to_one_color(const thread color_cell_compressor_param
     return total_err;
 }
 
-static uint64_t evaluate_solution(const varying color_quad_i *uniform pLow, const varying color_quad_i *uniform pHigh, const varying uint32_t *uniform pbits,
+static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, const varying color_quad_i *uniform pHigh, const varying uint32_t *uniform pbits,
     const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t num_pixels, const varying color_quad_i *uniform pPixels)
 {
     color_quad_i quantMinColor = *pLow;
@@ -1361,7 +1353,7 @@ static uint64_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
         }
     }
 
-    uint64_t total_err = total_errf;
+    uint32_t total_err = total_errf;
 
     if (total_err < pResults->m_best_overall_err)
     {
@@ -1430,7 +1422,7 @@ static void fixDegenerateEndpoints(uniform uint32_t mode, varying color_quad_i *
     }
 }
 
-static uint64_t find_optimal_solution(uniform uint32_t mode, varying vec4F *uniform pXl, varying vec4F *uniform pXh, const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults,
+static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *uniform pXl, varying vec4F *uniform pXh, const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults,
     uniform bool pbit_search, uint32_t num_pixels, const varying color_quad_i *uniform pPixels)
 {
     vec4F xl = *pXl;
@@ -1652,7 +1644,7 @@ static uint64_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
 
             fixDegenerateEndpoints(mode, &bestMinColor, &bestMaxColor, &xl, &xh, iscalep >> 1);
 
-            if ((pResults->m_best_overall_err == UINT64_MAX) || color_quad_i_notequals(&bestMinColor, &pResults->m_low_endpoint) || color_quad_i_notequals(&bestMaxColor, &pResults->m_high_endpoint) || (best_pbits[0] != pResults->m_pbits[0]) || (best_pbits[1] != pResults->m_pbits[1]))
+            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(&bestMinColor, &pResults->m_low_endpoint) || color_quad_i_notequals(&bestMaxColor, &pResults->m_high_endpoint) || (best_pbits[0] != pResults->m_pbits[0]) || (best_pbits[1] != pResults->m_pbits[1]))
             {
                 evaluate_solution(&bestMinColor, &bestMaxColor, best_pbits, pParams, pResults, num_pixels, pPixels);
             }
@@ -1669,7 +1661,7 @@ static uint64_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
 
         fixDegenerateEndpoints(mode, &trialMinColor, &trialMaxColor, &xl, &xh, iscale);
 
-        if ((pResults->m_best_overall_err == UINT64_MAX) || color_quad_i_notequals(&trialMinColor, &pResults->m_low_endpoint) || color_quad_i_notequals(&trialMaxColor, &pResults->m_high_endpoint))
+        if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(&trialMinColor, &pResults->m_low_endpoint) || color_quad_i_notequals(&trialMaxColor, &pResults->m_high_endpoint))
         {
             uint32_t pbits[2];
             pbits[0] = 0;
@@ -1683,10 +1675,10 @@ static uint64_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
 }
 
 // Note: In mode 6, m_has_alpha will only be true for transparent blocks.
-static uint64_t color_cell_compression(uniform uint32_t mode, const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults,
+static uint32_t color_cell_compression(uniform uint32_t mode, const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults,
     const constant bc7e_compress_block_params* pComp_params, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, uniform bool refinement, const device OptimalEndpointTables* tables)
 {
-    pResults->m_best_overall_err = UINT64_MAX;
+    pResults->m_best_overall_err = UINT_MAX;
 
     if ((mode != 6) && (mode != 7))
     {
@@ -2054,7 +2046,7 @@ static uint64_t color_cell_compression(uniform uint32_t mode, const thread color
         const uint32_t b = (int)(.5f + meanColor.m_c[2] * 255.0f);
         const uint32_t a = (int)(.5f + meanColor.m_c[3] * 255.0f);
 
-        uint64_t avg_err;
+        uint32_t avg_err;
         if (mode == 0)
             avg_err = pack_mode0_to_one_color(pParams, &avg_results, r, g, b, pResults->m_pSelectors_temp, num_pixels, pPixels, tables);
         else if (mode == 1)
@@ -2082,7 +2074,7 @@ static uint64_t color_cell_compression(uniform uint32_t mode, const thread color
     return pResults->m_best_overall_err;
 }
 
-static uint64_t color_cell_compression_est(uniform uint32_t mode, const thread color_cell_compressor_params *uniform pParams, uint64_t best_err_so_far, uniform uint32_t num_pixels, const varying color_quad_i *uniform pPixels)
+static uint32_t color_cell_compression_est(uniform uint32_t mode, const thread color_cell_compressor_params *uniform pParams, uint32_t best_err_so_far, uniform uint32_t num_pixels, const varying color_quad_i *uniform pPixels)
 {
     assert((pParams->m_num_selector_weights == 4) || (pParams->m_num_selector_weights == 8));
 
@@ -2107,7 +2099,7 @@ static uint64_t color_cell_compression_est(uniform uint32_t mode, const thread c
             
     const uniform uint32_t N = 1 << g_bc7_color_index_bitcount[mode];
                         
-    uint64_t total_err = 0;
+    uint32_t total_err = 0;
     
     float sr = lr;
     float sg = lg;
@@ -2177,12 +2169,12 @@ static uint64_t color_cell_compression_est(uniform uint32_t mode, const thread c
         }
     }
 
-    total_err = (int64_t)total_errf;
+    total_err = (int32_t)total_errf;
 
     return total_err;
 }
 
-static uint64_t color_cell_compression_est_mode7(uniform uint32_t mode, const thread color_cell_compressor_params *uniform pParams, uint64_t best_err_so_far, uniform uint32_t num_pixels, const varying color_quad_i *uniform pPixels)
+static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const thread color_cell_compressor_params *uniform pParams, uint32_t best_err_so_far, uniform uint32_t num_pixels, const varying color_quad_i *uniform pPixels)
 {
     assert((mode == 7) && (pParams->m_num_selector_weights == 4));
 
@@ -2210,7 +2202,7 @@ static uint64_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
             
     const uniform uint32_t N = 4;
                         
-    uint64_t total_err = 0;
+    uint32_t total_err = 0;
     
     float sr = lr;
     float sg = lg;
@@ -2288,7 +2280,7 @@ static uint64_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
         }
     }
 
-    total_err = (int64_t)total_errf;
+    total_err = (int32_t)total_errf;
 
     return total_err;
 }
@@ -2316,7 +2308,7 @@ static uint32_t estimate_partition(uniform uint32_t mode, const varying color_qu
     if (total_partitions <= 1)
         return 0;
 
-    uint64_t best_err = UINT64_MAX;
+    uint32_t best_err = UINT_MAX;
     uint32_t best_partition = 0;
 
     uniform color_cell_compressor_params params;
@@ -2355,11 +2347,11 @@ static uint32_t estimate_partition(uniform uint32_t mode, const varying color_qu
             subset_total_colors[p]++;
         }
 
-        uint64_t total_subset_err = 0;
+        uint32_t total_subset_err = 0;
 
         for (uniform uint32_t subset = 0; subset < total_subsets; subset++)
         {
-            uint64_t err;
+            uint32_t err;
             if (mode == 7)
                 err = color_cell_compression_est_mode7(mode, &params, best_err, subset_total_colors[subset], &subset_colors[subset][0]);
             else
@@ -2391,7 +2383,7 @@ static uint32_t estimate_partition(uniform uint32_t mode, const varying color_qu
 struct solution
 {
     uint32_t m_index;
-    uint64_t m_err;
+    uint32_t m_err;
 };
 
 static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params,
@@ -2463,15 +2455,15 @@ static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const var
             subset_total_colors[p]++;
         }
                 
-        uint64_t total_subset_err = 0;
+        uint32_t total_subset_err = 0;
 
         for (uniform uint32_t subset = 0; subset < total_subsets; subset++)
         {
-            uint64_t err;
+            uint32_t err;
             if (mode == 7)
-                err = color_cell_compression_est_mode7(mode, &params, UINT64_MAX, subset_total_colors[subset], &subset_colors[subset][0]);
+                err = color_cell_compression_est_mode7(mode, &params, UINT_MAX, subset_total_colors[subset], &subset_colors[subset][0]);
             else
-                err = color_cell_compression_est(mode, &params, UINT64_MAX, subset_total_colors[subset], &subset_colors[subset][0]);
+                err = color_cell_compression_est(mode, &params, UINT_MAX, subset_total_colors[subset], &subset_colors[subset][0]);
 
             total_subset_err += err;
 
@@ -2785,54 +2777,54 @@ static inline void encode_bc7_block_mode6(thread void *pBlock, varying bc7_optim
         pbits[1] = pResults->m_pbits[0][1];
     }
 
-    uint64_t l = 0, h = 0;
+    uint4 r = 0;
 
-    l = 1 << 6;
+    r.x = 1 << 6;
 
-    l |= (low.m_c[0] << 7);
-    l |= (high.m_c[0] << 14);
+    r.x |= (low.m_c[0] << 7);
+    r.x |= (high.m_c[0] << 14);
 
-    l |= (low.m_c[1] << 21);
-    l |= ((uint64_t)high.m_c[1] << 28);
+    r.x |= (low.m_c[1] << 21);
+    r.x |= (high.m_c[1] << 28); // 4 bits
+    r.y |= (high.m_c[1] >> 4); // 3 bits
 
-    l |= ((uint64_t)low.m_c[2] << 35);
-    l |= ((uint64_t)high.m_c[2] << 42);
+    r.y |= (low.m_c[2] << 3);
+    r.y |= (high.m_c[2] << 10);
 
-    l |= ((uint64_t)low.m_c[3] << 49);
-    l |= ((uint64_t)high.m_c[3] << 56);
+    r.y |= (low.m_c[3] << 17);
+    r.y |= (high.m_c[3] << 24);
 
-    l |= ((uint64_t)pbits[0] << 63);
+    r.y |= (pbits[0] << 31);
         
-    h = pbits[1];
-        
-    h |= ((invert_selectors ^ pResults->m_selectors[0]) << 1);
+    r.z = pbits[1];
+    
+    r.z |= ((invert_selectors ^ pResults->m_selectors[0]) << 1);
 
     // TODO: Just invert all these bits in one single operation, not as individual
-    h |= ((invert_selectors ^ pResults->m_selectors[1]) << 4);
-    h |= ((invert_selectors ^ pResults->m_selectors[2]) << 8);
-    h |= ((invert_selectors ^ pResults->m_selectors[3]) << 12);
-    h |= ((invert_selectors ^ pResults->m_selectors[4]) << 16);
+    r.z |= ((invert_selectors ^ pResults->m_selectors[1]) << 4);
+    r.z |= ((invert_selectors ^ pResults->m_selectors[2]) << 8);
+    r.z |= ((invert_selectors ^ pResults->m_selectors[3]) << 12);
+    r.z |= ((invert_selectors ^ pResults->m_selectors[4]) << 16);
     
-    h |= ((invert_selectors ^ pResults->m_selectors[5]) << 20);
-    h |= ((invert_selectors ^ pResults->m_selectors[6]) << 24);
-    h |= ((invert_selectors ^ pResults->m_selectors[7]) << 28);
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[8]) << 32);
+    r.z |= ((invert_selectors ^ pResults->m_selectors[5]) << 20);
+    r.z |= ((invert_selectors ^ pResults->m_selectors[6]) << 24);
+    r.z |= ((invert_selectors ^ pResults->m_selectors[7]) << 28);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[8]) << 0);
 
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[9]) << 36);
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[10]) << 40);
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[11]) << 44);
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[12]) << 48);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[9]) << 4);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[10]) << 8);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[11]) << 12);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[12]) << 16);
 
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[13]) << 52);
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[14]) << 56);
-    h |= ((uint64_t)(invert_selectors ^ pResults->m_selectors[15]) << 60);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[13]) << 20);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[14]) << 24);
+    r.w |= ((invert_selectors ^ pResults->m_selectors[15]) << 28);
 
-    ((thread uint64_t *)(pBlock))[0] = l;
-    ((thread uint64_t *)(pBlock))[1] = h;
+    *((thread uint4*)(pBlock)) = r;
 }
 
 static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, uint32_t lo_a, uint32_t hi_a,
-    varying bc7_optimization_results *uniform pOpt_results4, varying uint64_t *uniform pMode4_err, const device OptimalEndpointTables* tables)
+    varying bc7_optimization_results *uniform pOpt_results4, varying uint32_t *uniform pMode4_err, const device OptimalEndpointTables* tables)
 {
     pParams->m_has_alpha = false;
     pParams->m_comp_bits = 5;
@@ -2866,7 +2858,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
         int selectors_temp[16];
         results.m_pSelectors_temp = selectors_temp;
                 
-        uint64_t trial_err = color_cell_compression(4, pParams, &results, pComp_params, 16, pPixels, true, tables);
+        uint32_t trial_err = color_cell_compression(4, pParams, &results, pComp_params, 16, pPixels, true, tables);
         assert(trial_err == results.m_best_overall_err);
 
         uint32_t la = minimumi((lo_a + 2) >> 2, 63);
@@ -2883,7 +2875,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
             }
         }
 
-        uint64_t best_alpha_err = UINT64_MAX;
+        uint32_t best_alpha_err = UINT_MAX;
         uint32_t best_la = 0, best_ha = 0;
         int best_alpha_selectors[16];
                         
@@ -2909,7 +2901,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
                 vals[2] = (vals[0] * (64 - w_s2) + vals[3] * w_s2 + 32) >> 6;
             }
 
-            uint64_t trial_alpha_err = 0;
+            uint32_t trial_alpha_err = 0;
 
             int trial_alpha_selectors[16];
             for (uniform uint32_t i = 0; i < 16; i++)
@@ -2987,7 +2979,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
                         vals[2] = (vals[0] * (64 - w_s2) + vals[3] * w_s2 + 32) >> 6;
                     }
 
-                    uint64_t trial_alpha_err = 0;
+                    uint32_t trial_alpha_err = 0;
 
                     int trial_alpha_selectors[16];
                     for (uniform uint32_t i = 0; i < 16; i++)
@@ -3055,7 +3047,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
 }
 
 static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, uint32_t lo_a, uint32_t hi_a,
-    varying bc7_optimization_results *uniform pOpt_results5, varying uint64_t *uniform pMode5_err, const device OptimalEndpointTables* tables)
+    varying bc7_optimization_results *uniform pOpt_results5, varying uint32_t *uniform pMode5_err, const device OptimalEndpointTables* tables)
 {
     pParams->m_pSelector_weights = g_bc7_weights2;
     pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
@@ -3089,7 +3081,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
     }
     else
     {
-        uint64_t mode5_alpha_err = UINT64_MAX;
+        uint32_t mode5_alpha_err = UINT_MAX;
 
         for (uniform uint32_t pass = 0; pass < 2; pass++)
         {
@@ -3103,7 +3095,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
 
             int trial_alpha_selectors[16];
 
-            uint64_t trial_alpha_err = 0;
+            uint32_t trial_alpha_err = 0;
             for (uniform uint32_t i = 0; i < 16; i++)
             {
                 const int32_t a = pPixels[i].m_c[3];
@@ -3166,7 +3158,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
 
                     int trial_alpha_selectors[16];
 
-                    uint64_t trial_alpha_err = 0;
+                    uint32_t trial_alpha_err = 0;
                     for (uniform uint32_t i = 0; i < 16; i++)
                     {
                         const int32_t a = pPixels[i].m_c[3];
@@ -3211,7 +3203,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
 
     bc7_optimization_results opt_results;
     
-    uint64_t best_err = UINT64_MAX;
+    uint32_t best_err = UINT_MAX;
         
     // Mode 4
     if (pComp_params->m_alpha_settings.m_use_mode4)
@@ -3251,7 +3243,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
 
             bc7_optimization_results trial_opt_results4;
 
-            uint64_t trial_mode4_err = best_err;
+            uint32_t trial_mode4_err = best_err;
 
             handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_opt_results4, &trial_mode4_err, tables);
 
@@ -3303,7 +3295,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
         int selectors_temp[16];
         results6.m_pSelectors_temp = selectors_temp;
                 
-        uint64_t mode6_err = color_cell_compression(6, &params6, &results6, pComp_params, 16, pPixels, true, tables);
+        uint32_t mode6_err = color_cell_compression(6, &params6, &results6, pComp_params, 16, pPixels, true, tables);
         assert(mode6_err == results6.m_best_overall_err);
         
         if (mode6_err < best_err)
@@ -3364,7 +3356,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
 
             bc7_optimization_results trial_opt_results5;
 
-            uint64_t trial_mode5_err = 0;
+            uint32_t trial_mode5_err = 0;
 
             handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_opt_results5, &trial_mode5_err, tables);
 
@@ -3432,7 +3424,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
                 subset_total_colors7[p]++;
             }
 
-            uint64_t trial_err = 0;
+            uint32_t trial_err = 0;
             for (uniform uint32_t subset = 0; subset < 2; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results7[subset];
@@ -3440,7 +3432,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
                 pResults->m_pSelectors = &subset_selectors7[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(7, &params7, pResults, pComp_params, subset_total_colors7[subset], &subset_colors[subset][0], (num_solutions <= 2) || disable_faster_part_selection, tables);
+                uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, subset_total_colors7[subset], &subset_colors[subset][0], (num_solutions <= 2) || disable_faster_part_selection, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 trial_err += err;
@@ -3503,7 +3495,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
                 subset_total_colors7[p]++;
             }
 
-            uint64_t trial_err = 0;
+            uint32_t trial_err = 0;
             for (uniform uint32_t subset = 0; subset < 2; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results7[subset];
@@ -3511,7 +3503,7 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
                 pResults->m_pSelectors = &subset_selectors7[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(7, &params7, pResults, pComp_params, subset_total_colors7[subset], &subset_colors[subset][0], true, tables);
+                uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, subset_total_colors7[subset], &subset_colors[subset][0], true, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 trial_err += err;
@@ -3551,7 +3543,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
         
     bc7_optimization_results opt_results;
         
-    uint64_t best_err = UINT64_MAX;
+    uint32_t best_err = UINT_MAX;
 
     // Mode 6
     if (pComp_params->m_opaque_settings.m_use_mode[6])
@@ -3641,7 +3633,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 subset_total_colors1[p]++;
             }
                                 
-            uint64_t trial_err = 0;
+            uint32_t trial_err = 0;
             for (uniform uint32_t subset = 0; subset < 2; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results1[subset];
@@ -3649,7 +3641,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 pResults->m_pSelectors = &subset_selectors1[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(1, pParams, pResults, pComp_params, subset_total_colors1[subset], &subset_colors[subset][0], (num_solutions2 <= 2) || disable_faster_part_selection, tables);
+                uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, subset_total_colors1[subset], &subset_colors[subset][0], (num_solutions2 <= 2) || disable_faster_part_selection, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 trial_err += err;
@@ -3711,7 +3703,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 subset_total_colors1[p]++;
             }
                                 
-            uint64_t trial_err = 0;
+            uint32_t trial_err = 0;
             for (uniform uint32_t subset = 0; subset < 2; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results1[subset];
@@ -3719,7 +3711,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 pResults->m_pSelectors = &subset_selectors1[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(1, pParams, pResults, pComp_params, subset_total_colors1[subset], &subset_colors[subset][0], true, tables);
+                uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, subset_total_colors1[subset], &subset_colors[subset][0], true, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 trial_err += err;
@@ -3801,7 +3793,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
             color_cell_compressor_results subset_results0[3];
             int subset_selectors0[3][16];
 
-            uint64_t mode0_err = 0;
+            uint32_t mode0_err = 0;
             for (uniform uint32_t subset = 0; subset < 3; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results0[subset];
@@ -3809,7 +3801,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 pResults->m_pSelectors = &subset_selectors0[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(0, pParams, pResults, pComp_params, subset_total_colors0[subset], &subset_colors[subset][0], true, tables);
+                uint32_t err = color_cell_compression(0, pParams, pResults, pComp_params, subset_total_colors0[subset], &subset_colors[subset][0], true, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 mode0_err += err;
@@ -3885,7 +3877,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 subset_total_colors3[p]++;
             }
 
-            uint64_t trial_err = 0;
+            uint32_t trial_err = 0;
             for (uniform uint32_t subset = 0; subset < 2; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results3[subset];
@@ -3893,7 +3885,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 pResults->m_pSelectors = &subset_selectors3[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(3, pParams, pResults, pComp_params, subset_total_colors3[subset], &subset_colors[subset][0], (num_solutions2 <= 2) || disable_faster_part_selection, tables);
+                uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, subset_total_colors3[subset], &subset_colors[subset][0], (num_solutions2 <= 2) || disable_faster_part_selection, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 trial_err += err;
@@ -3957,7 +3949,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 subset_total_colors3[p]++;
             }
 
-            uint64_t trial_err = 0;
+            uint32_t trial_err = 0;
             for (uniform uint32_t subset = 0; subset < 2; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results3[subset];
@@ -3965,7 +3957,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 pResults->m_pSelectors = &subset_selectors3[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(3, pParams, pResults, pComp_params, subset_total_colors3[subset], &subset_colors[subset][0], true, tables);
+                uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, subset_total_colors3[subset], &subset_colors[subset][0], true, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 trial_err += err;
@@ -4033,7 +4025,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
 
             bc7_optimization_results trial_opt_results5;
 
-            uint64_t trial_mode5_err = 0;
+            uint32_t trial_mode5_err = 0;
 
             handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_opt_results5, &trial_mode5_err, tables);
 
@@ -4101,7 +4093,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
             int subset_selectors2[3][16];
             color_cell_compressor_results subset_results2[3];
                         
-            uint64_t mode2_err = 0;
+            uint32_t mode2_err = 0;
             for (uniform uint32_t subset = 0; subset < 3; subset++)
             {
                 varying color_cell_compressor_results *uniform pResults = &subset_results2[subset];
@@ -4109,7 +4101,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 pResults->m_pSelectors = &subset_selectors2[subset][0];
                 pResults->m_pSelectors_temp = selectors_temp;
 
-                uint64_t err = color_cell_compression(2, pParams, pResults, pComp_params, subset_total_colors2[subset], &subset_colors[subset][0], true, tables);
+                uint32_t err = color_cell_compression(2, pParams, pResults, pComp_params, subset_total_colors2[subset], &subset_colors[subset][0], true, tables);
                 assert(err == pResults->m_best_overall_err);
 
                 mode2_err += err;
@@ -4179,7 +4171,7 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
 
             bc7_optimization_results trial_opt_results4;
 
-            uint64_t trial_mode4_err = best_err;
+            uint32_t trial_mode4_err = best_err;
 
             handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_opt_results4, &trial_mode4_err, tables);
 
@@ -4213,7 +4205,7 @@ static void handle_opaque_block_mode6(thread void *varying pBlock, const varying
         
     bc7_optimization_results opt_results;
         
-    uint64_t best_err = UINT64_MAX;
+    uint32_t best_err = UINT_MAX;
 
     // Mode 6
     pParams->m_pSelector_weights = g_bc7_weights4;
