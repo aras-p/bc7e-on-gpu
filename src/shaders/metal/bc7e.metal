@@ -75,145 +75,35 @@ static inline float maximumf(float a, float b) { return max(a, b); }
                 
 static inline int32_t iabs32(int32_t v) { uint32_t msk = v >> 31; return (v ^ msk) - msk; }
 
-static inline void swapi(varying int32_t *uniform a, varying int32_t *uniform b) { int32_t t = *a; *a = *b; *b = t; }
 static inline void swapu(varying uint32_t *uniform a, varying uint32_t *uniform b) { uint32_t t = *a; *a = *b; *b = t; }
 static inline void swapf(varying float *uniform a, varying float *uniform b) { float t = *a; *a = *b; *b = t; }
 
 static inline float square(float s) { return s * s; }
 
-struct color_quad_u8
-{
-    uint8_t m_c[4];
-};
+typedef int4 color_quad_i;
+typedef float4 color_quad_f;
 
-struct color_quad_i
+static inline bool color_quad_i_equals(color_quad_i a, color_quad_i b)
 {
-    int32_t m_c[4];
-};
-
-struct color_quad_f
-{
-    float m_c[4];
-};
-
-static inline varying color_quad_i *color_quad_i_set_clamped(varying color_quad_i * uniform pRes, varying int32_t r, varying int32_t g, varying int32_t b, varying int32_t a)
-{
-    pRes->m_c[0] = clampi(r, 0, 255);
-    pRes->m_c[1] = clampi(g, 0, 255);
-    pRes->m_c[2] = clampi(b, 0, 255);
-    pRes->m_c[3] = clampi(a, 0, 255);
-    return pRes;
+    return all(a == b);
 }
 
-static inline varying color_quad_i *color_quad_i_set(varying color_quad_i * uniform pRes, varying int32_t r, varying int32_t g, varying int32_t b, varying int32_t a)
+static inline bool color_quad_i_notequals(color_quad_i a, color_quad_i b)
 {
-    pRes->m_c[0] = r;
-    pRes->m_c[1] = g;
-    pRes->m_c[2] = b;
-    pRes->m_c[3] = a;
-    return pRes;
+    return !color_quad_i_equals(a, b);
 }
 
-static inline bool color_quad_i_equals(const varying color_quad_i * uniform pLHS, const varying color_quad_i * uniform pRHS)
-{
-    return (pLHS->m_c[0] == pRHS->m_c[0]) && (pLHS->m_c[1] == pRHS->m_c[1]) && (pLHS->m_c[2] == pRHS->m_c[2]) && (pLHS->m_c[3] == pRHS->m_c[3]);
-}
+typedef float4 vec4F;
 
-static inline bool color_quad_i_notequals(const varying color_quad_i * uniform pLHS, const varying color_quad_i * uniform pRHS)
+static inline vec4F vec4F_normalize(vec4F v)
 {
-    return !color_quad_i_equals(pLHS, pRHS);
-}
-
-struct vec4F
-{
-    float m_c[4];
-};
-
-static inline varying vec4F * uniform vec4F_set_scalar(varying vec4F * uniform pV, float x)
-{
-    pV->m_c[0] = x;
-    pV->m_c[1] = x;
-    pV->m_c[2] = x;
-    pV->m_c[3] = x;
-    return pV;
-}
-
-static inline varying vec4F * uniform vec4F_set(varying vec4F * uniform pV, float x, float y, float z, float w)
-{
-    pV->m_c[0] = x;
-    pV->m_c[1] = y;
-    pV->m_c[2] = z;
-    pV->m_c[3] = w;
-    return pV;
-}
-
-static inline varying vec4F * uniform vec4F_saturate_in_place(varying vec4F * uniform pV)
-{
-    pV->m_c[0] = saturate(pV->m_c[0]);
-    pV->m_c[1] = saturate(pV->m_c[1]);
-    pV->m_c[2] = saturate(pV->m_c[2]);
-    pV->m_c[3] = saturate(pV->m_c[3]);
-    return pV;
-}
-
-static inline vec4F vec4F_saturate(const varying vec4F * uniform pV)
-{
-    vec4F res;
-    res.m_c[0] = saturate(pV->m_c[0]);
-    res.m_c[1] = saturate(pV->m_c[1]);
-    res.m_c[2] = saturate(pV->m_c[2]);
-    res.m_c[3] = saturate(pV->m_c[3]);
-    return res;
-}
-
-static inline vec4F vec4F_from_color(const varying color_quad_i * uniform pC)
-{
-    vec4F res;
-    vec4F_set(&res, pC->m_c[0], pC->m_c[1], pC->m_c[2], pC->m_c[3]);
-    return res;
-}
-
-static inline vec4F vec4F_add(const varying vec4F * uniform pLHS, const varying vec4F * uniform pRHS)
-{
-    vec4F res;
-    vec4F_set(&res, pLHS->m_c[0] + pRHS->m_c[0], pLHS->m_c[1] + pRHS->m_c[1], pLHS->m_c[2] + pRHS->m_c[2], pLHS->m_c[3] + pRHS->m_c[3]);
-    return res;
-}
-
-static inline vec4F vec4F_sub(const varying vec4F * uniform pLHS, const varying vec4F *uniform pRHS)
-{
-    vec4F res;
-    vec4F_set(&res, pLHS->m_c[0] - pRHS->m_c[0], pLHS->m_c[1] - pRHS->m_c[1], pLHS->m_c[2] - pRHS->m_c[2], pLHS->m_c[3] - pRHS->m_c[3]);
-    return res;
-}
-
-static inline float vec4F_dot(const varying vec4F * uniform pLHS, const varying vec4F * uniform pRHS)
-{
-    return pLHS->m_c[0] * pRHS->m_c[0] + pLHS->m_c[1] * pRHS->m_c[1] + pLHS->m_c[2] * pRHS->m_c[2] + pLHS->m_c[3] * pRHS->m_c[3];
-}
-
-static inline vec4F vec4F_mul(const varying vec4F * uniform pLHS, float s)
-{
-    vec4F res;
-    vec4F_set(&res, pLHS->m_c[0] * s, pLHS->m_c[1] * s, pLHS->m_c[2] * s, pLHS->m_c[3] * s);
-    return res;
-}
-
-static inline varying vec4F *vec4F_normalize_in_place(varying vec4F * uniform pV)
-{
-    float s = pV->m_c[0] * pV->m_c[0] + pV->m_c[1] * pV->m_c[1] + pV->m_c[2] * pV->m_c[2] + pV->m_c[3] * pV->m_c[3];
-                
-    if (s != 0.0f)
+    float lensq = dot(v, v);
+    if (lensq != 0.0f)
     {
-        s = 1.0f / sqrt(s);
-
-        pV->m_c[0] *= s;
-        pV->m_c[1] *= s;
-        pV->m_c[2] *= s;
-        pV->m_c[3] *= s;
+        float invlen = 1.0f / sqrt(lensq);
+        return v * invlen;
     }
-
-    return pV;
+    return v;
 }
 
 static const constant uint32_t g_bc7_weights2[4] = { 0, 21, 43, 64 };
@@ -316,30 +206,20 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* p
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
     float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    float q00_r = 0.0f, q10_r = 0.0f, t_r = 0.0f;
-    float q00_g = 0.0f, q10_g = 0.0f, t_g = 0.0f;
-    float q00_b = 0.0f, q10_b = 0.0f, t_b = 0.0f;
-    float q00_a = 0.0f, q10_a = 0.0f, t_a = 0.0f;
+    float4 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
     for (uniform uint32_t i = 0; i < N; i++)
     {
         const uint32_t sel = pSelectors[i];
 
-        z00 += pSelector_weights[sel].m_c[0];
-        z10 += pSelector_weights[sel].m_c[1];
-        z11 += pSelector_weights[sel].m_c[2];
+        z00 += pSelector_weights[sel].r;
+        z10 += pSelector_weights[sel].g;
+        z11 += pSelector_weights[sel].b;
 
-        float w = pSelector_weights[sel].m_c[3];
-
-        q00_r += w * (int)pColors[i].m_c[0]; t_r += (int)pColors[i].m_c[0];
-        q00_g += w * (int)pColors[i].m_c[1]; t_g += (int)pColors[i].m_c[1];
-        q00_b += w * (int)pColors[i].m_c[2]; t_b += (int)pColors[i].m_c[2];
-        q00_a += w * (int)pColors[i].m_c[3]; t_a += (int)pColors[i].m_c[3];
+        float w = pSelector_weights[sel].a;
+        q00 += w * float4(pColors[i]); t += float4(pColors[i]);
     }
 
-    q10_r = t_r - q00_r;
-    q10_g = t_g - q00_g;
-    q10_b = t_b - q00_b;
-    q10_a = t_a - q00_a;
+    q10 = t - q00;
 
     z01 = z10;
 
@@ -353,10 +233,7 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* p
     iz10 = -z10 * det;
     iz11 = z00 * det;
 
-    pXl->m_c[0] = (float)(iz00 * q00_r + iz01 * q10_r); pXh->m_c[0] = (float)(iz10 * q00_r + iz11 * q10_r);
-    pXl->m_c[1] = (float)(iz00 * q00_g + iz01 * q10_g); pXh->m_c[1] = (float)(iz10 * q00_g + iz11 * q10_g);
-    pXl->m_c[2] = (float)(iz00 * q00_b + iz01 * q10_b); pXh->m_c[2] = (float)(iz10 * q00_b + iz11 * q10_b);
-    pXl->m_c[3] = (float)(iz00 * q00_a + iz01 * q10_a); pXh->m_c[3] = (float)(iz10 * q00_a + iz11 * q10_a);
+    *pXl = iz00 * q00 + iz01 * q10; *pXh = iz10 * q00 + iz11 * q10;
 }
 
 static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pSelectors, const constant vec4F* pSelector_weights, varying vec4F *uniform pXl, varying vec4F *uniform pXh, const varying color_quad_i *uniform pColors)
@@ -364,26 +241,20 @@ static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pS
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
     float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    float q00_r = 0.0f, q10_r = 0.0f, t_r = 0.0f;
-    float q00_g = 0.0f, q10_g = 0.0f, t_g = 0.0f;
-    float q00_b = 0.0f, q10_b = 0.0f, t_b = 0.0f;
+    float3 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
     for (uniform uint32_t i = 0; i < N; i++)
     {
         const uint32_t sel = pSelectors[i];
 
-        z00 += pSelector_weights[sel].m_c[0];
-        z10 += pSelector_weights[sel].m_c[1];
-        z11 += pSelector_weights[sel].m_c[2];
-        float w = pSelector_weights[sel].m_c[3];
+        z00 += pSelector_weights[sel].r;
+        z10 += pSelector_weights[sel].g;
+        z11 += pSelector_weights[sel].b;
+        float w = pSelector_weights[sel].a;
 
-        q00_r += w * (int)pColors[i].m_c[0]; t_r += (int)pColors[i].m_c[0];
-        q00_g += w * (int)pColors[i].m_c[1]; t_g += (int)pColors[i].m_c[1];
-        q00_b += w * (int)pColors[i].m_c[2]; t_b += (int)pColors[i].m_c[2];
+        q00 += w * float3(pColors[i].rgb); t += float3(pColors[i].rgb);
     }
 
-    q10_r = t_r - q00_r;
-    q10_g = t_g - q00_g;
-    q10_b = t_b - q00_b;
+    q10 = t - q00;
 
     z01 = z10;
 
@@ -397,9 +268,7 @@ static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pS
     iz10 = -z10 * det;
     iz11 = z00 * det;
 
-    pXl->m_c[0] = (float)(iz00 * q00_r + iz01 * q10_r); pXh->m_c[0] = (float)(iz10 * q00_r + iz11 * q10_r);
-    pXl->m_c[1] = (float)(iz00 * q00_g + iz01 * q10_g); pXh->m_c[1] = (float)(iz10 * q00_g + iz11 * q10_g);
-    pXl->m_c[2] = (float)(iz00 * q00_b + iz01 * q10_b); pXh->m_c[2] = (float)(iz10 * q00_b + iz11 * q10_b);
+    pXl->rgb = iz00 * q00 + iz01 * q10; pXh->rgb = iz10 * q00 + iz11 * q10;
 }
 
 static void compute_least_squares_endpoints_a(uint32_t N, const varying int *uniform pSelectors, const constant vec4F* pSelector_weights, varying float *uniform pXl, varying float *uniform pXh, const varying color_quad_i *uniform pColors)
@@ -412,12 +281,12 @@ static void compute_least_squares_endpoints_a(uint32_t N, const varying int *uni
     {
         const uint32_t sel = pSelectors[i];
 
-        z00 += pSelector_weights[sel].m_c[0];
-        z10 += pSelector_weights[sel].m_c[1];
-        z11 += pSelector_weights[sel].m_c[2];
-        float w = pSelector_weights[sel].m_c[3];
+        z00 += pSelector_weights[sel].r;
+        z10 += pSelector_weights[sel].g;
+        z11 += pSelector_weights[sel].b;
+        float w = pSelector_weights[sel].a;
 
-        q00_a += w * (int)pColors[i].m_c[3]; t_a += (int)pColors[i].m_c[3];
+        q00_a += w * pColors[i].a; t_a += pColors[i].a;
     }
 
     q10_a = t_a - q00_a;
@@ -479,15 +348,9 @@ static inline color_quad_i scale_color(const varying color_quad_i *uniform pC, c
 
     const uint32_t n = pParams->m_comp_bits + (pParams->m_has_pbits ? 1 : 0);
     assert((n >= 4) && (n <= 8));
-
-    for (uniform uint32_t i = 0; i < 4; i++)
-    {
-        uint32_t v = pC->m_c[i] << (8 - n);
-        v |= (v >> n);
-        assert(v <= 255);
-        results.m_c[i] = v;
-    }
-
+    uint4 v = uint4(*pC) << (8 - n);
+    v |= v >> n;
+    results = int4(v);
     return results;
 }
 
@@ -498,13 +361,13 @@ static inline uint32_t compute_color_distance_rgb(const varying color_quad_i * u
 {
     if (perceptual)
     {
-        const float l1 = pE1->m_c[0] * .2126f + pE1->m_c[1] * .7152f + pE1->m_c[2] * .0722f;
-        const float cr1 = pE1->m_c[0] - l1;
-        const float cb1 = pE1->m_c[2] - l1;
+        const float l1 = pE1->r * .2126f + pE1->g * .7152f + pE1->b * .0722f;
+        const float cr1 = pE1->r - l1;
+        const float cb1 = pE1->b - l1;
 
-        const float l2 = pE2->m_c[0] * .2126f + pE2->m_c[1] * .7152f + pE2->m_c[2] * .0722f;
-        const float cr2 = pE2->m_c[0] - l2;
-        const float cb2 = pE2->m_c[2] - l2;
+        const float l2 = pE2->r * .2126f + pE2->g * .7152f + pE2->b * .0722f;
+        const float cr2 = pE2->r - l2;
+        const float cb2 = pE2->b - l2;
 
         float dl = l1 - l2;
         float dcr = cr1 - cr2;
@@ -514,9 +377,9 @@ static inline uint32_t compute_color_distance_rgb(const varying color_quad_i * u
     }
     else
     {
-        float dr = (float)pE1->m_c[0] - (float)pE2->m_c[0];
-        float dg = (float)pE1->m_c[1] - (float)pE2->m_c[1];
-        float db = (float)pE1->m_c[2] - (float)pE2->m_c[2];
+        float dr = (float)pE1->r - (float)pE2->r;
+        float dg = (float)pE1->g - (float)pE2->g;
+        float db = (float)pE1->b - (float)pE2->b;
         
         return (int32_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db);
     }
@@ -524,18 +387,18 @@ static inline uint32_t compute_color_distance_rgb(const varying color_quad_i * u
 
 static inline uint32_t compute_color_distance_rgba(const varying color_quad_i *uniform pE1, const varying color_quad_i *uniform pE2, uniform bool perceptual, uint4 weights)
 {
-    float da = (float)pE1->m_c[3] - (float)pE2->m_c[3];
+    float da = (float)pE1->a - (float)pE2->a;
     float a_err = weights[3] * (da * da);
 
     if (perceptual)
     {
-        const float l1 = pE1->m_c[0] * .2126f + pE1->m_c[1] * .7152f + pE1->m_c[2] * .0722f;
-        const float cr1 = pE1->m_c[0] - l1;
-        const float cb1 = pE1->m_c[2] - l1;
+        const float l1 = pE1->r * .2126f + pE1->g * .7152f + pE1->b * .0722f;
+        const float cr1 = pE1->r - l1;
+        const float cb1 = pE1->b - l1;
 
-        const float l2 = pE2->m_c[0] * .2126f + pE2->m_c[1] * .7152f + pE2->m_c[2] * .0722f;
-        const float cr2 = pE2->m_c[0] - l2;
-        const float cb2 = pE2->m_c[2] - l2;
+        const float l2 = pE2->r * .2126f + pE2->g * .7152f + pE2->b * .0722f;
+        const float cr2 = pE2->r - l2;
+        const float cb2 = pE2->b - l2;
 
         float dl = l1 - l2;
         float dcr = cr1 - cr2;
@@ -545,9 +408,9 @@ static inline uint32_t compute_color_distance_rgba(const varying color_quad_i *u
     }
     else
     {
-        float dr = (float)pE1->m_c[0] - (float)pE2->m_c[0];
-        float dg = (float)pE1->m_c[1] - (float)pE2->m_c[1];
-        float db = (float)pE1->m_c[2] - (float)pE2->m_c[2];
+        float dr = (float)pE1->r - (float)pE2->r;
+        float dg = (float)pE1->g - (float)pE2->g;
+        float db = (float)pE1->b - (float)pE2->b;
         
         return (int32_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db + a_err);
     }
@@ -573,8 +436,8 @@ static uint32_t pack_mode1_to_one_color(const thread color_cell_compressor_param
     const device endpoint_err *pEg = &tables->mode_1[g][best_p];
     const device endpoint_err *pEb = &tables->mode_1[b][best_p];
 
-    color_quad_i_set(&pResults->m_low_endpoint, pEr->m_lo, pEg->m_lo, pEb->m_lo, 0);
-    color_quad_i_set(&pResults->m_high_endpoint, pEr->m_hi, pEg->m_hi, pEb->m_hi, 0);
+    pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, 0);
+    pResults->m_high_endpoint = int4(pEr->m_hi, pEg->m_hi, pEb->m_hi, 0);
     pResults->m_pbits[0] = best_p;
     pResults->m_pbits[1] = 0;
 
@@ -582,19 +445,16 @@ static uint32_t pack_mode1_to_one_color(const thread color_cell_compressor_param
         pSelectors[i] = BC7E_MODE_1_OPTIMAL_INDEX;
 
     color_quad_i p;
-    
-    for (uniform uint32_t i = 0; i < 3; i++)
     {
-        uint32_t low = ((pResults->m_low_endpoint.m_c[i] << 1) | pResults->m_pbits[0]) << 1;
+        uint3 low = uint3(((pResults->m_low_endpoint.rgb << 1) | pResults->m_pbits[0]) << 1);
         low |= (low >> 7);
 
-        uint32_t high = ((pResults->m_high_endpoint.m_c[i] << 1) | pResults->m_pbits[0]) << 1;
+        uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | pResults->m_pbits[0]) << 1);
         high |= (high >> 7);
 
-        p.m_c[i] = (low * (64 - g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX] + 32) >> 6;
+        p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX] + 32) >> 6);
     }
-
-    p.m_c[3] = 255;
+    p.a = 255;
 
     uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
@@ -623,29 +483,26 @@ static uint32_t pack_mode24_to_one_color(const thread color_cell_compressor_para
         eb = tables->mode_4_2[b];
     }
     
-    color_quad_i_set(&pResults->m_low_endpoint, er & 0xFF, eg & 0xFF, eb & 0xFF, 0);
-    color_quad_i_set(&pResults->m_high_endpoint, er >> 8, eg >> 8, eb >> 8, 0);
+    pResults->m_low_endpoint = int4(er & 0xFF, eg & 0xFF, eb & 0xFF, 0);
+    pResults->m_high_endpoint = int4(er >> 8, eg >> 8, eb >> 8, 0);
 
     for (uniform uint32_t i = 0; i < num_pixels; i++)
         pSelectors[i] = (pParams->m_num_selector_weights == 8) ? BC7E_MODE_4_OPTIMAL_INDEX3 : BC7E_MODE_4_OPTIMAL_INDEX2;
 
     color_quad_i p;
-    
-    for (uniform uint32_t i = 0; i < 3; i++)
     {
-        uint32_t low = pResults->m_low_endpoint.m_c[i] << 3;
+        uint3 low = uint3(pResults->m_low_endpoint.rgb << 3);
         low |= (low >> 5);
 
-        uint32_t high = pResults->m_high_endpoint.m_c[i] << 3;
+        uint3 high = uint3(pResults->m_high_endpoint.rgb << 3);
         high |= (high >> 5);
 
         if (pParams->m_num_selector_weights == 8)
-            p.m_c[i] = (low * (64 - g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3]) + high * g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3] + 32) >> 6;
+            p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3]) + high * g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3] + 32) >> 6);
         else
-            p.m_c[i] = (low * (64 - g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2]) + high * g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2] + 32) >> 6;
+            p.rgb = int3((low * (64 - g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2]) + high * g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2] + 32) >> 6);
     }
-    
-    p.m_c[3] = 255;
+    p.a = 255;
 
     uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
@@ -676,9 +533,9 @@ static uint32_t pack_mode0_to_one_color(const thread color_cell_compressor_param
     const device endpoint_err *pEg = &tables->mode_0[g][best_p >> 1][best_p & 1];
     const device endpoint_err *pEb = &tables->mode_0[b][best_p >> 1][best_p & 1];
 
-    color_quad_i_set(&pResults->m_low_endpoint, pEr->m_lo, pEg->m_lo, pEb->m_lo, 0);
+    pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, 0);
 
-    color_quad_i_set(&pResults->m_high_endpoint, pEr->m_hi, pEg->m_hi, pEb->m_hi, 0);
+    pResults->m_high_endpoint = int4(pEr->m_hi, pEg->m_hi, pEb->m_hi, 0);
 
     pResults->m_pbits[0] = best_p & 1;
     pResults->m_pbits[1] = best_p >> 1;
@@ -687,19 +544,16 @@ static uint32_t pack_mode0_to_one_color(const thread color_cell_compressor_param
         pSelectors[i] = BC7E_MODE_0_OPTIMAL_INDEX;
 
     color_quad_i p;
-    
-    for (uniform uint32_t i = 0; i < 3; i++)
     {
-        uint32_t low = ((pResults->m_low_endpoint.m_c[i] << 1) | pResults->m_pbits[0]) << 3;
+        uint3 low = uint3(((pResults->m_low_endpoint.rgb << 1) | pResults->m_pbits[0]) << 3);
         low |= (low >> 5);
 
-        uint32_t high = ((pResults->m_high_endpoint.m_c[i] << 1) | pResults->m_pbits[1]) << 3;
+        uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | pResults->m_pbits[1]) << 3);
         high |= (high >> 5);
 
-        p.m_c[i] = (low * (64 - g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX] + 32) >> 6;
-    }
-    
-    p.m_c[3] = 255;
+        p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX] + 32) >> 6);
+    }    
+    p.a = 255;
 
     uint32_t total_err = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
@@ -736,9 +590,9 @@ static uint32_t pack_mode6_to_one_color(const thread color_cell_compressor_param
     const device endpoint_err *pEb = &tables->mode_6[b][best_hi_p][best_lo_p];
     const device endpoint_err *pEa = &tables->mode_6[a][best_hi_p][best_lo_p];
 
-    color_quad_i_set(&pResults->m_low_endpoint, pEr->m_lo, pEg->m_lo, pEb->m_lo, pEa->m_lo);
+    pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, pEa->m_lo);
 
-    color_quad_i_set(&pResults->m_high_endpoint, pEr->m_hi, pEg->m_hi, pEb->m_hi, pEa->m_hi);
+    pResults->m_high_endpoint = int4(pEr->m_hi, pEg->m_hi, pEb->m_hi, pEa->m_hi);
 
     pResults->m_pbits[0] = best_lo_p;
     pResults->m_pbits[1] = best_hi_p;
@@ -747,13 +601,11 @@ static uint32_t pack_mode6_to_one_color(const thread color_cell_compressor_param
         pSelectors[i] = BC7E_MODE_6_OPTIMAL_INDEX;
 
     color_quad_i p;
-    
-    for (uniform uint32_t i = 0; i < 4; i++)
     {
-        uint32_t low = (pResults->m_low_endpoint.m_c[i] << 1) | pResults->m_pbits[0];
-        uint32_t high = (pResults->m_high_endpoint.m_c[i] << 1) | pResults->m_pbits[1];
+        uint4 low = uint4((pResults->m_low_endpoint << 1) | pResults->m_pbits[0]);
+        uint4 high = uint4((pResults->m_high_endpoint << 1) | pResults->m_pbits[1]);
         
-        p.m_c[i] = (low * (64 - g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX]) + high * g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6;
+        p = int4((low * (64 - g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX]) + high * g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6);
     }
 
     uint32_t total_err = 0;
@@ -791,9 +643,9 @@ static uint32_t pack_mode7_to_one_color(const thread color_cell_compressor_param
     const device endpoint_err *pEb = &tables->mode_7[b][best_hi_p][best_lo_p];
     const device endpoint_err *pEa = &tables->mode_7[a][best_hi_p][best_lo_p];
 
-    color_quad_i_set(&pResults->m_low_endpoint, pEr->m_lo, pEg->m_lo, pEb->m_lo, pEa->m_lo);
+    pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, pEa->m_lo);
 
-    color_quad_i_set(&pResults->m_high_endpoint, pEr->m_hi, pEg->m_hi, pEb->m_hi, pEa->m_hi);
+    pResults->m_high_endpoint = int4(pEr->m_hi, pEg->m_hi, pEb->m_hi, pEa->m_hi);
 
     pResults->m_pbits[0] = best_lo_p;
     pResults->m_pbits[1] = best_hi_p;
@@ -802,13 +654,11 @@ static uint32_t pack_mode7_to_one_color(const thread color_cell_compressor_param
         pSelectors[i] = BC7E_MODE_7_OPTIMAL_INDEX;
 
     color_quad_i p;
-    
-    for (uniform uint32_t i = 0; i < 4; i++)
     {
-        uint32_t low = (pResults->m_low_endpoint.m_c[i] << 1) | pResults->m_pbits[0];
-        uint32_t high = (pResults->m_high_endpoint.m_c[i] << 1) | pResults->m_pbits[1];
+        uint4 low = uint4((pResults->m_low_endpoint << 1) | pResults->m_pbits[0]);
+        uint4 high = uint4((pResults->m_high_endpoint << 1) | pResults->m_pbits[1]);
         
-        p.m_c[i] = (low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6;
+        p = int4((low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6);
     }
 
     uint32_t total_err = 0;
@@ -838,15 +688,8 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
             maxPBit = pbits[1];
         }
 
-        quantMinColor.m_c[0] = (pLow->m_c[0] << 1) | minPBit;
-        quantMinColor.m_c[1] = (pLow->m_c[1] << 1) | minPBit;
-        quantMinColor.m_c[2] = (pLow->m_c[2] << 1) | minPBit;
-        quantMinColor.m_c[3] = (pLow->m_c[3] << 1) | minPBit;
-
-        quantMaxColor.m_c[0] = (pHigh->m_c[0] << 1) | maxPBit;
-        quantMaxColor.m_c[1] = (pHigh->m_c[1] << 1) | maxPBit;
-        quantMaxColor.m_c[2] = (pHigh->m_c[2] << 1) | maxPBit;
-        quantMaxColor.m_c[3] = (pHigh->m_c[3] << 1) | maxPBit;
+        quantMinColor = (*pLow << 1) | minPBit;
+        quantMaxColor = (*pHigh << 1) | maxPBit;
     }
 
     color_quad_i actualMinColor = scale_color(&quantMinColor, pParams);
@@ -863,19 +706,12 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
     float wa = pParams->m_weights[3];
 
     color_quad_f weightedColors[16];
-    weightedColors[0].m_c[0] = actualMinColor.m_c[0];
-    weightedColors[0].m_c[1] = actualMinColor.m_c[1];
-    weightedColors[0].m_c[2] = actualMinColor.m_c[2];
-    weightedColors[0].m_c[3] = actualMinColor.m_c[3];
-
-    weightedColors[N - 1].m_c[0] = actualMaxColor.m_c[0];
-    weightedColors[N - 1].m_c[1] = actualMaxColor.m_c[1];
-    weightedColors[N - 1].m_c[2] = actualMaxColor.m_c[2];
-    weightedColors[N - 1].m_c[3] = actualMaxColor.m_c[3];
+    weightedColors[0] = float4(actualMinColor);
+    weightedColors[N-1] = float4(actualMaxColor);
         
     for (uniform uint32_t i = 1; i < (N - 1); i++)
         for (uniform uint32_t j = 0; j < nc; j++)
-            weightedColors[i].m_c[j] = floor((weightedColors[0].m_c[j] * (64.0f - pParams->m_pSelector_weights[i]) + weightedColors[N - 1].m_c[j] * pParams->m_pSelector_weights[i] + 32) * (1.0f / 64.0f));
+            weightedColors[i][j] = floor((weightedColors[0][j] * (64.0f - pParams->m_pSelector_weights[i]) + weightedColors[N - 1][j] * pParams->m_pSelector_weights[i] + 32) * (1.0f / 64.0f));
 
     if (!pParams->m_perceptual)
     {
@@ -883,13 +719,13 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
         {
             if (N == 16)
             {
-                float lr = actualMinColor.m_c[0];
-                float lg = actualMinColor.m_c[1];
-                float lb = actualMinColor.m_c[2];
+                float lr = actualMinColor[0];
+                float lg = actualMinColor[1];
+                float lb = actualMinColor[2];
 
-                float dr = actualMaxColor.m_c[0] - lr;
-                float dg = actualMaxColor.m_c[1] - lg;
-                float db = actualMaxColor.m_c[2] - lb;
+                float dr = actualMaxColor[0] - lr;
+                float dg = actualMaxColor[1] - lg;
+                float db = actualMaxColor[2] - lb;
             
                 const float f = N / (dr * dr + dg * dg + db * db);
 
@@ -900,28 +736,28 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
                 for (uint32_t i = 0; i < num_pixels; i++)
                 {
                     const varying color_quad_i *uniform pC = &pPixels[i];
-                    float r = pC->m_c[0];
-                    float g = pC->m_c[1];
-                    float b = pC->m_c[2];
+                    float r = pC->r;
+                    float g = pC->g;
+                    float b = pC->b;
 
                     float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb)) * f + .5f);
                     best_sel = clamp(best_sel, (float)1, (float)(N - 1));
 
                     float best_sel0 = best_sel - 1;
 
-                    float dr0 = weightedColors[(int)best_sel0].m_c[0] - r;
+                    float dr0 = weightedColors[(int)best_sel0][0] - r;
 
-                    float dg0 = weightedColors[(int)best_sel0].m_c[1] - g;
+                    float dg0 = weightedColors[(int)best_sel0][1] - g;
 
-                    float db0 = weightedColors[(int)best_sel0].m_c[2] - b;
+                    float db0 = weightedColors[(int)best_sel0][2] - b;
 
                     float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
-                    float dr1 = weightedColors[(int)best_sel].m_c[0] - r;
+                    float dr1 = weightedColors[(int)best_sel][0] - r;
 
-                    float dg1 = weightedColors[(int)best_sel].m_c[1] - g;
+                    float dg1 = weightedColors[(int)best_sel][1] - g;
 
-                    float db1 = weightedColors[(int)best_sel].m_c[2] - b;
+                    float db1 = weightedColors[(int)best_sel][2] - b;
 
                     float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
@@ -934,32 +770,32 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
             {
                 for (uint32_t i = 0; i < num_pixels; i++)
                 {
-                    float pr = (float)pPixels[i].m_c[0];
-                    float pg = (float)pPixels[i].m_c[1];
-                    float pb = (float)pPixels[i].m_c[2];
+                    float pr = (float)pPixels[i][0];
+                    float pg = (float)pPixels[i][1];
+                    float pb = (float)pPixels[i][2];
                 
                     float best_err;
                     int best_sel;
 
                     {
-                        float dr0 = weightedColors[0].m_c[0] - pr;
-                        float dg0 = weightedColors[0].m_c[1] - pg;
-                        float db0 = weightedColors[0].m_c[2] - pb;
+                        float dr0 = weightedColors[0][0] - pr;
+                        float dg0 = weightedColors[0][1] - pg;
+                        float db0 = weightedColors[0][2] - pb;
                         float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
-                        float dr1 = weightedColors[1].m_c[0] - pr;
-                        float dg1 = weightedColors[1].m_c[1] - pg;
-                        float db1 = weightedColors[1].m_c[2] - pb;
+                        float dr1 = weightedColors[1][0] - pr;
+                        float dg1 = weightedColors[1][1] - pg;
+                        float db1 = weightedColors[1][2] - pb;
                         float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
-                        float dr2 = weightedColors[2].m_c[0] - pr;
-                        float dg2 = weightedColors[2].m_c[1] - pg;
-                        float db2 = weightedColors[2].m_c[2] - pb;
+                        float dr2 = weightedColors[2][0] - pr;
+                        float dg2 = weightedColors[2][1] - pg;
+                        float db2 = weightedColors[2][2] - pb;
                         float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
 
-                        float dr3 = weightedColors[3].m_c[0] - pr;
-                        float dg3 = weightedColors[3].m_c[1] - pg;
-                        float db3 = weightedColors[3].m_c[2] - pb;
+                        float dr3 = weightedColors[3][0] - pr;
+                        float dg3 = weightedColors[3][1] - pg;
+                        float db3 = weightedColors[3][2] - pb;
                         float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
 
                         best_err = min(min(min(err0, err1), err2), err3);
@@ -970,24 +806,24 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
                     }
 
                     {
-                        float dr0 = weightedColors[4].m_c[0] - pr;
-                        float dg0 = weightedColors[4].m_c[1] - pg;
-                        float db0 = weightedColors[4].m_c[2] - pb;
+                        float dr0 = weightedColors[4][0] - pr;
+                        float dg0 = weightedColors[4][1] - pg;
+                        float db0 = weightedColors[4][2] - pb;
                         float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
-                        float dr1 = weightedColors[5].m_c[0] - pr;
-                        float dg1 = weightedColors[5].m_c[1] - pg;
-                        float db1 = weightedColors[5].m_c[2] - pb;
+                        float dr1 = weightedColors[5][0] - pr;
+                        float dg1 = weightedColors[5][1] - pg;
+                        float db1 = weightedColors[5][2] - pb;
                         float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
-                        float dr2 = weightedColors[6].m_c[0] - pr;
-                        float dg2 = weightedColors[6].m_c[1] - pg;
-                        float db2 = weightedColors[6].m_c[2] - pb;
+                        float dr2 = weightedColors[6][0] - pr;
+                        float dg2 = weightedColors[6][1] - pg;
+                        float db2 = weightedColors[6][2] - pb;
                         float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
 
-                        float dr3 = weightedColors[7].m_c[0] - pr;
-                        float dg3 = weightedColors[7].m_c[1] - pg;
-                        float db3 = weightedColors[7].m_c[2] - pb;
+                        float dr3 = weightedColors[7][0] - pr;
+                        float dg3 = weightedColors[7][1] - pg;
+                        float db3 = weightedColors[7][2] - pb;
                         float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
@@ -1007,28 +843,28 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
             {
                 for (uniform uint32_t i = 0; i < num_pixels; i++)
                 {
-                    float pr = (float)pPixels[i].m_c[0];
-                    float pg = (float)pPixels[i].m_c[1];
-                    float pb = (float)pPixels[i].m_c[2];
+                    float pr = (float)pPixels[i][0];
+                    float pg = (float)pPixels[i][1];
+                    float pb = (float)pPixels[i][2];
                 
-                    float dr0 = weightedColors[0].m_c[0] - pr;
-                    float dg0 = weightedColors[0].m_c[1] - pg;
-                    float db0 = weightedColors[0].m_c[2] - pb;
+                    float dr0 = weightedColors[0][0] - pr;
+                    float dg0 = weightedColors[0][1] - pg;
+                    float db0 = weightedColors[0][2] - pb;
                     float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
-                    float dr1 = weightedColors[1].m_c[0] - pr;
-                    float dg1 = weightedColors[1].m_c[1] - pg;
-                    float db1 = weightedColors[1].m_c[2] - pb;
+                    float dr1 = weightedColors[1][0] - pr;
+                    float dg1 = weightedColors[1][1] - pg;
+                    float db1 = weightedColors[1][2] - pb;
                     float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
-                    float dr2 = weightedColors[2].m_c[0] - pr;
-                    float dg2 = weightedColors[2].m_c[1] - pg;
-                    float db2 = weightedColors[2].m_c[2] - pb;
+                    float dr2 = weightedColors[2][0] - pr;
+                    float dg2 = weightedColors[2][1] - pg;
+                    float db2 = weightedColors[2][2] - pb;
                     float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
 
-                    float dr3 = weightedColors[3].m_c[0] - pr;
-                    float dg3 = weightedColors[3].m_c[1] - pg;
-                    float db3 = weightedColors[3].m_c[2] - pb;
+                    float dr3 = weightedColors[3][0] - pr;
+                    float dg3 = weightedColors[3][1] - pg;
+                    float db3 = weightedColors[3][2] - pb;
                     float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
 
                     float best_err = min(min(min(err0, err1), err2), err3);
@@ -1048,15 +884,15 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
             // alpha
             if (N == 16)
             {
-                float lr = actualMinColor.m_c[0];
-                float lg = actualMinColor.m_c[1];
-                float lb = actualMinColor.m_c[2];
-                float la = actualMinColor.m_c[3];
+                float lr = actualMinColor[0];
+                float lg = actualMinColor[1];
+                float lb = actualMinColor[2];
+                float la = actualMinColor[3];
 
-                float dr = actualMaxColor.m_c[0] - lr;
-                float dg = actualMaxColor.m_c[1] - lg;
-                float db = actualMaxColor.m_c[2] - lb;
-                float da = actualMaxColor.m_c[3] - la;
+                float dr = actualMaxColor[0] - lr;
+                float dg = actualMaxColor[1] - lg;
+                float db = actualMaxColor[2] - lb;
+                float da = actualMaxColor[3] - la;
             
                 const float f = N / (dr * dr + dg * dg + db * db + da * da);
 
@@ -1068,26 +904,26 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
                 for (uniform uint32_t i = 0; i < num_pixels; i++)
                 {
                     const varying color_quad_i *uniform pC = &pPixels[i];
-                    float r = pC->m_c[0];
-                    float g = pC->m_c[1];
-                    float b = pC->m_c[2];
-                    float a = pC->m_c[3];
+                    float r = pC->r;
+                    float g = pC->g;
+                    float b = pC->b;
+                    float a = pC->a;
 
                     float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb) + (a * da + la)) * f + .5f);
                     best_sel = clamp(best_sel, (float)1, (float)(N - 1));
 
                     float best_sel0 = best_sel - 1;
 
-                    float dr0 = weightedColors[(int)best_sel0].m_c[0] - r;
-                    float dg0 = weightedColors[(int)best_sel0].m_c[1] - g;
-                    float db0 = weightedColors[(int)best_sel0].m_c[2] - b;
-                    float da0 = weightedColors[(int)best_sel0].m_c[3] - a;
+                    float dr0 = weightedColors[(int)best_sel0][0] - r;
+                    float dg0 = weightedColors[(int)best_sel0][1] - g;
+                    float db0 = weightedColors[(int)best_sel0][2] - b;
+                    float da0 = weightedColors[(int)best_sel0][3] - a;
                     float err0 = (wr * dr0 * dr0) + (wg * dg0 * dg0) + (wb * db0 * db0) + (wa * da0 * da0);
 
-                    float dr1 = weightedColors[(int)best_sel].m_c[0] - r;
-                    float dg1 = weightedColors[(int)best_sel].m_c[1] - g;
-                    float db1 = weightedColors[(int)best_sel].m_c[2] - b;
-                    float da1 = weightedColors[(int)best_sel].m_c[3] - a;
+                    float dr1 = weightedColors[(int)best_sel][0] - r;
+                    float dg1 = weightedColors[(int)best_sel][1] - g;
+                    float db1 = weightedColors[(int)best_sel][2] - b;
+                    float da1 = weightedColors[(int)best_sel][3] - a;
 
                     float err1 = (wr * dr1 * dr1) + (wg * dg1 * dg1) + (wb * db1 * db1) + (wa * da1 * da1);
 
@@ -1100,37 +936,37 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
             {
                 for (uniform uint32_t i = 0; i < num_pixels; i++)
                 {
-                    float pr = (float)pPixels[i].m_c[0];
-                    float pg = (float)pPixels[i].m_c[1];
-                    float pb = (float)pPixels[i].m_c[2];
-                    float pa = (float)pPixels[i].m_c[3];
+                    float pr = (float)pPixels[i][0];
+                    float pg = (float)pPixels[i][1];
+                    float pb = (float)pPixels[i][2];
+                    float pa = (float)pPixels[i][3];
                 
                     float best_err;
                     int best_sel;
 
                     {
-                        float dr0 = weightedColors[0].m_c[0] - pr;
-                        float dg0 = weightedColors[0].m_c[1] - pg;
-                        float db0 = weightedColors[0].m_c[2] - pb;
-                        float da0 = weightedColors[0].m_c[3] - pa;
+                        float dr0 = weightedColors[0][0] - pr;
+                        float dg0 = weightedColors[0][1] - pg;
+                        float db0 = weightedColors[0][2] - pb;
+                        float da0 = weightedColors[0][3] - pa;
                         float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
 
-                        float dr1 = weightedColors[1].m_c[0] - pr;
-                        float dg1 = weightedColors[1].m_c[1] - pg;
-                        float db1 = weightedColors[1].m_c[2] - pb;
-                        float da1 = weightedColors[1].m_c[3] - pa;
+                        float dr1 = weightedColors[1][0] - pr;
+                        float dg1 = weightedColors[1][1] - pg;
+                        float db1 = weightedColors[1][2] - pb;
+                        float da1 = weightedColors[1][3] - pa;
                         float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
 
-                        float dr2 = weightedColors[2].m_c[0] - pr;
-                        float dg2 = weightedColors[2].m_c[1] - pg;
-                        float db2 = weightedColors[2].m_c[2] - pb;
-                        float da2 = weightedColors[2].m_c[3] - pa;
+                        float dr2 = weightedColors[2][0] - pr;
+                        float dg2 = weightedColors[2][1] - pg;
+                        float db2 = weightedColors[2][2] - pb;
+                        float da2 = weightedColors[2][3] - pa;
                         float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
 
-                        float dr3 = weightedColors[3].m_c[0] - pr;
-                        float dg3 = weightedColors[3].m_c[1] - pg;
-                        float db3 = weightedColors[3].m_c[2] - pb;
-                        float da3 = weightedColors[3].m_c[3] - pa;
+                        float dr3 = weightedColors[3][0] - pr;
+                        float dg3 = weightedColors[3][1] - pg;
+                        float db3 = weightedColors[3][2] - pb;
+                        float da3 = weightedColors[3][3] - pa;
                         float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
 
                         best_err = min(min(min(err0, err1), err2), err3);
@@ -1141,28 +977,28 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
                     }
 
                     {
-                        float dr0 = weightedColors[4].m_c[0] - pr;
-                        float dg0 = weightedColors[4].m_c[1] - pg;
-                        float db0 = weightedColors[4].m_c[2] - pb;
-                        float da0 = weightedColors[4].m_c[3] - pa;
+                        float dr0 = weightedColors[4][0] - pr;
+                        float dg0 = weightedColors[4][1] - pg;
+                        float db0 = weightedColors[4][2] - pb;
+                        float da0 = weightedColors[4][3] - pa;
                         float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
 
-                        float dr1 = weightedColors[5].m_c[0] - pr;
-                        float dg1 = weightedColors[5].m_c[1] - pg;
-                        float db1 = weightedColors[5].m_c[2] - pb;
-                        float da1 = weightedColors[5].m_c[3] - pa;
+                        float dr1 = weightedColors[5][0] - pr;
+                        float dg1 = weightedColors[5][1] - pg;
+                        float db1 = weightedColors[5][2] - pb;
+                        float da1 = weightedColors[5][3] - pa;
                         float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
 
-                        float dr2 = weightedColors[6].m_c[0] - pr;
-                        float dg2 = weightedColors[6].m_c[1] - pg;
-                        float db2 = weightedColors[6].m_c[2] - pb;
-                        float da2 = weightedColors[6].m_c[3] - pa;
+                        float dr2 = weightedColors[6][0] - pr;
+                        float dg2 = weightedColors[6][1] - pg;
+                        float db2 = weightedColors[6][2] - pb;
+                        float da2 = weightedColors[6][3] - pa;
                         float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
 
-                        float dr3 = weightedColors[7].m_c[0] - pr;
-                        float dg3 = weightedColors[7].m_c[1] - pg;
-                        float db3 = weightedColors[7].m_c[2] - pb;
-                        float da3 = weightedColors[7].m_c[3] - pa;
+                        float dr3 = weightedColors[7][0] - pr;
+                        float dg3 = weightedColors[7][1] - pg;
+                        float db3 = weightedColors[7][2] - pb;
+                        float da3 = weightedColors[7][3] - pa;
                         float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
@@ -1182,33 +1018,33 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
             {
                 for (uniform uint32_t i = 0; i < num_pixels; i++)
                 {
-                    float pr = (float)pPixels[i].m_c[0];
-                    float pg = (float)pPixels[i].m_c[1];
-                    float pb = (float)pPixels[i].m_c[2];
-                    float pa = (float)pPixels[i].m_c[3];
+                    float pr = (float)pPixels[i][0];
+                    float pg = (float)pPixels[i][1];
+                    float pb = (float)pPixels[i][2];
+                    float pa = (float)pPixels[i][3];
                 
-                    float dr0 = weightedColors[0].m_c[0] - pr;
-                    float dg0 = weightedColors[0].m_c[1] - pg;
-                    float db0 = weightedColors[0].m_c[2] - pb;
-                    float da0 = weightedColors[0].m_c[3] - pa;
+                    float dr0 = weightedColors[0][0] - pr;
+                    float dg0 = weightedColors[0][1] - pg;
+                    float db0 = weightedColors[0][2] - pb;
+                    float da0 = weightedColors[0][3] - pa;
                     float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
 
-                    float dr1 = weightedColors[1].m_c[0] - pr;
-                    float dg1 = weightedColors[1].m_c[1] - pg;
-                    float db1 = weightedColors[1].m_c[2] - pb;
-                    float da1 = weightedColors[1].m_c[3] - pa;
+                    float dr1 = weightedColors[1][0] - pr;
+                    float dg1 = weightedColors[1][1] - pg;
+                    float db1 = weightedColors[1][2] - pb;
+                    float da1 = weightedColors[1][3] - pa;
                     float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
 
-                    float dr2 = weightedColors[2].m_c[0] - pr;
-                    float dg2 = weightedColors[2].m_c[1] - pg;
-                    float db2 = weightedColors[2].m_c[2] - pb;
-                    float da2 = weightedColors[2].m_c[3] - pa;
+                    float dr2 = weightedColors[2][0] - pr;
+                    float dg2 = weightedColors[2][1] - pg;
+                    float db2 = weightedColors[2][2] - pb;
+                    float da2 = weightedColors[2][3] - pa;
                     float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
 
-                    float dr3 = weightedColors[3].m_c[0] - pr;
-                    float dg3 = weightedColors[3].m_c[1] - pg;
-                    float db3 = weightedColors[3].m_c[2] - pb;
-                    float da3 = weightedColors[3].m_c[3] - pa;
+                    float dr3 = weightedColors[3][0] - pr;
+                    float dg3 = weightedColors[3][1] - pg;
+                    float db3 = weightedColors[3][2] - pb;
+                    float da3 = weightedColors[3][3] - pa;
                     float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
 
                     float best_err = min(min(min(err0, err1), err2), err3);
@@ -1233,9 +1069,9 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
         
         for (uniform uint32_t i = 0; i < N; i++)
         {
-            float r = weightedColors[i].m_c[0];
-            float g = weightedColors[i].m_c[1];
-            float b = weightedColors[i].m_c[2];
+            float r = weightedColors[i][0];
+            float g = weightedColors[i][1];
+            float b = weightedColors[i][2];
 
             float y = r * .2126f + g * .7152f + b * .0722f;
                                     
@@ -1248,10 +1084,10 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
         {
             for (uniform uint32_t i = 0; i < num_pixels; i++)
             {
-                float r = pPixels[i].m_c[0];
-                float g = pPixels[i].m_c[1];
-                float b = pPixels[i].m_c[2];
-                float a = pPixels[i].m_c[3];
+                float r = pPixels[i][0];
+                float g = pPixels[i][1];
+                float b = pPixels[i][2];
+                float a = pPixels[i][3];
 
                 float y = r * .2126f + g * .7152f + b * .0722f;
                 float cr = r - y;
@@ -1265,7 +1101,7 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
                     float dl = y - weightedColorsY[j];
                     float dcr = cr - weightedColorsCr[j];
                     float dcb = cb - weightedColorsCb[j];
-                    float da = a - weightedColors[j].m_c[3];
+                    float da = a - weightedColors[j][3];
 
                     float err = (wr * dl * dl) + (wg * dcr * dcr) + (wb * dcb * dcb) + (wa * da * da);
                     if (err < best_err)
@@ -1284,9 +1120,9 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
         {
             for (uniform uint32_t i = 0; i < num_pixels; i++)
             {
-                float r = pPixels[i].m_c[0];
-                float g = pPixels[i].m_c[1];
-                float b = pPixels[i].m_c[2];
+                float r = pPixels[i][0];
+                float g = pPixels[i][1];
+                float b = pPixels[i][2];
 
                 float y = r * .2126f + g * .7152f + b * .0722f;
                 float cr = r - y;
@@ -1335,48 +1171,48 @@ static uint32_t evaluate_solution(const varying color_quad_i *uniform pLow, cons
     return total_err;
 }
 
-static void fixDegenerateEndpoints(uniform uint32_t mode, varying color_quad_i *uniform pTrialMinColor, varying color_quad_i *uniform pTrialMaxColor, const varying vec4F *uniform pXl, const varying vec4F *uniform pXh, uniform uint32_t iscale)
+static void fixDegenerateEndpoints(uint32_t mode, varying color_quad_i *uniform pTrialMinColor, varying color_quad_i *uniform pTrialMaxColor, const varying vec4F *uniform pXl, const varying vec4F *uniform pXh, uniform uint32_t iscale)
 {
     if ((mode == 1) || (mode == 4)) // also mode 2
     {
         // fix degenerate case where the input collapses to a single colorspace voxel, and we loose all freedom (test with grayscale ramps)
         for (uniform uint32_t i = 0; i < 3; i++)
         {
-            if (pTrialMinColor->m_c[i] == pTrialMaxColor->m_c[i])
+            if (pTrialMinColor[0][i] == pTrialMaxColor[0][i])
             {
-                if (abs(pXl->m_c[i] - pXh->m_c[i]) > 0.0f)
+                if (abs(pXl[0][i] - pXh[0][i]) > 0.0f)
                 {
-                    if (pTrialMinColor->m_c[i] > (iscale >> 1))
+                    if (pTrialMinColor[0][i] > (iscale >> 1))
                     {
-                        if (pTrialMinColor->m_c[i] > 0)
-                            pTrialMinColor->m_c[i]--;
+                        if (pTrialMinColor[0][i] > 0)
+                            pTrialMinColor[0][i]--;
                         else
-                            if (pTrialMaxColor->m_c[i] < iscale)
-                                pTrialMaxColor->m_c[i]++;
+                            if (pTrialMaxColor[0][i] < iscale)
+                                pTrialMaxColor[0][i]++;
                     }
                     else
                     {
-                        if (pTrialMaxColor->m_c[i] < iscale)
-                            pTrialMaxColor->m_c[i]++;
-                        else if (pTrialMinColor->m_c[i] > 0)
-                            pTrialMinColor->m_c[i]--;
+                        if (pTrialMaxColor[0][i] < iscale)
+                            pTrialMaxColor[0][i]++;
+                        else if (pTrialMinColor[0][i] > 0)
+                            pTrialMinColor[0][i]--;
                     }
 
                     if (mode == 4)
                     {
-                        if (pTrialMinColor->m_c[i] > (iscale >> 1))
+                        if (pTrialMinColor[0][i] > (iscale >> 1))
                         {
-                            if (pTrialMaxColor->m_c[i] < iscale)
-                                pTrialMaxColor->m_c[i]++;
-                            else if (pTrialMinColor->m_c[i] > 0)
-                                pTrialMinColor->m_c[i]--;
+                            if (pTrialMaxColor[0][i] < iscale)
+                                pTrialMaxColor[0][i]++;
+                            else if (pTrialMinColor[0][i] > 0)
+                                pTrialMinColor[0][i]--;
                         }
                         else
                         {
-                            if (pTrialMinColor->m_c[i] > 0)
-                                pTrialMinColor->m_c[i]--;
-                            else if (pTrialMaxColor->m_c[i] < iscale)
-                                pTrialMaxColor->m_c[i]++;
+                            if (pTrialMinColor[0][i] > 0)
+                                pTrialMinColor[0][i]--;
+                            else if (pTrialMaxColor[0][i] < iscale)
+                                pTrialMaxColor[0][i]++;
                         }
                     }
                 }
@@ -1388,11 +1224,8 @@ static void fixDegenerateEndpoints(uniform uint32_t mode, varying color_quad_i *
 static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *uniform pXl, varying vec4F *uniform pXh, const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults,
     uniform bool pbit_search, uint32_t num_pixels, const varying color_quad_i *uniform pPixels)
 {
-    vec4F xl = *pXl;
-    vec4F xh = *pXh;
-
-    vec4F_saturate_in_place(&xl);
-    vec4F_saturate_in_place(&xh);
+    vec4F xl = saturate(*pXl);
+    vec4F xh = saturate(*pXh);
         
     if (pParams->m_has_pbits)
     {
@@ -1415,23 +1248,16 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                     // pbit 0: v=(b*2)/(total_levels-1), pbit 1: v=(b*2+1)/(total_levels-1) where b is the component bin from [0,total_levels/2-1] and v is the [0,1] component value
                     // rearranging you get for pbit 0: b=floor(v*(total_levels-1)/2+.5)
                     // rearranging you get for pbit 1: b=floor((v*(total_levels-1)-1)/2+.5)
-                    for (uniform uint32_t c = 0; c < 4; c++)
-                    {
-                        xMinColor.m_c[c] = (int)((xl.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMinColor.m_c[c] = clamp(xMinColor.m_c[c], p, iscalep - 1 + p);
-
-                        xMaxColor.m_c[c] = (int)((xh.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMaxColor.m_c[c] = clamp(xMaxColor.m_c[c], p, iscalep - 1 + p);
-                    }
+                    xMinColor = int4((xl * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMinColor = clamp(xMinColor, p, iscalep - 1 + p);
+                    xMaxColor = int4((xh * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMaxColor = clamp(xMaxColor, p, iscalep - 1 + p);
                                                                                 
                     lo[p] = xMinColor;
                     hi[p] = xMaxColor;
 
-                    for (uniform int c = 0; c < 4; c++)
-                    {
-                        lo[p].m_c[c] >>= 1;
-                        hi[p].m_c[c] >>= 1;
-                    }
+                    lo[0] >>= 1;
+                    hi[0] >>= 1;
                 }
 
                 fixDegenerateEndpoints(mode, &lo[0], &hi[0], &xl, &xh, iscalep >> 1);
@@ -1460,23 +1286,16 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                 {
                     color_quad_i xMinColor, xMaxColor;
                                 
-                    for (uniform uint32_t c = 0; c < 4; c++)
-                    {
-                        xMinColor.m_c[c] = (int)((xl.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMinColor.m_c[c] = clamp(xMinColor.m_c[c], p, iscalep - 1 + p);
-
-                        xMaxColor.m_c[c] = (int)((xh.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMaxColor.m_c[c] = clamp(xMaxColor.m_c[c], p, iscalep - 1 + p);
-                    }
+                    xMinColor = int4((xl * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMinColor = clamp(xMinColor, p, iscalep - 1 + p);
+                    xMaxColor = int4((xh * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMaxColor = clamp(xMaxColor, p, iscalep - 1 + p);
                                         
                     lo[p] = xMinColor;
                     hi[p] = xMaxColor;
 
-                    for (uniform int c = 0; c < 4; c++)
-                    {
-                        lo[p].m_c[c] >>= 1;
-                        hi[p].m_c[c] >>= 1;
-                    }
+                    lo[0] >>= 1;
+                    hi[0] >>= 1;
                 }
 
                 fixDegenerateEndpoints(mode, &lo[0], &hi[0], &xl, &xh, iscalep >> 1);
@@ -1516,14 +1335,10 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                     // pbit 0: v=(b*2)/(total_levels-1), pbit 1: v=(b*2+1)/(total_levels-1) where b is the component bin from [0,total_levels/2-1] and v is the [0,1] component value
                     // rearranging you get for pbit 0: b=floor(v*(total_levels-1)/2+.5)
                     // rearranging you get for pbit 1: b=floor((v*(total_levels-1)-1)/2+.5)
-                    for (uniform uint32_t c = 0; c < 4; c++)
-                    {
-                        xMinColor.m_c[c] = (int)((xl.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMinColor.m_c[c] = clamp(xMinColor.m_c[c], p, iscalep - 1 + p);
-
-                        xMaxColor.m_c[c] = (int)((xh.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMaxColor.m_c[c] = clamp(xMaxColor.m_c[c], p, iscalep - 1 + p);
-                    }
+                    xMinColor = int4((xl * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMinColor = clamp(xMinColor, p, iscalep - 1 + p);
+                    xMaxColor = int4((xh * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMaxColor = clamp(xMaxColor, p, iscalep - 1 + p);
                                                                                 
                     color_quad_i scaledLow = scale_color(&xMinColor, pParams);
                     color_quad_i scaledHigh = scale_color(&xMaxColor, pParams);
@@ -1532,8 +1347,8 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                     float err1 = 0;
                     for (uniform int i = 0; i < totalComps; i++)
                     {
-                        err0 += square(scaledLow.m_c[i] - xl.m_c[i]*255.0f);
-                        err1 += square(scaledHigh.m_c[i] - xh.m_c[i]*255.0f);
+                        err0 += square(scaledLow[i] - xl[i]*255.0f);
+                        err1 += square(scaledHigh[i] - xh[i]*255.0f);
                     }
 
                     if (err0 < best_err0)
@@ -1541,21 +1356,15 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                         best_err0 = err0;
                         best_pbits[0] = p;
                         
-                        bestMinColor.m_c[0] = xMinColor.m_c[0] >> 1;
-                        bestMinColor.m_c[1] = xMinColor.m_c[1] >> 1;
-                        bestMinColor.m_c[2] = xMinColor.m_c[2] >> 1;
-                        bestMinColor.m_c[3] = xMinColor.m_c[3] >> 1;
+                        bestMinColor = xMinColor >> 1;
                     }
 
                     if (err1 < best_err1)
                     {
                         best_err1 = err1;
                         best_pbits[1] = p;
-
-                        bestMaxColor.m_c[0] = xMaxColor.m_c[0] >> 1;
-                        bestMaxColor.m_c[1] = xMaxColor.m_c[1] >> 1;
-                        bestMaxColor.m_c[2] = xMaxColor.m_c[2] >> 1;
-                        bestMaxColor.m_c[3] = xMaxColor.m_c[3] >> 1;
+                        
+                        bestMaxColor = xMaxColor >> 1;
                     }
                 }
             }
@@ -1568,21 +1377,17 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                 {
                     color_quad_i xMinColor, xMaxColor;
                                 
-                    for (uniform uint32_t c = 0; c < 4; c++)
-                    {
-                        xMinColor.m_c[c] = (int)((xl.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMinColor.m_c[c] = clamp(xMinColor.m_c[c], p, iscalep - 1 + p);
-
-                        xMaxColor.m_c[c] = (int)((xh.m_c[c] * scalep - p) / 2.0f + .5f) * 2 + p;
-                        xMaxColor.m_c[c] = clamp(xMaxColor.m_c[c], p, iscalep - 1 + p);
-                    }
+                    xMinColor = int4((xl * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMinColor = clamp(xMinColor, p, iscalep - 1 + p);
+                    xMaxColor = int4((xh * scalep - p) / 2.0f + 0.5f) * 2 + p;
+                    xMaxColor = clamp(xMaxColor, p, iscalep - 1 + p);
                                         
                     color_quad_i scaledLow = scale_color(&xMinColor, pParams);
                     color_quad_i scaledHigh = scale_color(&xMaxColor, pParams);
 
                     float err = 0;
                     for (uniform int i = 0; i < totalComps; i++)
-                        err += square((scaledLow.m_c[i]/255.0f) - xl.m_c[i]) + square((scaledHigh.m_c[i]/255.0f) - xh.m_c[i]);
+                        err += square((scaledLow[i]/255.0f) - xl[i]) + square((scaledHigh[i]/255.0f) - xh[i]);
 
                     if (err < best_err)
                     {
@@ -1590,22 +1395,15 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                         best_pbits[0] = p;
                         best_pbits[1] = p;
                         
-                        bestMinColor.m_c[0] = xMinColor.m_c[0] >> 1;
-                        bestMinColor.m_c[1] = xMinColor.m_c[1] >> 1;
-                        bestMinColor.m_c[2] = xMinColor.m_c[2] >> 1;
-                        bestMinColor.m_c[3] = xMinColor.m_c[3] >> 1;
-
-                        bestMaxColor.m_c[0] = xMaxColor.m_c[0] >> 1;
-                        bestMaxColor.m_c[1] = xMaxColor.m_c[1] >> 1;
-                        bestMaxColor.m_c[2] = xMaxColor.m_c[2] >> 1;
-                        bestMaxColor.m_c[3] = xMaxColor.m_c[3] >> 1;
+                        bestMinColor = xMinColor >> 1;
+                        bestMaxColor = xMaxColor >> 1;
                     }
                 }
             }
 
             fixDegenerateEndpoints(mode, &bestMinColor, &bestMaxColor, &xl, &xh, iscalep >> 1);
 
-            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(&bestMinColor, &pResults->m_low_endpoint) || color_quad_i_notequals(&bestMaxColor, &pResults->m_high_endpoint) || (best_pbits[0] != pResults->m_pbits[0]) || (best_pbits[1] != pResults->m_pbits[1]))
+            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits[0] != pResults->m_pbits[0]) || (best_pbits[1] != pResults->m_pbits[1]))
             {
                 evaluate_solution(&bestMinColor, &bestMaxColor, best_pbits, pParams, pResults, num_pixels, pPixels);
             }
@@ -1616,13 +1414,12 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
         const uniform int iscale = (1 << pParams->m_comp_bits) - 1;
         const uniform float scale = (float)iscale;
 
-        color_quad_i trialMinColor, trialMaxColor;
-        color_quad_i_set_clamped(&trialMinColor, (int)(xl.m_c[0] * scale + .5f), (int)(xl.m_c[1] * scale + .5f), (int)(xl.m_c[2] * scale + .5f), (int)(xl.m_c[3] * scale + .5f));
-        color_quad_i_set_clamped(&trialMaxColor, (int)(xh.m_c[0] * scale + .5f), (int)(xh.m_c[1] * scale + .5f), (int)(xh.m_c[2] * scale + .5f), (int)(xh.m_c[3] * scale + .5f));
+        color_quad_i trialMinColor = clamp(int4(xl * scale + .5f), 0, 255);
+        color_quad_i trialMaxColor = clamp(int4(xh * scale + .5f), 0, 255);
 
         fixDegenerateEndpoints(mode, &trialMinColor, &trialMaxColor, &xl, &xh, iscale);
 
-        if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(&trialMinColor, &pResults->m_low_endpoint) || color_quad_i_notequals(&trialMaxColor, &pResults->m_high_endpoint))
+        if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(trialMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(trialMaxColor, pResults->m_high_endpoint))
         {
             uint32_t pbits[2];
             pbits[0] = 0;
@@ -1648,15 +1445,15 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
 
     if ((mode <= 2) || (mode == 4) || (mode >= 6))
     {
-        const uint32_t cr = pPixels[0].m_c[0];
-        const uint32_t cg = pPixels[0].m_c[1];
-        const uint32_t cb = pPixels[0].m_c[2];
-        const uint32_t ca = pPixels[0].m_c[3];
+        const uint32_t cr = pPixels[0].r;
+        const uint32_t cg = pPixels[0].g;
+        const uint32_t cb = pPixels[0].b;
+        const uint32_t ca = pPixels[0].a;
 
         bool allSame = true;
-        for (uniform uint32_t i = 1; i < num_pixels; i++)
+        for (uint32_t i = 1; i < num_pixels; i++)
         {
-            if ((cr != pPixels[i].m_c[0]) || (cg != pPixels[i].m_c[1]) || (cb != pPixels[i].m_c[2]) || (ca != pPixels[i].m_c[3]))
+            if ((cr != pPixels[i].r) || (cg != pPixels[i].g) || (cb != pPixels[i].b) || (ca != pPixels[i].a))
             {
                 allSame = false;
                 break;
@@ -1678,44 +1475,36 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
         }
     }
 
-    vec4F meanColor, axis;
-    vec4F_set_scalar(&meanColor, 0.0f);
+    vec4F meanColor = 0.0f;
+    for (uint32_t i = 0; i < num_pixels; i++)
+        meanColor += float4(pPixels[i]);
+    vec4F meanColorScaled = meanColor * (1.0f / num_pixels);
 
-    for (uniform uint32_t i = 0; i < num_pixels; i++)
-    {
-        vec4F color = vec4F_from_color(&pPixels[i]);
-        meanColor = vec4F_add(&meanColor, &color);
-    }
-                
-    vec4F meanColorScaled = vec4F_mul(&meanColor, 1.0f / (float)((int)num_pixels));
+    meanColor = saturate(meanColor * (1.0f / (num_pixels * 255.0f)));
 
-    meanColor = vec4F_mul(&meanColor, 1.0f / (float)((int)num_pixels * 255.0f));
-    vec4F_saturate_in_place(&meanColor);
-
+    vec4F axis;
     if (pParams->m_has_alpha)
     {
-        vec4F v;
-        vec4F_set_scalar(&v, 0.0f);
-        for (uniform uint32_t i = 0; i < num_pixels; i++)
+        vec4F v = 0.0f;
+        for (uint32_t i = 0; i < num_pixels; i++)
         {
-            vec4F color = vec4F_from_color(&pPixels[i]);
-            color = vec4F_sub(&color, &meanColorScaled);
+            vec4F color = float4(pPixels[i]) - meanColorScaled;
 
-            vec4F a = vec4F_mul(&color, color.m_c[0]);
-            vec4F b = vec4F_mul(&color, color.m_c[1]);
-            vec4F c = vec4F_mul(&color, color.m_c[2]);
-            vec4F d = vec4F_mul(&color, color.m_c[3]);
+            vec4F a = color * color.r;
+            vec4F b = color * color.g;
+            vec4F c = color * color.b;
+            vec4F d = color * color.a;
 
             vec4F n = i ? v : color;
-            vec4F_normalize_in_place(&n);
+            n = vec4F_normalize(n);
 
-            v.m_c[0] += vec4F_dot(&a, &n);
-            v.m_c[1] += vec4F_dot(&b, &n);
-            v.m_c[2] += vec4F_dot(&c, &n);
-            v.m_c[3] += vec4F_dot(&d, &n);
+            v.r += dot(a, n);
+            v.g += dot(b, n);
+            v.b += dot(c, n);
+            v.a += dot(d, n);
         }
         axis = v;
-        vec4F_normalize_in_place(&axis);
+        axis = vec4F_normalize(axis);
     }
     else
     {
@@ -1723,13 +1512,13 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
         cov[0] = 0; cov[1] = 0; cov[2] = 0;
         cov[3] = 0; cov[4] = 0;    cov[5] = 0;
 
-        for (uniform uint32_t i = 0; i < num_pixels; i++)
+        for (uint32_t i = 0; i < num_pixels; i++)
         {
-            const varying color_quad_i *varying pV = &pPixels[i];
+            float3 p = float3(pPixels[i].rgb);
 
-            float r = pV->m_c[0] - meanColorScaled.m_c[0];
-            float g = pV->m_c[1] - meanColorScaled.m_c[1];
-            float b = pV->m_c[2] - meanColorScaled.m_c[2];
+            float r = p.r - meanColorScaled.r;
+            float g = p.g - meanColorScaled.g;
+            float b = p.b - meanColorScaled.b;
                 
             cov[0] += r*r;
             cov[1] += r*g;
@@ -1776,34 +1565,32 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
         float len = vfr*vfr + vfg*vfg + vfb*vfb;
 
         if (len < 1e-10f)
-            vec4F_set_scalar(&axis, 0.0f);
+            axis = 0.0f;
         else
         {
             len = 1.0f / sqrt(len);
             vfr *= len;
             vfg *= len;
             vfb *= len;
-            vec4F_set(&axis, vfr, vfg, vfb, 0);
+            axis = float4(vfr, vfg, vfb, 0);
         }
     }
 
-    if (vec4F_dot(&axis, &axis) < .5f)
+    if (dot(axis, axis) < .5f)
     {
         if (pParams->m_perceptual)
-            vec4F_set(&axis, .213f, .715f, .072f, pParams->m_has_alpha ? .715f : 0);
+            axis = float4(.213f, .715f, .072f, pParams->m_has_alpha ? .715f : 0);
         else
-            vec4F_set(&axis, 1.0f, 1.0f, 1.0f, pParams->m_has_alpha ? 1.0f : 0);
-        vec4F_normalize_in_place(&axis);
+            axis = float4(1.0f, 1.0f, 1.0f, pParams->m_has_alpha ? 1.0f : 0);
+        axis = vec4F_normalize(axis);
     }
 
     float l = 1e+9f, h = -1e+9f;
 
-    for (uniform uint32_t i = 0; i < num_pixels; i++)
+    for (uint32_t i = 0; i < num_pixels; i++)
     {
-        vec4F color = vec4F_from_color(&pPixels[i]);
-
-        vec4F q = vec4F_sub(&color, &meanColorScaled);
-        float d = vec4F_dot(&q, &axis);
+        vec4F q = float4(pPixels[i]) - meanColorScaled;
+        float d = dot(q, axis);
 
         l = minimumf(l, d);
         h = maximumf(h, d);
@@ -1812,16 +1599,15 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
     l *= (1.0f / 255.0f);
     h *= (1.0f / 255.0f);
 
-    vec4F b0 = vec4F_mul(&axis, l);
-    vec4F b1 = vec4F_mul(&axis, h);
-    vec4F c0 = vec4F_add(&meanColor, &b0);
-    vec4F c1 = vec4F_add(&meanColor, &b1);
-    vec4F minColor = vec4F_saturate(&c0);
-    vec4F maxColor = vec4F_saturate(&c1);
+    vec4F b0 = axis * l;
+    vec4F b1 = axis * h;
+    vec4F c0 = meanColor + b0;
+    vec4F c1 = meanColor + b1;
+    vec4F minColor = saturate(c0);
+    vec4F maxColor = saturate(c1);
                 
-    vec4F whiteVec;
-    vec4F_set_scalar(&whiteVec, 1.0f);
-    if (vec4F_dot(&minColor, &whiteVec) > vec4F_dot(&maxColor, &whiteVec))
+    vec4F whiteVec = 1.0f;
+    if (dot(minColor, whiteVec) > dot(maxColor, whiteVec))
     {
         vec4F temp = minColor;
         minColor = maxColor;
@@ -1836,21 +1622,19 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
     
     for (uniform uint32_t i = 0; i < pComp_params->m_refinement_passes; i++)
     {
-        vec4F xl, xh;
-        vec4F_set_scalar(&xl, 0.0f);
-        vec4F_set_scalar(&xh, 0.0f);
+        vec4F xl = 0.0f, xh = 0.0f;
         if (pParams->m_has_alpha)
             compute_least_squares_endpoints_rgba(num_pixels, pResults->m_pSelectors, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
         else
         {
             compute_least_squares_endpoints_rgb(num_pixels, pResults->m_pSelectors, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
 
-            xl.m_c[3] = 255.0f;
-            xh.m_c[3] = 255.0f;
+            xl.a = 255.0f;
+            xh.a = 255.0f;
         }
 
-        xl = vec4F_mul(&xl, (1.0f / 255.0f));
-        xh = vec4F_mul(&xh, (1.0f / 255.0f));
+        xl = xl * (1.0f / 255.0f);
+        xh = xh * (1.0f / 255.0f);
 
         if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels))
             return 0;
@@ -2002,10 +1786,10 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
         avg_results.m_pSelectors = pResults->m_pSelectors;
         avg_results.m_pSelectors_temp = pResults->m_pSelectors_temp;
                                  
-        const uint32_t r = (int)(.5f + meanColor.m_c[0] * 255.0f);
-        const uint32_t g = (int)(.5f + meanColor.m_c[1] * 255.0f);
-        const uint32_t b = (int)(.5f + meanColor.m_c[2] * 255.0f);
-        const uint32_t a = (int)(.5f + meanColor.m_c[3] * 255.0f);
+        const uint32_t r = (int)(.5f + meanColor.r * 255.0f);
+        const uint32_t g = (int)(.5f + meanColor.g * 255.0f);
+        const uint32_t b = (int)(.5f + meanColor.b * 255.0f);
+        const uint32_t a = (int)(.5f + meanColor.a * 255.0f);
 
         uint32_t avg_err;
         if (mode == 0)
@@ -2043,11 +1827,11 @@ static uint32_t color_cell_compression_est(uniform uint32_t mode, const thread c
     float hr = 0, hg = 0, hb = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
     {
-        const varying color_quad_i *uniform pC = &pPixels[i];
+        int3 p = pPixels[i].rgb;
 
-        float r = pC->m_c[0];
-        float g = pC->m_c[1];
-        float b = pC->m_c[2];
+        float r = p.r;
+        float g = p.g;
+        float b = p.b;
         
         lr = min(lr, r);
         lg = min(lg, g);
@@ -2093,7 +1877,7 @@ static uint32_t color_cell_compression_est(uniform uint32_t mode, const thread c
         {
             const varying color_quad_i *uniform pC = &pPixels[i];
 
-            float d = far * (float)pC->m_c[0] + fag * (float)pC->m_c[1] + fab * (float)pC->m_c[2];
+            float d = far * (float)pC->r + fag * (float)pC->g + fab * (float)pC->b;
 
             float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
@@ -2101,9 +1885,9 @@ static uint32_t color_cell_compression_est(uniform uint32_t mode, const thread c
             float itg = sg + dig * s;
             float itb = sb + dib * s;
 
-            float dr = itr - (float)pC->m_c[0];
-            float dg = itg - (float)pC->m_c[1];
-            float db = itb - (float)pC->m_c[2];
+            float dr = itr - (float)pC->r;
+            float dg = itg - (float)pC->g;
+            float db = itb - (float)pC->b;
 
             total_errf += wr * dr * dr + wg * dg * dg + wb * db * db;
         }
@@ -2114,7 +1898,7 @@ static uint32_t color_cell_compression_est(uniform uint32_t mode, const thread c
         {
             const varying color_quad_i *uniform pC = &pPixels[i];
 
-            float d = far * (float)pC->m_c[0] + fag * (float)pC->m_c[1] + fab * (float)pC->m_c[2];
+            float d = far * (float)pC->r + fag * (float)pC->g + fab * (float)pC->b;
 
             float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
@@ -2122,9 +1906,9 @@ static uint32_t color_cell_compression_est(uniform uint32_t mode, const thread c
             float itg = sg + dig * s;
             float itb = sb + dib * s;
 
-            float dr = itr - (float)pC->m_c[0];
-            float dg = itg - (float)pC->m_c[1];
-            float db = itb - (float)pC->m_c[2];
+            float dr = itr - (float)pC->r;
+            float dg = itg - (float)pC->g;
+            float db = itb - (float)pC->b;
 
             total_errf += dr * dr + dg * dg + db * db;
         }
@@ -2143,12 +1927,11 @@ static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
     float hr = 0, hg = 0, hb = 0, ha = 0;
     for (uniform uint32_t i = 0; i < num_pixels; i++)
     {
-        const varying color_quad_i *uniform pC = &pPixels[i];
-
-        float r = pC->m_c[0];
-        float g = pC->m_c[1];
-        float b = pC->m_c[2];
-        float a = pC->m_c[3];
+        int4 p = pPixels[i];
+        float r = p.r;
+        float g = p.g;
+        float b = p.b;
+        float a = p.a;
         
         lr = min(lr, r);
         lg = min(lg, g);
@@ -2200,7 +1983,7 @@ static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
         {
             const varying color_quad_i *uniform pC = &pPixels[i];
 
-            float d = far * (float)pC->m_c[0] + fag * (float)pC->m_c[1] + fab * (float)pC->m_c[2] + faa * (float)pC->m_c[3];
+            float d = far * (float)pC->r + fag * (float)pC->g + fab * (float)pC->b + faa * (float)pC->a;
 
             float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
@@ -2209,10 +1992,10 @@ static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
             float itb = sb + dib * s;
             float ita = sa + dia * s;
 
-            float dr = itr - (float)pC->m_c[0];
-            float dg = itg - (float)pC->m_c[1];
-            float db = itb - (float)pC->m_c[2];
-            float da = ita - (float)pC->m_c[3];
+            float dr = itr - (float)pC->r;
+            float dg = itg - (float)pC->g;
+            float db = itb - (float)pC->b;
+            float da = ita - (float)pC->a;
 
             total_errf += wr * dr * dr + wg * dg * dg + wb * db * db + wa * da * da;
         }
@@ -2223,7 +2006,7 @@ static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
         {
             const varying color_quad_i *uniform pC = &pPixels[i];
 
-            float d = far * (float)pC->m_c[0] + fag * (float)pC->m_c[1] + fab * (float)pC->m_c[2] + faa * (float)pC->m_c[3];
+            float d = far * (float)pC->r + fag * (float)pC->g + fab * (float)pC->b + faa * (float)pC->a;
 
             float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
@@ -2232,10 +2015,10 @@ static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const th
             float itb = sb + dib * s;
             float ita = sa + dia * s;
 
-            float dr = itr - (float)pC->m_c[0];
-            float dg = itg - (float)pC->m_c[1];
-            float db = itb - (float)pC->m_c[2];
-            float da = ita - (float)pC->m_c[3];
+            float dr = itr - (float)pC->r;
+            float dg = itg - (float)pC->g;
+            float db = itb - (float)pC->b;
+            float da = ita - (float)pC->a;
 
             total_errf += dr * dr + dg * dg + db * db + da * da;
         }
@@ -2571,12 +2354,9 @@ static void encode_bc7_block(thread void *pBlock, const varying bc7_optimization
 
             if (get_bc7_mode_has_seperate_alpha_selectors(best_mode))
             {
-                for (uniform uint32_t q = 0; q < 3; q++)
-                {
-                    int t = low[k].m_c[q];
-                    low[k].m_c[q] = high[k].m_c[q];
-                    high[k].m_c[q] = t;
-                }
+                int3 t = low[k].rgb;
+                low[k].rgb = high[k].rgb;
+                high[k].rgb = t;
             }
             else
             {
@@ -2606,9 +2386,9 @@ static void encode_bc7_block(thread void *pBlock, const varying bc7_optimization
                         alpha_selectors[i] = (num_alpha_indices - 1) - alpha_selectors[i];
                 }
 
-                int t = low[k].m_c[3];
-                low[k].m_c[3] = high[k].m_c[3];
-                high[k].m_c[3] = t;
+                int t = low[k].a;
+                low[k].a = high[k].a;
+                high[k].a = t;
             }
         }
     }
@@ -2635,8 +2415,8 @@ static void encode_bc7_block(thread void *pBlock, const varying bc7_optimization
     {
         for (uniform uint32_t subset = 0; subset < total_subsets; subset++)
         {
-            set_block_bits(pBlock_bytes, low[subset].m_c[comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
-            set_block_bits(pBlock_bytes, high[subset].m_c[comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
+            set_block_bits(pBlock_bytes, low[subset][comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
+            set_block_bits(pBlock_bytes, high[subset][comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
         }
     }
 
@@ -2715,18 +2495,18 @@ static inline uint4 encode_bc7_block_mode6(varying bc7_optimization_results *uni
 
     r.x = 1 << 6;
 
-    r.x |= (low.m_c[0] << 7);
-    r.x |= (high.m_c[0] << 14);
+    r.x |= (low.r << 7);
+    r.x |= (high.r << 14);
 
-    r.x |= (low.m_c[1] << 21);
-    r.x |= (high.m_c[1] << 28); // 4 bits
-    r.y |= (high.m_c[1] >> 4); // 3 bits
+    r.x |= (low.g << 21);
+    r.x |= (high.g << 28); // 4 bits
+    r.y |= (high.g >> 4); // 3 bits
 
-    r.y |= (low.m_c[2] << 3);
-    r.y |= (high.m_c[2] << 10);
+    r.y |= (low.b << 3);
+    r.y |= (high.b << 10);
 
-    r.y |= (low.m_c[3] << 17);
-    r.y |= (high.m_c[3] << 24);
+    r.y |= (low.a << 17);
+    r.y |= (high.a << 24);
 
     r.y |= (pbits[0] << 31);
         
@@ -2840,7 +2620,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
             int trial_alpha_selectors[16];
             for (uniform uint32_t i = 0; i < 16; i++)
             {
-                const int32_t a = pPixels[i].m_c[3];
+                const int32_t a = pPixels[i].a;
 
                 int s = 0;
                 int32_t be = iabs32(a - vals[0]);
@@ -2918,7 +2698,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
                     int trial_alpha_selectors[16];
                     for (uniform uint32_t i = 0; i < 16; i++)
                     {
-                        const int32_t a = pPixels[i].m_c[3];
+                        const int32_t a = pPixels[i].a;
 
                         int s = 0;
                         int32_t be = iabs32(a - vals[0]);
@@ -2967,8 +2747,8 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
 
             pOpt_results4->m_low[0] = results.m_low_endpoint;
             pOpt_results4->m_high[0] = results.m_high_endpoint;
-            pOpt_results4->m_low[0].m_c[3] = best_la;
-            pOpt_results4->m_high[0].m_c[3] = best_ha;
+            pOpt_results4->m_low[0].a = best_la;
+            pOpt_results4->m_high[0].a = best_ha;
 
             for (uniform uint32_t i = 0; i < 16; i++)
                 pOpt_results4->m_selectors[i] = selectors[i];
@@ -3008,8 +2788,8 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
 
     if (lo_a == hi_a)
     {
-        pOpt_results5->m_low[0].m_c[3] = lo_a;
-        pOpt_results5->m_high[0].m_c[3] = hi_a;
+        pOpt_results5->m_low[0].a = lo_a;
+        pOpt_results5->m_high[0].a = hi_a;
         for (uniform uint32_t i = 0; i < 16; i++)
             pOpt_results5->m_alpha_selectors[i] = 0;
     }
@@ -3032,7 +2812,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
             uint32_t trial_alpha_err = 0;
             for (uniform uint32_t i = 0; i < 16; i++)
             {
-                const int32_t a = pPixels[i].m_c[3];
+                const int32_t a = pPixels[i].a;
 
                 int s = 0;
                 int32_t be = iabs32(a - vals[0]);
@@ -3048,8 +2828,8 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
             if (trial_alpha_err < mode5_alpha_err)
             {
                 mode5_alpha_err = trial_alpha_err;
-                pOpt_results5->m_low[0].m_c[3] = lo_a;
-                pOpt_results5->m_high[0].m_c[3] = hi_a;
+                pOpt_results5->m_low[0].a = lo_a;
+                pOpt_results5->m_high[0].a = hi_a;
                 for (uniform uint32_t i = 0; i < 16; i++)
                     pOpt_results5->m_alpha_selectors[i] = trial_alpha_selectors[i];
             }
@@ -3079,8 +2859,8 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
             {
                 for (uniform int hd = -D; hd <= D; hd++)
                 {
-                    lo_a = clamp((int)pOpt_results5->m_low[0].m_c[3] + ld, 0, 255);
-                    hi_a = clamp((int)pOpt_results5->m_high[0].m_c[3] + hd, 0, 255);
+                    lo_a = clamp((int)pOpt_results5->m_low[0].a + ld, 0, 255);
+                    hi_a = clamp((int)pOpt_results5->m_high[0].a + hd, 0, 255);
                     
                     int32_t vals[4];
                     vals[0] = lo_a;
@@ -3095,7 +2875,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
                     uint32_t trial_alpha_err = 0;
                     for (uniform uint32_t i = 0; i < 16; i++)
                     {
-                        const int32_t a = pPixels[i].m_c[3];
+                        const int32_t a = pPixels[i].a;
 
                         int s = 0;
                         int32_t be = iabs32(a - vals[0]);
@@ -3111,8 +2891,8 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
                     if (trial_alpha_err < mode5_alpha_err)
                     {
                         mode5_alpha_err = trial_alpha_err;
-                        pOpt_results5->m_low[0].m_c[3] = lo_a;
-                        pOpt_results5->m_high[0].m_c[3] = hi_a;
+                        pOpt_results5->m_low[0].a = lo_a;
+                        pOpt_results5->m_high[0].a = hi_a;
                         for (uniform uint32_t i = 0; i < 16; i++)
                             pOpt_results5->m_alpha_selectors[i] = trial_alpha_selectors[i];
                     }
@@ -3166,11 +2946,13 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
                 for (uniform uint32_t i = 0; i < 16; i++)
                 {
                     color_quad_i c = pPixels[i];
-                    swapi(&c.m_c[3], &c.m_c[rotation - 1]);
+                    if (rotation == 1) c = c.agbr;
+                    if (rotation == 2) c = c.rabg;
+                    if (rotation == 3) c = c.rgab;
                     rot_pixels[i] = c;
 
-                    trial_lo_a = minimumu(trial_lo_a, c.m_c[3]);
-                    trial_hi_a = maximumu(trial_hi_a, c.m_c[3]);
+                    trial_lo_a = minimumu(trial_lo_a, c.a);
+                    trial_hi_a = maximumu(trial_hi_a, c.a);
                 }
 
                 pTrial_pixels = rot_pixels;
@@ -3277,11 +3059,13 @@ static void handle_alpha_block(thread void* pBlock, const varying color_quad_i *
                 for (uniform uint32_t i = 0; i < 16; i++)
                 {
                     color_quad_i c = pPixels[i];
-                    swapi(&c.m_c[3], &c.m_c[rotation - 1]);
+                    if (rotation == 1) c = c.agbr;
+                    if (rotation == 2) c = c.rabg;
+                    if (rotation == 3) c = c.rgab;
                     rot_pixels[i] = c;
 
-                    trial_lo_a = minimumu(trial_lo_a, c.m_c[3]);
-                    trial_hi_a = maximumu(trial_hi_a, c.m_c[3]);
+                    trial_lo_a = minimumu(trial_lo_a, c.a);
+                    trial_hi_a = maximumu(trial_hi_a, c.a);
                 }
 
                 pTrial_pixels = rot_pixels;
@@ -3944,11 +3728,13 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 for (uniform uint32_t i = 0; i < 16; i++)
                 {
                     color_quad_i c = pPixels[i];
-                    swapi(&c.m_c[3], &c.m_c[rotation - 1]);
+                    if (rotation == 1) c = c.agbr;
+                    if (rotation == 2) c = c.rabg;
+                    if (rotation == 3) c = c.rgab;
                     rot_pixels[i] = c;
 
-                    trial_lo_a = minimumu(trial_lo_a, c.m_c[3]);
-                    trial_hi_a = maximumu(trial_hi_a, c.m_c[3]);
+                    trial_lo_a = minimumu(trial_lo_a, c.a);
+                    trial_hi_a = maximumu(trial_hi_a, c.a);
                 }
 
                 pTrial_pixels = rot_pixels;
@@ -4091,11 +3877,13 @@ static void handle_opaque_block(thread void *varying pBlock, const varying color
                 for (uniform uint32_t i = 0; i < 16; i++)
                 {
                     color_quad_i c = pPixels[i];
-                    swapi(&c.m_c[3], &c.m_c[rotation - 1]);
+                    if (rotation == 1) c = c.agbr;
+                    if (rotation == 2) c = c.rabg;
+                    if (rotation == 3) c = c.rgab;
                     rot_pixels[i] = c;
 
-                    trial_lo_a = minimumu(trial_lo_a, c.m_c[3]);
-                    trial_hi_a = maximumu(trial_hi_a, c.m_c[3]);
+                    trial_lo_a = minimumu(trial_lo_a, c.a);
+                    trial_hi_a = maximumu(trial_hi_a, c.a);
                 }
 
                 pTrial_pixels = rot_pixels;
@@ -4206,10 +3994,7 @@ kernel void bc7e_compress_blocks(
         int b = (craw >> 16) & 0xFF;
         int a = (craw >> 24);
 
-        temp_pixels[i].m_c[0] = r;
-        temp_pixels[i].m_c[1] = g;
-        temp_pixels[i].m_c[2] = b;
-        temp_pixels[i].m_c[3] = a;
+        temp_pixels[i] = int4(r, g, b, a);
 
         float fa = a;
 
