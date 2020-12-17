@@ -3092,7 +3092,8 @@ static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, con
         } // rotation
     }
 
-    // Mode 7
+    // Mode 7 //@TODO: disable mode 7 for now
+    /*
     if (pComp_params->m_alpha_settings.m_use_mode7)
     {
         solution solutions[BC7E_MAX_PARTITIONS7];
@@ -3252,6 +3253,7 @@ static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, con
             }
         }
     }
+     */
 
     return encode_bc7_block(&opt_results);
 }
