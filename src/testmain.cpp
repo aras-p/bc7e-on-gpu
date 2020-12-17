@@ -8,17 +8,37 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
+#include <vector>
 #ifdef _MSC_VER
 #include <direct.h>
 #else
 #include <sys/stat.h>
 #endif
 
-static const char* kTestFiles[] =
+static const char* kTestFileNames[] =
 {
     "textures/2dSignsCrop.png",
-    //"textures/16x16.png",
-    //"textures/Gradients.png",
+    "textures/16x16.png",
+    "textures/Gradients.png",
+};
+
+typedef std::vector<unsigned char> ByteVector;
+
+struct TestFile
+{
+    std::string filePath;
+    std::string fileNameBase;
+    int width = 0;
+    int height = 0;
+    int widthInBlocks = 0;
+    int heightInBlocks = 0;
+    int channels = 0;
+    ByteVector rgba;
+    ByteVector bc7exp;
+    ByteVector bc7got;
+    float timeRef = 1.0e20f;
+    float timeGot = 1.0e20f;
 };
 
 struct Globals // note: should match Metal code struct
@@ -383,35 +403,48 @@ static void* ReadFile(const char* path, size_t* outSize)
     return buffer;
 }
 
-static bool TestOnFile(const char* fileName)
+static SmolKernel* s_Bc7Kernel;
+static SmolBuffer* s_Bc7TablesBuffer;
+static SmolBuffer* s_Bc7GlobBuffer;
+static SmolBuffer* s_Bc7InputBuffer;
+static SmolBuffer* s_Bc7OutputBuffer;
+
+static bool InitializeMetalCompressorBuffers(size_t maxRgbaSize, size_t maxBc7Size)
 {
-    // load input image file
-    printf("Testing file %s: ", fileName);
-    int width = 0, height = 0, channels = 0;
-    stbi_uc* rgba = stbi_load(fileName, &width, &height, &channels, 4);
-    if (rgba == nullptr)
+    printf("Initialize Metal shaders & buffers...\n");
+    size_t kernelSourceSize = 0;
+    void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
+    if (kernelSource == nullptr)
     {
-        printf("could not read input file\n");
+        printf("ERROR: could not read compute shader source file\n");
         return false;
     }
-    printf("%ix%i ch=%i\n", width, height, channels);
-    
-    if ((width % 4) != 0 || (height % 4) != 0)
+    uint64_t tComp0 = stm_now();
+    s_Bc7Kernel = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks");
+    free(kernelSource);
+    if (s_Bc7Kernel == nullptr)
     {
-        printf("  currently only multiple of 4 image sizes are supported, was %ix%i\n", width, height);
-        stbi_image_free(rgba);
+        printf("ERROR: failed to create compute shader\n");
         return false;
     }
-    
-    const int widthInBlocks = (width+3) / 4;
-    const int heightInBlocks = (height+3) / 4;
-    const int blockBytes = 16;
-    const size_t compressedSize = widthInBlocks * heightInBlocks * blockBytes;
-    const size_t rawSize = width * height * 4;
-    unsigned char* resExp = new unsigned char[compressedSize];
-    unsigned char* resGot = new unsigned char[compressedSize];
-    memset(resExp, 0x77, compressedSize);
-    memset(resGot, 0x77, compressedSize);
+    printf("  shader created in %.1fs\n", stm_sec(stm_since(tComp0)));
+
+    s_Bc7TablesBuffer = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Constant);
+    s_Bc7GlobBuffer = SmolBufferCreate(sizeof(Globals), SmolBufferType::Constant);
+    s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
+    s_Bc7OutputBuffer = SmolBufferCreate(maxBc7Size, SmolBufferType::Structured, 16);
+    SmolBufferSetData(s_Bc7TablesBuffer, &s_Tables, sizeof(s_Tables));
+    return true;
+}
+
+static bool TestOnFile(TestFile& tf)
+{
+    printf("  testing %s\n", tf.fileNameBase.c_str());
+    const int kBC7BlockBytes = 16;
+    const size_t compressedSize = tf.bc7exp.size();
+    const size_t rawSize = tf.rgba.size();
+    memset(tf.bc7exp.data(), 0x77, compressedSize);
+    memset(tf.bc7got.data(), 0x77, compressedSize);
 
     bool perceptual = true;
     int quality = 0;
@@ -427,20 +460,19 @@ static bool TestOnFile(const char* fileName)
         case 4: ispc::bc7e_compress_block_params_init_slow(&settings, perceptual); break;
     }
     {
-
-        ic::pfor(heightInBlocks, 1, [&](int blockY, int threadIdx)
+        ic::pfor(tf.heightInBlocks, 1, [&](int blockY, int threadIdx)
         {
-            const int kBatchSize = 32;
+            const int kBatchSize = 64;
             unsigned char blocks[kBatchSize][16 * 4];
             int counter = 0;
-            unsigned char* sliceOutput = resExp + blockY * widthInBlocks * blockBytes;
-            for (int x = 0; x < width; x += 4)
+            unsigned char* sliceOutput = tf.bc7exp.data() + blockY * tf.widthInBlocks * kBC7BlockBytes;
+            for (int x = 0; x < tf.width; x += 4)
             {
-                fetch_block(blocks[counter++], x, blockY*4, width, height, rgba);
+                fetch_block(blocks[counter++], x, blockY*4, tf.width, tf.height, tf.rgba.data());
                 if (counter == kBatchSize)
                 {
                     ispc::bc7e_compress_blocks(counter, (uint64_t*)sliceOutput, (const uint32_t*)blocks, &settings);
-                    sliceOutput += counter * blockBytes;
+                    sliceOutput += counter * kBC7BlockBytes;
                     counter = 0;
                 }
             }
@@ -451,61 +483,40 @@ static bool TestOnFile(const char* fileName)
         });
     }
     
-    // compress with smol-compute
+    // compress with compute shader
     {
-        Globals glob = {width, height, widthInBlocks, heightInBlocks, settings};
+        Globals glob = {tf.width, tf.height, tf.widthInBlocks, tf.heightInBlocks, settings};
 
-        size_t kernelSourceSize = 0;
-        void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
-        printf("  compile Metal compression shader...\n");
-        uint64_t tComp0 = stm_now();
-        SmolKernel* kernel = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks");
-        printf("  compiled in %.1fs\n", stm_sec(stm_since(tComp0)));
-
-        SmolBuffer* bufTables = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Constant);
-        SmolBuffer* bufGlob = SmolBufferCreate(sizeof(glob), SmolBufferType::Constant);
-        SmolBuffer* bufInput = SmolBufferCreate(width * height * 4, SmolBufferType::Structured, 4);
-        SmolBuffer* bufOutput = SmolBufferCreate(compressedSize, SmolBufferType::Structured, blockBytes);
-        SmolBufferSetData(bufTables, &s_Tables, sizeof(s_Tables));
-        SmolBufferSetData(bufGlob, &glob, sizeof(glob));
-        SmolBufferSetData(bufInput, rgba, width * height * 4);
+        SmolBufferSetData(s_Bc7GlobBuffer, &glob, sizeof(glob));
+        SmolBufferSetData(s_Bc7InputBuffer, tf.rgba.data(), tf.rgba.size());
         
-        SmolKernelSet(kernel);
-        SmolKernelSetBuffer(bufTables, 0, SmolBufferBinding::Constant);
-        SmolKernelSetBuffer(bufGlob, 1, SmolBufferBinding::Constant);
-        SmolKernelSetBuffer(bufInput, 2, SmolBufferBinding::Input);
-        SmolKernelSetBuffer(bufOutput, 3, SmolBufferBinding::Output);
-        SmolKernelDispatch(widthInBlocks, heightInBlocks, 1, 4, 4, 1);
+        SmolKernelSet(s_Bc7Kernel);
+        SmolKernelSetBuffer(s_Bc7TablesBuffer, 0, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(s_Bc7GlobBuffer, 1, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(s_Bc7InputBuffer, 2, SmolBufferBinding::Input);
+        SmolKernelSetBuffer(s_Bc7OutputBuffer, 3, SmolBufferBinding::Output);
+        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 4, 4, 1);
 
-        SmolBufferGetData(bufOutput, resGot, compressedSize);
-        SmolBufferDelete(bufGlob);
-        SmolBufferDelete(bufInput);
-        SmolBufferDelete(bufOutput);
-        SmolKernelDelete(kernel);
+        SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());
     }
     
     // check if they match
     bool result = true;
-    if (memcmp(resExp, resGot, compressedSize) != 0)
+    if (memcmp(tf.bc7exp.data(), tf.bc7got.data(), tf.bc7got.size()) != 0)
     {
-        printf("  did not match reference\n");
+        printf("    ERROR: did not match reference\n");
         result = false;
         unsigned char* rgbaExp = new unsigned char[rawSize];
         unsigned char* rgbaGot = new unsigned char[rawSize];
         memset(rgbaExp, 0x77, rawSize);
         memset(rgbaGot, 0x77, rawSize);
-        decompress_bc7(width, height, resExp, rgbaExp);
-        decompress_bc7(width, height, resGot, rgbaGot);
-        stbi_write_tga("artifacts/exp.tga", width, height, 4, rgbaExp);
-        stbi_write_tga("artifacts/got.tga", width, height, 4, rgbaGot);
+        decompress_bc7(tf.width, tf.height, tf.bc7exp.data(), rgbaExp);
+        decompress_bc7(tf.width, tf.height, tf.bc7got.data(), rgbaGot);
+        stbi_write_tga(("artifacts/"+tf.fileNameBase+"-exp.tga").c_str(), tf.width, tf.height, 4, rgbaExp);
+        stbi_write_tga(("artifacts/"+tf.fileNameBase+"-got.tga").c_str(), tf.width, tf.height, 4, rgbaGot);
         delete[] rgbaExp;
         delete[] rgbaGot;
     }
-
-    // cleanup
-    delete[] resExp;
-    delete[] resGot;
-    stbi_image_free(rgba);
     return result;
 }
 
@@ -514,14 +525,74 @@ int main()
 {
     Initialize();
     int errorCount = 0;
-    for (auto fileName : kTestFiles)
+    
+    // Read image files
+    printf("Load input images...\n");
+    std::vector<TestFile> testFiles;
+    size_t maxRgbaSize = 0;
+    size_t maxBc7Size = 0;
+    for (auto fileName : kTestFileNames)
     {
-        if (!TestOnFile(fileName))
+        TestFile tf;
+        tf.filePath = fileName;
+        size_t fileNameBaseStart = tf.filePath.find_last_of('/');
+        if (fileNameBaseStart == std::string::npos)
+            fileNameBaseStart = 0;
+        else
+            fileNameBaseStart++;
+        size_t fileNameBaseEnd = tf.filePath.find_last_of('.');
+        if (fileNameBaseEnd == std::string::npos)
+            fileNameBaseEnd = tf.filePath.size();
+        tf.fileNameBase = tf.filePath.substr(fileNameBaseStart, fileNameBaseEnd - fileNameBaseStart);
+        stbi_uc* rgba = stbi_load(fileName, &tf.width, &tf.height, &tf.channels, 4);
+        if (rgba == nullptr)
+        {
+            printf("ERROR: could not read input file '%s'\n", fileName);
             ++errorCount;
+            continue;
+        }
+        if ((tf.width % 4) != 0 || (tf.height % 4) != 0)
+        {
+            printf("ERROR: only multiple of 4 image sizes are supported, was %ix%i for %s\n", tf.width, tf.height, fileName);
+            stbi_image_free(rgba);
+            ++errorCount;
+            continue;
+        }
+        
+        size_t rgbaSize = tf.width * tf.height * 4;
+        maxRgbaSize = std::max(maxRgbaSize, rgbaSize);
+        tf.rgba.resize(rgbaSize);
+        memcpy(tf.rgba.data(), rgba, tf.rgba.size());
+        stbi_image_free(rgba);
+        
+        tf.widthInBlocks = (tf.width + 3) / 4;
+        tf.heightInBlocks = (tf.height + 3) / 4;
+        size_t bc7size = tf.widthInBlocks * tf.heightInBlocks * 16;
+        maxBc7Size = std::max(maxBc7Size, bc7size);
+        tf.bc7exp.resize(bc7size);
+        tf.bc7got.resize(bc7size);
+        
+        testFiles.emplace_back(tf);
     }
-    if (errorCount != 0)
+    
+    // Create compression shaders & buffers
+    if (!InitializeMetalCompressorBuffers(maxRgbaSize, maxBc7Size))
     {
-        printf("ERROR: %i tests failed\n", errorCount);
+        ++errorCount;
     }
+    else
+    {
+        printf("Running tests on %zi images...\n", testFiles.size());
+        for (auto& tf : testFiles)
+        {
+            if (!TestOnFile(tf))
+                ++errorCount;
+        }
+    }
+    
+    if (errorCount != 0)
+        printf("ERROR: %i tests failed\n", errorCount);
+    else
+        printf("All OK!\n");
     return errorCount ? 1 : 0;
 }
