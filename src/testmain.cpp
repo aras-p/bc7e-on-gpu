@@ -19,8 +19,14 @@
 static const char* kTestFileNames[] =
 {
     "textures/2dSignsCrop.png",
-    "textures/16x16.png",
+    //"textures/16x16.png",
     "textures/Gradients.png",
+    "textures/AoCrop-gray.png",
+    "textures/frymire_1024.png",
+    "textures/normal-b-crop-nm.png",
+    "textures/GrassWindCrop.png",
+    "textures/RgbColCrop.png",
+    "textures/train-nm.png",
 };
 
 typedef std::vector<unsigned char> ByteVector;
@@ -39,6 +45,7 @@ struct TestFile
     ByteVector bc7got;
     float timeRef = 1.0e20f;
     float timeGot = 1.0e20f;
+    bool errors = false;
 };
 
 struct Globals // note: should match Metal code struct
@@ -460,6 +467,7 @@ static bool TestOnFile(TestFile& tf)
         case 4: ispc::bc7e_compress_block_params_init_slow(&settings, perceptual); break;
     }
     {
+        uint64_t t0 = stm_now();
         ic::pfor(tf.heightInBlocks, 1, [&](int blockY, int threadIdx)
         {
             const int kBatchSize = 64;
@@ -481,10 +489,13 @@ static bool TestOnFile(TestFile& tf)
                 ispc::bc7e_compress_blocks(counter, (uint64_t*)sliceOutput, (const uint32_t*)blocks, &settings);
             }
         });
+        float sec = stm_sec(stm_since(t0));
+        tf.timeRef = std::min(tf.timeRef, sec);
     }
     
     // compress with compute shader
     {
+        uint64_t t0 = stm_now();
         Globals glob = {tf.width, tf.height, tf.widthInBlocks, tf.heightInBlocks, settings};
 
         SmolBufferSetData(s_Bc7GlobBuffer, &glob, sizeof(glob));
@@ -498,6 +509,8 @@ static bool TestOnFile(TestFile& tf)
         SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 4, 4, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());
+        float sec = stm_sec(stm_since(t0));
+        tf.timeGot = std::min(tf.timeGot, sec);
     }
     
     // check if they match
@@ -505,6 +518,7 @@ static bool TestOnFile(TestFile& tf)
     if (memcmp(tf.bc7exp.data(), tf.bc7got.data(), tf.bc7got.size()) != 0)
     {
         printf("    ERROR: did not match reference\n");
+        tf.errors = true;
         result = false;
         unsigned char* rgbaExp = new unsigned char[rawSize];
         unsigned char* rgbaGot = new unsigned char[rawSize];
@@ -587,6 +601,26 @@ int main()
         {
             if (!TestOnFile(tf))
                 ++errorCount;
+        }
+        
+        printf("Timing results, Mpix/sec CPU vs GPU:\n");
+        double mpixsRefSum = 0, mpixsGotSum = 0;
+        int resultsCount = 0;
+        for (const auto& tf : testFiles)
+        {
+            if (tf.errors)
+                continue;
+            double mpix = tf.width * tf.height / 1000000.0;
+            double mpixsRef = mpix / tf.timeRef;
+            double mpixsGot = mpix / tf.timeGot;
+            mpixsGotSum += mpixsGot;
+            mpixsRefSum += mpixsRef;
+            ++resultsCount;
+            printf("  %20s %6.1f %6.1f\n", tf.fileNameBase.c_str(), mpixsRef, mpixsGot);
+        }
+        if (resultsCount != 0)
+        {
+            printf("  %20s %6.1f %6.1f\n", "<average>", mpixsRefSum/resultsCount, mpixsGotSum/resultsCount);
         }
     }
     

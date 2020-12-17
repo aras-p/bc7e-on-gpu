@@ -198,7 +198,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd ${SRCROOT}/../..\nchmod 755 tools/ispc_osx\necho Compile ISPC: bc7e.ispc\ntools/ispc_osx -O0 external/bc7e/bc7e.ispc -o \"${OBJROOT}/bc7e.o\" -h external/bc7e/bc7e_ispc.h --arch=x86-64 --target=avx2 --opt=disable-fma --opt=disable-assertions \n";
+			shellScript = "cd ${SRCROOT}/../..\nchmod 755 tools/ispc_osx\necho Compile ISPC: bc7e.ispc\ntools/ispc_osx -O2 external/bc7e/bc7e.ispc -o \"${OBJROOT}/bc7e.o\" -h external/bc7e/bc7e_ispc.h --arch=x86-64 --target=avx2 --opt=disable-fma --opt=disable-assertions \n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -325,6 +325,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 			};
 			name = Release;
