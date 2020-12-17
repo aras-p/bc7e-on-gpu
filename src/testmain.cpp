@@ -596,11 +596,16 @@ int main()
     }
     else
     {
+        const int kRunCount = 8;
         printf("Running tests on %zi images...\n", testFiles.size());
-        for (auto& tf : testFiles)
+        for (int ir = 0; ir < kRunCount; ++ir)
         {
-            if (!TestOnFile(tf))
-                ++errorCount;
+            printf("Run %i of %i...\n", ir+1, kRunCount);
+            for (auto& tf : testFiles)
+            {
+                if (!TestOnFile(tf))
+                    ++errorCount;
+            }
         }
         
         printf("Timing results, Mpix/sec CPU vs GPU:\n");
