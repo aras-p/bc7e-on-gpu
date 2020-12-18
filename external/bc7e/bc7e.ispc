@@ -2804,11 +2804,13 @@ static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const var
 			pSolutions[i].m_index = partition;
 		}
 
-		if ((total_subsets == 2) && (partition == BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX))
-		{
-			if (all(i >= HIGH_FREQUENCY_SORTED_PARTITION_THRESHOLD))
-				break;
-		}
+        //@TODO: disabled this for now since it produces different result
+        // on different SIMD widths.
+		//if ((total_subsets == 2) && (partition == BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX))
+		//{
+		//	if (all(i >= HIGH_FREQUENCY_SORTED_PARTITION_THRESHOLD))
+		//		break;
+		//}
 
 	} // partition
 

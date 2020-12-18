@@ -16,6 +16,10 @@
 #include <sys/stat.h>
 #endif
 
+const int kQuality = 1;
+const int kRunCount = 8;
+
+
 static const char* kTestFileNames[] =
 {
     "textures/2dSignsCrop.png",
@@ -457,11 +461,10 @@ static bool TestOnFile(TestFile& tf)
     memset(tf.bc7got.data(), 0x77, compressedSize);
 
     bool perceptual = true;
-    int quality = 0;
     
     // compress with bc7e for expected/reference result
     ispc::bc7e_compress_block_params settings;
-    switch(quality)
+    switch(kQuality)
     {
         case 0: ispc::bc7e_compress_block_params_init_ultrafast(&settings, perceptual); break;
         case 1: ispc::bc7e_compress_block_params_init_veryfast(&settings, perceptual); break;
@@ -599,7 +602,6 @@ int main()
     }
     else
     {
-        const int kRunCount = 8;
         printf("Running tests on %zi images...\n", testFiles.size());
         for (int ir = 0; ir < kRunCount; ++ir)
         {

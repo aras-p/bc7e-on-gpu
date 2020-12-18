@@ -4,6 +4,7 @@ using namespace metal;
 #define uniform
 #define varying thread
 
+//#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
@@ -2220,11 +2221,13 @@ static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const var
             pSolutions[i].m_index = partition;
         }
 
-        if ((total_subsets == 2) && (partition == BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX))
-        {
-            if (all(i >= HIGH_FREQUENCY_SORTED_PARTITION_THRESHOLD))
-                break;
-        }
+        //@TODO: disabled this for now since it produces different result
+        // on different SIMD widths.
+        //if ((total_subsets == 2) && (partition == BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX))
+        //{
+        //    if (simd_all(i >= HIGH_FREQUENCY_SORTED_PARTITION_THRESHOLD))
+        //        break;
+        //}
 
     } // partition
 
@@ -3097,8 +3100,8 @@ static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, con
         } // rotation
     }
 
-    // Mode 7 //@TODO: disable mode 7 for now
-    /*
+    // Mode 7
+    #ifndef OPT_ULTRAFAST_ONLY
     if (pComp_params->m_alpha_settings.m_use_mode7)
     {
         solution solutions[BC7E_MAX_PARTITIONS7];
@@ -3258,7 +3261,7 @@ static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, con
             }
         }
     }
-     */
+    #endif // #ifndef OPT_ULTRAFAST_ONLY
 
     return encode_bc7_block(&opt_results);
 }
@@ -4017,14 +4020,18 @@ kernel void bc7e_compress_blocks(
     const bool has_alpha = (lo_a < 255);
     uint4 block;
     
-    if (has_alpha) //@TODO: only opaque mode6 for now
+    if (has_alpha)
         block = handle_alpha_block(temp_pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
     else
     {
-        //if (glob.params.m_mode6_only) //@TODO: only mode 6 for now
+#ifdef OPT_ULTRAFAST_ONLY
+        block = handle_opaque_block_mode6(temp_pixels, &glob.params, &params, tables);
+#else
+        if (glob.params.m_mode6_only)
             block = handle_opaque_block_mode6(temp_pixels, &glob.params, &params, tables);
-        //else
-        //    block = handle_opaque_block(temp_pixels, &glob.params, &params, tables);
+        else
+            block = handle_opaque_block(temp_pixels, &glob.params, &params, tables);
+#endif
     }
     uint block_index = id.y * glob.widthInBlocks + id.x;
     bufOutput[block_index] = block;
