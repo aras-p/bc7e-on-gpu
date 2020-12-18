@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 #endif
 
-const int kQuality = 2;
+const int kQuality = 3;
 const int kRunCount = 8;
 
 

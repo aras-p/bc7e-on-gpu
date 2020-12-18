@@ -5,6 +5,7 @@ using namespace metal;
 #define varying thread
 
 //#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
+//#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
@@ -1655,7 +1656,7 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             return 0;
     }
 
-    /* //@TODO: disable uber part for now
+#ifndef OPT_FASTMODES_ONLY
     if (pComp_params->m_uber_level > 0)
     {
         int selectors_temp[16], selectors_temp1[16];
@@ -1673,9 +1674,7 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             max_sel = max(max_sel, sel);
         }
 
-        vec4F xl, xh;
-        vec4F_set_scalar(&xl, 0.0f);
-        vec4F_set_scalar(&xh, 0.0f);
+        vec4F xl = 0.0f, xh = 0.0f;
 
         if (pComp_params->m_uber1_mask & 1)
         {
@@ -1692,12 +1691,12 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             else
             {
                 compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
-                xl.m_c[3] = 255.0f;
-                xh.m_c[3] = 255.0f;
+                xl.a = 255.0f;
+                xh.a = 255.0f;
             }
 
-            xl = vec4F_mul(&xl, (1.0f / 255.0f));
-            xh = vec4F_mul(&xh, (1.0f / 255.0f));
+            xl *= 1.0f / 255.0f;
+            xh *= 1.0f / 255.0f;
 
             if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels))
                 return 0;
@@ -1718,12 +1717,12 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             else
             {
                 compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
-                xl.m_c[3] = 255.0f;
-                xh.m_c[3] = 255.0f;
+                xl.a = 255.0f;
+                xh.a = 255.0f;
             }
 
-            xl = vec4F_mul(&xl, (1.0f / 255.0f));
-            xh = vec4F_mul(&xh, (1.0f / 255.0f));
+            xl *= 1.0f / 255.0f;
+            xh *= 1.0f / 255.0f;
 
             if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels))
                 return 0;
@@ -1746,12 +1745,12 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             else
             {
                 compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
-                xl.m_c[3] = 255.0f;
-                xh.m_c[3] = 255.0f;
+                xl.a = 255.0f;
+                xh.a = 255.0f;
             }
 
-            xl = vec4F_mul(&xl, (1.0f / 255.0f));
-            xh = vec4F_mul(&xh, (1.0f / 255.0f));
+            xl *= 1.0f / 255.0f;
+            xh *= 1.0f / 255.0f;
 
             if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels))
                 return 0;
@@ -1769,21 +1768,21 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
                         continue;
 
                     for (uniform uint32_t i = 0; i < num_pixels; i++)
-                        selectors_temp1[i] = (int)clampf(floor((float)max_selector * ((float)(int)selectors_temp[i] - (float)ly) / ((float)hy - (float)ly) + .5f), 0, (float)max_selector);
+                        selectors_temp1[i] = (int)clamp(floor((float)max_selector * ((float)(int)selectors_temp[i] - (float)ly) / ((float)hy - (float)ly) + .5f), 0.0f, (float)max_selector);
 
-                    vec4F_set_scalar(&xl, 0.0f);
-                    vec4F_set_scalar(&xh, 0.0f);
+                    xl = 0.0f;
+                    xh = 0.0f;
                     if (pParams->m_has_alpha)
                         compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
                     else
                     {
                         compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
-                        xl.m_c[3] = 255.0f;
-                        xh.m_c[3] = 255.0f;
+                        xl.a = 255.0f;
+                        xh.a = 255.0f;
                     }
 
-                    xl = vec4F_mul(&xl, (1.0f / 255.0f));
-                    xh = vec4F_mul(&xh, (1.0f / 255.0f));
+                    xl *= 1.0f / 255.0f;
+                    xh *= 1.0f / 255.0f;
 
                     if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search && (pComp_params->m_uber_level >= 2), num_pixels, pPixels))
                         return 0;
@@ -1791,7 +1790,7 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             }
         }
     }
-     */
+#endif // #ifndef OPT_FASTMODES_ONLY
 
     if ((mode <= 2) || (mode == 4) || (mode >= 6))
     {
@@ -2672,7 +2671,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
                         
         } // pass
 
-        /*@TODO: disable uber for now
+#ifndef OPT_FASTMODES_ONLY
         if (pComp_params->m_uber_level > 0)
         {
             const uniform int D = min((int)pComp_params->m_uber_level, 3);
@@ -2743,7 +2742,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
 
             } // ld
         }
-         */
+#endif // #ifndef OPT_FASTMODES_ONLY
 
         trial_err += best_alpha_err;
 
@@ -2863,7 +2862,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
             }
         }
 
-        /* @TODO: disable uber for now
+#ifndef OPT_FASTMODES_ONLY
         if (pComp_params->m_uber_level > 0)
         {
             const uniform int D = min((int)pComp_params->m_uber_level, 3);
@@ -2913,7 +2912,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
 
             } // ld
         }
-         */
+#endif // #ifndef OPT_FASTMODES_ONLY
 
         *pMode5_err += mode5_alpha_err;
     }
