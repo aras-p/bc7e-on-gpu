@@ -2668,6 +2668,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
                         
         } // pass
 
+        /*@TODO: disable uber for now
         if (pComp_params->m_uber_level > 0)
         {
             const uniform int D = min((int)pComp_params->m_uber_level, 3);
@@ -2738,6 +2739,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
 
             } // ld
         }
+         */
 
         trial_err += best_alpha_err;
 
@@ -2857,6 +2859,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
             }
         }
 
+        /* @TODO: disable uber for now
         if (pComp_params->m_uber_level > 0)
         {
             const uniform int D = min((int)pComp_params->m_uber_level, 3);
@@ -2906,6 +2909,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
 
             } // ld
         }
+         */
 
         *pMode5_err += mode5_alpha_err;
     }
