@@ -1252,6 +1252,7 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
         
     if (pParams->m_has_pbits)
     {
+        /* @TODO: disable pbit_search for now
         if (pbit_search)
         {
             // compensated rounding+pbit search
@@ -1333,7 +1334,7 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
                 evaluate_solution(&lo[1], &hi[1], pbits, pParams, pResults, num_pixels, pPixels);
             }
         }
-        else
+        else*/
         {
             // compensated rounding
             const uniform int iscalep = (1 << (pParams->m_comp_bits + 1)) - 1;
