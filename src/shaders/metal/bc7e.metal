@@ -3979,6 +3979,31 @@ struct Globals // note: should match C++ code struct
     bc7e_compress_block_params params;
 };
 
+void load_pixel_block(color_quad_i pixels[16], thread float* out_lo_a, thread float* out_hi_a, uint3 id, const device uint* bufInput, uint width)
+{
+    float lo_a = 255, hi_a = 0;
+    uint base_pix = (id.y * 4) * width + id.x * 4;
+    for (uint i = 0; i < 16; i++)
+    {
+        uint ix = i & 3;
+        uint iy = i >> 2;
+        uint craw = bufInput[base_pix + iy * width + ix];
+        int r = craw & 0xFF;
+        int g = (craw >> 8) & 0xFF;
+        int b = (craw >> 16) & 0xFF;
+        int a = (craw >> 24);
+
+        pixels[i] = int4(r, g, b, a);
+
+        float fa = a;
+
+        lo_a = min(lo_a, fa);
+        hi_a = max(hi_a, fa);
+    }
+    *out_lo_a = lo_a;
+    *out_hi_a = hi_a;
+}
+
 kernel void bc7e_compress_blocks(
     const device OptimalEndpointTables* tables [[buffer(0)]],
     constant Globals& glob [[buffer(1)]],
@@ -3994,42 +4019,24 @@ kernel void bc7e_compress_blocks(
     
     params.m_weights = glob.params.m_weights;
     
-    // load 4x4 block of pixels
-    color_quad_i temp_pixels[16];
-    float lo_a = 255, hi_a = 0;
-    uint base_pix = (id.y * 4) * glob.width + id.x * 4;
-    for (uint i = 0; i < 16; i++)
-    {
-        uint ix = i & 3;
-        uint iy = i >> 2;
-        uint craw = bufInput[base_pix + iy * glob.width + ix];
-        int r = craw & 0xFF;
-        int g = (craw >> 8) & 0xFF;
-        int b = (craw >> 16) & 0xFF;
-        int a = (craw >> 24);
-
-        temp_pixels[i] = int4(r, g, b, a);
-
-        float fa = a;
-
-        lo_a = min(lo_a, fa);
-        hi_a = max(hi_a, fa);
-    }
+    color_quad_i pixels[16];
+    float lo_a, hi_a;
+    load_pixel_block(pixels, &lo_a, &hi_a, id, bufInput, glob.width);
     
     const bool has_alpha = (lo_a < 255);
     uint4 block;
     
     if (has_alpha)
-        block = handle_alpha_block(temp_pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
+        block = handle_alpha_block(pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
     else
     {
 #ifdef OPT_ULTRAFAST_ONLY
-        block = handle_opaque_block_mode6(temp_pixels, &glob.params, &params, tables);
+        block = handle_opaque_block_mode6(pixels, &glob.params, &params, tables);
 #else
         if (glob.params.m_mode6_only)
-            block = handle_opaque_block_mode6(temp_pixels, &glob.params, &params, tables);
+            block = handle_opaque_block_mode6(pixels, &glob.params, &params, tables);
         else
-            block = handle_opaque_block(temp_pixels, &glob.params, &params, tables);
+            block = handle_opaque_block(pixels, &glob.params, &params, tables);
 #endif
     }
     uint block_index = id.y * glob.widthInBlocks + id.x;
