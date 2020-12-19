@@ -417,7 +417,8 @@ static void* ReadFile(const char* path, size_t* outSize)
     return buffer;
 }
 
-static SmolKernel* s_Bc7Kernel;
+static SmolKernel* s_Bc7KernelEncode;
+static SmolKernel* s_Bc7KernelLists;
 static SmolBuffer* s_Bc7TablesBuffer;
 static SmolBuffer* s_Bc7GlobBuffer;
 static SmolBuffer* s_Bc7InputBuffer;
@@ -433,15 +434,27 @@ static bool InitializeMetalCompressorBuffers(size_t maxRgbaSize, size_t maxBc7Si
         printf("ERROR: could not read compute shader source file\n");
         return false;
     }
-    uint64_t tComp0 = stm_now();
-    s_Bc7Kernel = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks");
-    free(kernelSource);
-    if (s_Bc7Kernel == nullptr)
     {
-        printf("ERROR: failed to create compute shader\n");
-        return false;
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelLists = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_estimate_partition_lists");
+        if (s_Bc7KernelLists == nullptr)
+        {
+            printf("ERROR: failed to create lists compute shader\n");
+            return false;
+        }
+        printf("  lists shader created in %.1fs\n", stm_sec(stm_since(tComp0)));
     }
-    printf("  shader created in %.1fs\n", stm_sec(stm_since(tComp0)));
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks");
+        if (s_Bc7KernelEncode == nullptr)
+        {
+            printf("ERROR: failed to create encode compute shader\n");
+            return false;
+        }
+        printf("  encode shader created in %.1fs\n", stm_sec(stm_since(tComp0)));
+    }
+    free(kernelSource);
 
     s_Bc7TablesBuffer = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Constant);
     s_Bc7GlobBuffer = SmolBufferCreate(sizeof(Globals), SmolBufferType::Constant);
@@ -507,11 +520,17 @@ static bool TestOnFile(TestFile& tf)
         SmolBufferSetData(s_Bc7GlobBuffer, &glob, sizeof(glob));
         SmolBufferSetData(s_Bc7InputBuffer, tf.rgba.data(), tf.rgba.size());
         
-        SmolKernelSet(s_Bc7Kernel);
-        SmolKernelSetBuffer(s_Bc7TablesBuffer, 0, SmolBufferBinding::Constant);
-        SmolKernelSetBuffer(s_Bc7GlobBuffer, 1, SmolBufferBinding::Constant);
-        SmolKernelSetBuffer(s_Bc7InputBuffer, 2, SmolBufferBinding::Input);
-        SmolKernelSetBuffer(s_Bc7OutputBuffer, 3, SmolBufferBinding::Output);
+        SmolKernelSet(s_Bc7KernelLists);
+        SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+        SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
+        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 32, 1, 1);
+        
+        SmolKernelSet(s_Bc7KernelEncode);
+        SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+        SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
+        SmolKernelSetBuffer(s_Bc7TablesBuffer, 3, SmolBufferBinding::Constant);
         SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 32, 1, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());

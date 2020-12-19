@@ -1656,7 +1656,7 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             return 0;
     }
 
-#ifndef OPT_FASTMODES_ONLY
+#if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
     if (pComp_params->m_uber_level > 0)
     {
         int selectors_temp[16], selectors_temp1[16];
@@ -1790,7 +1790,7 @@ static uint32_t color_cell_compression(uniform uint32_t mode, const thread color
             }
         }
     }
-#endif // #ifndef OPT_FASTMODES_ONLY
+#endif // #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
 
     if ((mode <= 2) || (mode == 4) || (mode >= 6))
     {
@@ -2671,7 +2671,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
                         
         } // pass
 
-#ifndef OPT_FASTMODES_ONLY
+#if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
         if (pComp_params->m_uber_level > 0)
         {
             const uniform int D = min((int)pComp_params->m_uber_level, 3);
@@ -2742,7 +2742,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
 
             } // ld
         }
-#endif // #ifndef OPT_FASTMODES_ONLY
+#endif // #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
 
         trial_err += best_alpha_err;
 
@@ -2862,7 +2862,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
             }
         }
 
-#ifndef OPT_FASTMODES_ONLY
+#if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
         if (pComp_params->m_uber_level > 0)
         {
             const uniform int D = min((int)pComp_params->m_uber_level, 3);
@@ -2912,7 +2912,7 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
 
             } // ld
         }
-#endif // #ifndef OPT_FASTMODES_ONLY
+#endif // #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
 
         *pMode5_err += mode5_alpha_err;
     }
@@ -2923,7 +2923,108 @@ static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels
     pOpt_results5->m_partition = 0;
 }
 
-static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, int lo_a, int hi_a, const device OptimalEndpointTables* tables)
+static uint encode_solutions(const solution solutions[4], uint count)
+{
+    uint res = 0;
+    uint shift = 0;
+    for (uint i = 0; i < count; ++i)
+    {
+        res |= solutions[i].m_index << shift;
+        shift += 6;
+    }
+    res |= count << 24;
+    return res;
+}
+
+static uint decode_solutions(uint enc, solution solutions[4])
+{
+    uint count = (enc >> 24) & 3;
+    for (uint i = 0; i < count; ++i)
+    {
+        solutions[i].m_index = enc & 0x3F;
+        enc >>= 6;
+    }
+    return count;
+}
+
+static uint4 get_lists_alpha(const varying color_quad_i* pPixels, const constant bc7e_compress_block_params* pComp_params)
+{
+    // x = mode 7 lists
+    uint4 lists = 0;
+
+    // Mode 7
+    #ifndef OPT_ULTRAFAST_ONLY
+    if (pComp_params->m_alpha_settings.m_use_mode7)
+    {
+        uint res = 0;
+        solution solutions[4];
+        uniform uint32_t num_solutions = estimate_partition_list(7, pPixels, pComp_params, solutions, pComp_params->m_alpha_settings.m_max_mode7_partitions_to_try);
+        lists.x = encode_solutions(solutions, num_solutions);
+    }
+    #endif // #ifndef OPT_ULTRAFAST_ONLY
+    return lists;
+}
+
+static uint4 get_lists_opaque(const varying color_quad_i* pPixels, const constant bc7e_compress_block_params* pComp_params)
+{
+    // x = unused
+    // y = mode 1|3 lists
+    // z = mode 0 lists
+    // w = mode 2 lists
+    uint4 lists = 0;
+    
+    if (pComp_params->m_opaque_settings.m_use_mode[1] || pComp_params->m_opaque_settings.m_use_mode[3])
+    {
+        solution sol13[4];
+        uint num_sol13 = 0;
+        if (pComp_params->m_opaque_settings.m_max_mode13_partitions_to_try == 1)
+        {
+            sol13[0].m_index = estimate_partition(1, pPixels, pComp_params);
+            num_sol13 = 1;
+        }
+        else
+        {
+            num_sol13 = estimate_partition_list(1, pPixels, pComp_params, sol13, pComp_params->m_opaque_settings.m_max_mode13_partitions_to_try);
+        }
+        lists.y = encode_solutions(sol13, num_sol13);
+    }
+    
+    if (pComp_params->m_opaque_settings.m_use_mode[0])
+    {
+        solution sol0[4];
+        uint num_sol0 = 0;
+        if (pComp_params->m_opaque_settings.m_max_mode0_partitions_to_try == 1)
+        {
+            sol0[0].m_index = estimate_partition(0, pPixels, pComp_params);
+            num_sol0 = 1;
+        }
+        else
+        {
+            num_sol0 = estimate_partition_list(0, pPixels, pComp_params, sol0, pComp_params->m_opaque_settings.m_max_mode0_partitions_to_try);
+        }
+        lists.z = encode_solutions(sol0, num_sol0);
+    }
+    
+    if (pComp_params->m_opaque_settings.m_use_mode[2])
+    {
+        solution sol2[4];
+        uint num_sol2 = 0;
+        if (pComp_params->m_opaque_settings.m_max_mode2_partitions_to_try == 1)
+        {
+            sol2[0].m_index = estimate_partition(2, pPixels, pComp_params);
+            num_sol2 = 1;
+        }
+        else
+        {
+            num_sol2 = estimate_partition_list(2, pPixels, pComp_params, sol2, pComp_params->m_opaque_settings.m_max_mode2_partitions_to_try);
+        }
+        lists.w = encode_solutions(sol2, num_sol2);
+    }
+
+    return lists;
+}
+
+static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, uint4 solution_lists, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, int lo_a, int hi_a, const device OptimalEndpointTables* tables)
 {
     pParams->m_perceptual = pComp_params->m_perceptual;
 
@@ -3103,8 +3204,8 @@ static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, con
     #ifndef OPT_ULTRAFAST_ONLY
     if (pComp_params->m_alpha_settings.m_use_mode7)
     {
-        solution solutions[BC7E_MAX_PARTITIONS7];
-        uniform uint32_t num_solutions = estimate_partition_list(7, pPixels, pComp_params, solutions, pComp_params->m_alpha_settings.m_max_mode7_partitions_to_try);
+        solution solutions[4];
+        uint num_solutions = decode_solutions(solution_lists.x, solutions);
 
         uniform color_cell_compressor_params params7 = *pParams;
         
@@ -3265,7 +3366,7 @@ static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, con
     return encode_bc7_block(&opt_results);
 }
 
-static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
+static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, uint4 solution_lists, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
 {
     int selectors_temp[16];
         
@@ -3304,20 +3405,8 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, co
         opt_results.m_pbits[0][1] = results6.m_pbits[1];
     }
 
-    solution solutions2[BC7E_MAX_PARTITIONS3];
-    uniform uint32_t num_solutions2 = 0;
-    if (pComp_params->m_opaque_settings.m_use_mode[1] || pComp_params->m_opaque_settings.m_use_mode[3])
-    {
-        if (pComp_params->m_opaque_settings.m_max_mode13_partitions_to_try == 1)
-        {
-            solutions2[0].m_index = estimate_partition(1, pPixels, pComp_params);
-            num_solutions2 = 1;
-        }
-        else
-        {
-            num_solutions2 = estimate_partition_list(1, pPixels, pComp_params, solutions2, pComp_params->m_opaque_settings.m_max_mode13_partitions_to_try);
-        }
-    }
+    solution solutions2[4];
+    uint num_solutions2 = decode_solutions(solution_lists.y, solutions2);
         
     const uniform bool disable_faster_part_selection = false;
                                 
@@ -3472,17 +3561,8 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, co
     // Mode 0
     if (pComp_params->m_opaque_settings.m_use_mode[0])
     {
-        solution solutions3[BC7E_MAX_PARTITIONS0];
-        uniform uint32_t num_solutions3 = 0;
-        if (pComp_params->m_opaque_settings.m_max_mode0_partitions_to_try == 1)
-        {
-            solutions3[0].m_index = estimate_partition(0, pPixels, pComp_params);
-            num_solutions3 = 1;
-        }
-        else
-        {
-            num_solutions3 = estimate_partition_list(0, pPixels, pComp_params, solutions3, pComp_params->m_opaque_settings.m_max_mode0_partitions_to_try);
-        }
+        solution solutions3[4];
+        uint num_solutions3 = decode_solutions(solution_lists.z, solutions3);
 
         pParams->m_pSelector_weights = g_bc7_weights3;
         pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights3x[0];
@@ -3773,17 +3853,8 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, co
     // Mode 2
     if (pComp_params->m_opaque_settings.m_use_mode[2])
     {
-        solution solutions3[BC7E_MAX_PARTITIONS2];
-        uniform uint32_t num_solutions3 = 0;
-        if (pComp_params->m_opaque_settings.m_max_mode2_partitions_to_try == 1)
-        {
-            solutions3[0].m_index = estimate_partition(2, pPixels, pComp_params);
-            num_solutions3 = 1;
-        }
-        else
-        {
-            num_solutions3 = estimate_partition_list(2, pPixels, pComp_params, solutions3, pComp_params->m_opaque_settings.m_max_mode2_partitions_to_try);
-        }
+        solution solutions3[4];
+        uint num_solutions3 = decode_solutions(solution_lists.w, solutions3);
 
         pParams->m_pSelector_weights = g_bc7_weights2;
         pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
@@ -4004,11 +4075,48 @@ void load_pixel_block(color_quad_i pixels[16], thread float* out_lo_a, thread fl
     *out_hi_a = hi_a;
 }
 
+// First pass: figures out mode partition lists
+// (writes them into the output texture buffer)
+// - Up to 4 partitions for mode; partition indices encoded in 6 bits each, then list size
+// - x: mode 7
+// - y: mode 1|3
+// - z: mode 0
+// - w: mode 2
+kernel void bc7e_estimate_partition_lists(
+    constant Globals& glob [[buffer(0)]],
+    const device uint* bufInput [[buffer(1)]],
+    device uint4* bufOutput [[buffer(2)]],
+    uint3 id [[thread_position_in_grid]])
+{
+    if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
+        return;
+    
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params);
+    
+    params.m_weights = glob.params.m_weights;
+    
+    color_quad_i pixels[16];
+    float lo_a, hi_a;
+    load_pixel_block(pixels, &lo_a, &hi_a, id, bufInput, glob.width);
+    
+    const bool has_alpha = (lo_a < 255);
+
+    uint4 lists;
+    if (has_alpha)
+        lists = get_lists_alpha(pixels, &glob.params);
+    else
+        lists = get_lists_opaque(pixels, &glob.params);
+    uint block_index = id.y * glob.widthInBlocks + id.x;
+    bufOutput[block_index] = lists;
+}
+
+
 kernel void bc7e_compress_blocks(
-    const device OptimalEndpointTables* tables [[buffer(0)]],
-    constant Globals& glob [[buffer(1)]],
-    const device uint* bufInput [[buffer(2)]],
-    device uint4* bufOutput [[buffer(3)]],
+    constant Globals& glob [[buffer(0)]],
+    const device uint* bufInput [[buffer(1)]],
+    device uint4* bufOutput [[buffer(2)]],
+    const device OptimalEndpointTables* tables [[buffer(3)]],
     uint3 id [[thread_position_in_grid]])
 {
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
@@ -4026,8 +4134,11 @@ kernel void bc7e_compress_blocks(
     const bool has_alpha = (lo_a < 255);
     uint4 block;
     
+    uint block_index = id.y * glob.widthInBlocks + id.x;
+    uint4 lists = bufOutput[block_index];
+
     if (has_alpha)
-        block = handle_alpha_block(pixels, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
+        block = handle_alpha_block(pixels, lists, &glob.params, &params, (int)lo_a, (int)hi_a, tables);
     else
     {
 #ifdef OPT_ULTRAFAST_ONLY
@@ -4036,9 +4147,8 @@ kernel void bc7e_compress_blocks(
         if (glob.params.m_mode6_only)
             block = handle_opaque_block_mode6(pixels, &glob.params, &params, tables);
         else
-            block = handle_opaque_block(pixels, &glob.params, &params, tables);
+            block = handle_opaque_block(pixels, lists, &glob.params, &params, tables);
 #endif
     }
-    uint block_index = id.y * glob.widthInBlocks + id.x;
     bufOutput[block_index] = block;
 }
