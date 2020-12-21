@@ -228,7 +228,11 @@ SmolKernel* SmolKernelCreate(const void* shaderCode, size_t shaderCodeSize, cons
 {
     ID3DBlob* bytecode = nullptr;
     ID3DBlob* errors = nullptr;
-    HRESULT hr = D3DCompile(shaderCode, shaderCodeSize, "", NULL, NULL, entryPoint, "cs_5_0", D3DCOMPILE_IEEE_STRICTNESS, 0, &bytecode, &errors);
+    UINT flags = D3DCOMPILE_IEEE_STRICTNESS;
+#ifdef _DEBUG
+    flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+    HRESULT hr = D3DCompile(shaderCode, shaderCodeSize, "", NULL, NULL, entryPoint, "cs_5_0", flags, 0, &bytecode, &errors);
     if (FAILED(hr))
     {
         const char* errMsg = (const char*)errors->GetBufferPointer();
