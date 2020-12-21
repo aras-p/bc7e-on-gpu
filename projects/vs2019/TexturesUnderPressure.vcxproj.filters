@@ -61,4 +61,9 @@
       <Filter>external</Filter>
     </CustomBuild>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\src\shaders\hlsl\bc7e.hlsl">
+      <Filter>src\shaders\hlsl</Filter>
+    </FxCompile>
+  </ItemGroup>
 </Project>

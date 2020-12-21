@@ -55,21 +55,21 @@ struct TestFile
     bool errors = false;
 };
 
-struct Globals // note: should match Metal code struct
+struct Globals // note: should match shader code struct
 {
     int width, height;
     int widthInBlocks, heightInBlocks;
     ispc::bc7e_compress_block_params params;
 };
 
-struct endpoint_err // note: should match Metal code struct
+struct endpoint_err // note: should match shader code struct
 {
     uint16_t m_error;
     uint8_t m_lo;
     uint8_t m_hi;
 };
 
-struct OptimalEndpointTables // note: should match Metal code struct
+struct OptimalEndpointTables // note: should match shader code struct
 {
     endpoint_err mode_1[256][2]; // [c][pbit]
     endpoint_err mode_7[256][2][2]; // [c][pbit][hp][lp]
@@ -93,7 +93,7 @@ static const uint32_t BC7E_MODE_4_OPTIMAL_INDEX2 = 1;
 static const uint32_t BC7E_MODE_0_OPTIMAL_INDEX = 2;
 
 
-static void metal_bc7e_compress_block_init()
+static void gpu_bc7e_compress_block_init()
 {
     // Mode 0: 444.1
     for (int c = 0; c < 256; c++)
@@ -323,7 +323,7 @@ static void Initialize()
 {
     stm_setup();
     ispc::bc7e_compress_block_init();
-    metal_bc7e_compress_block_init();
+    gpu_bc7e_compress_block_init();
     ic::init_pfor();
     if (!SmolComputeCreate())
     {
@@ -428,7 +428,11 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
 {
     printf("Initialize shaders & buffers...\n");
     size_t kernelSourceSize = 0;
+#ifdef _MSC_VER
+	void* kernelSource = ReadFile("src/shaders/hlsl/bc7e.hlsl", &kernelSourceSize);
+#else
     void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
+#endif
     if (kernelSource == nullptr)
     {
         printf("ERROR: could not read compute shader source file\n");
