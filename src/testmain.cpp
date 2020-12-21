@@ -16,8 +16,8 @@
 #include <sys/stat.h>
 #endif
 
-const int kQuality = 3;
-const int kRunCount = 8;
+const int kQuality = 0;
+const int kRunCount = 1;
 
 
 static const char* kTestFileNames[] =
@@ -460,7 +460,7 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
     }
     free(kernelSource);
 
-    s_Bc7TablesBuffer = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Constant);
+    s_Bc7TablesBuffer = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Structured, 4);
     s_Bc7GlobBuffer = SmolBufferCreate(sizeof(Globals), SmolBufferType::Constant);
     s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
     s_Bc7OutputBuffer = SmolBufferCreate(maxBc7Size, SmolBufferType::Structured, 16);
@@ -544,7 +544,7 @@ static bool TestOnFile(TestFile& tf)
         SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
         SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
         SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
-        SmolKernelSetBuffer(s_Bc7TablesBuffer, 3, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(s_Bc7TablesBuffer, 3, SmolBufferBinding::Input);
         SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 32, 1, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());

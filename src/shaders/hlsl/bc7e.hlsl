@@ -10,6 +10,7 @@ typedef int int32_t;
 
 #define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
+#define OPT_OPAQUE_ONLY // disabled all transparency handling
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
@@ -4125,9 +4126,11 @@ void bc7e_compress_blocks(uint3 id : SV_DispatchThreadID)
     uint block_index = id.y * g_widthInBlocks + id.x;
     uint4 lists = s_BufOutput[block_index];
 
+#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
         block = handle_alpha_block(pixels, lists, params, (int)lo_a, (int)hi_a);
     else
+#endif
     {
 #ifdef OPT_ULTRAFAST_ONLY
         block = handle_opaque_block_mode6(pixels, params);
