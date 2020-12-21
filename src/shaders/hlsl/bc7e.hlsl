@@ -196,17 +196,26 @@ uint endpoint_get_hi(uint data)
     return data >> 24;
 }
 
+/*
+// This table is 16BK in size, CS 5.0 only supports structured buffer elements up to 2KB size.
+// So do the indexing manually.
 struct OptimalEndpointTables // note: should match C++ code struct
 {
     endpoint_err mode_1[256][2]; // [c][pbit]
-    endpoint_err mode_7[256][2][2]; // [c][pbit][hp][lp]
+    endpoint_err mode_7[256][2][2]; // [c][hp][lp]
     endpoint_err mode_6[256][2][2]; // [c][hp][lp]
     uint32_t mode_4_3[256]; // [c]
     uint32_t mode_4_2[256]; // [c]
     endpoint_err mode_0[256][2][2]; // [c][hp][lp]
 };
-
-StructuredBuffer<OptimalEndpointTables> s_Tables : register(t3);
+*/
+StructuredBuffer<uint> s_Tables : register(t3);
+uint get_table_mode1(uint c, uint pbit) { return s_Tables[c * 2 + pbit]; }
+uint get_table_mode7(uint c, uint hp, uint lp) { return s_Tables[512 + c * 4 + hp * 2 + lp]; }
+uint get_table_mode6(uint c, uint hp, uint lp) { return s_Tables[1536 + c * 4 + hp * 2 + lp]; }
+uint get_table_mode4_3(uint c) { return s_Tables[2560 + c]; }
+uint get_table_mode4_2(uint c) { return s_Tables[2816 + c]; }
+uint get_table_mode0(uint c, uint hp, uint lp) { return s_Tables[3072 + c * 4 + hp * 2 + lp]; }
 
 static const uint32_t BC7E_MODE_1_OPTIMAL_INDEX = 2;
 static const uint32_t BC7E_MODE_7_OPTIMAL_INDEX = 1;
@@ -353,7 +362,6 @@ struct color_cell_compressor_results
     color_quad_i m_high_endpoint;
     uint m_pbits[2];
     int m_selectors[16];
-    //int m_pSelectors_temp[16];
 };
 
 static inline color_quad_i scale_color(color_quad_i c, color_cell_compressor_params params)
@@ -446,7 +454,7 @@ static ModePackResult pack_mode1_to_one_color(color_cell_compressor_params pPara
 
     for (uniform uint32_t pp = 0; pp < 2; pp++)
     {
-        uint32_t err = endpoint_get_err(s_Tables[0].mode_1[r][pp]) + endpoint_get_err(s_Tables[0].mode_1[g][pp]) + endpoint_get_err(s_Tables[0].mode_1[b][pp]);
+        uint32_t err = endpoint_get_err(get_table_mode1(r,pp)) + endpoint_get_err(get_table_mode1(g,pp)) + endpoint_get_err(get_table_mode1(b,pp));
         if (err < best_err)
         {
             best_err = err;
@@ -454,9 +462,9 @@ static ModePackResult pack_mode1_to_one_color(color_cell_compressor_params pPara
         }
     }
 
-    endpoint_err pEr = s_Tables[0].mode_1[r][best_p];
-    endpoint_err pEg = s_Tables[0].mode_1[g][best_p];
-    endpoint_err pEb = s_Tables[0].mode_1[b][best_p];
+    endpoint_err pEr = get_table_mode1(r,best_p);
+    endpoint_err pEg = get_table_mode1(g,best_p);
+    endpoint_err pEb = get_table_mode1(b,best_p);
 
     pResults.m_low_endpoint = int4(endpoint_get_lo(pEr), endpoint_get_lo(pEg), endpoint_get_lo(pEb), 0);
     pResults.m_high_endpoint = int4(endpoint_get_hi(pEr), endpoint_get_hi(pEg), endpoint_get_hi(pEb), 0);
@@ -495,15 +503,15 @@ static ModePackResult pack_mode24_to_one_color(color_cell_compressor_params pPar
 
     if (pParams.m_num_selector_weights == 8)
     {
-        er = s_Tables[0].mode_4_3[r];
-        eg = s_Tables[0].mode_4_3[g];
-        eb = s_Tables[0].mode_4_3[b];
+        er = get_table_mode4_3(r);
+        eg = get_table_mode4_3(g);
+        eb = get_table_mode4_3(b);
     }
     else
     {
-        er = s_Tables[0].mode_4_2[r];
-        eg = s_Tables[0].mode_4_2[g];
-        eb = s_Tables[0].mode_4_2[b];
+        er = get_table_mode4_2(r);
+        eg = get_table_mode4_2(g);
+        eb = get_table_mode4_2(b);
     }
     
     pResults.m_low_endpoint = int4(er & 0xFF, eg & 0xFF, eb & 0xFF, 0);
@@ -545,7 +553,7 @@ static ModePackResult pack_mode0_to_one_color(color_cell_compressor_params pPara
 
     for (uniform uint32_t pp = 0; pp < 4; pp++)
     {
-        uint32_t err = endpoint_get_err(s_Tables[0].mode_0[r][pp >> 1][pp & 1]) + endpoint_get_err(s_Tables[0].mode_0[g][pp >> 1][pp & 1]) + endpoint_get_err(s_Tables[0].mode_0[b][pp >> 1][pp & 1]);
+        uint32_t err = endpoint_get_err(get_table_mode0(r,pp >> 1,pp & 1)) + endpoint_get_err(get_table_mode0(g,pp >> 1,pp & 1)) + endpoint_get_err(get_table_mode0(b,pp >> 1,pp & 1));
         if (err < best_err)
         {
             best_err = err;
@@ -553,9 +561,9 @@ static ModePackResult pack_mode0_to_one_color(color_cell_compressor_params pPara
         }
     }
 
-   endpoint_err pEr = s_Tables[0].mode_0[r][best_p >> 1][best_p & 1];
-   endpoint_err pEg = s_Tables[0].mode_0[g][best_p >> 1][best_p & 1];
-   endpoint_err pEb = s_Tables[0].mode_0[b][best_p >> 1][best_p & 1];
+   endpoint_err pEr = get_table_mode0(r,best_p >> 1,best_p & 1);
+   endpoint_err pEg = get_table_mode0(g,best_p >> 1,best_p & 1);
+   endpoint_err pEb = get_table_mode0(b,best_p >> 1,best_p & 1);
 
     pResults.m_low_endpoint = int4(endpoint_get_lo(pEr), endpoint_get_lo(pEg), endpoint_get_lo(pEb), 0);
     pResults.m_high_endpoint = int4(endpoint_get_hi(pEr), endpoint_get_hi(pEg), endpoint_get_hi(pEb), 0);
@@ -598,7 +606,7 @@ static ModePackResult pack_mode6_to_one_color(color_cell_compressor_params pPara
     {
         uint32_t hi_p = pp >> 1;
         uint32_t lo_p = pp & 1;
-        uint32_t err = endpoint_get_err(s_Tables[0].mode_6[r][hi_p][lo_p]) + endpoint_get_err(s_Tables[0].mode_6[g][hi_p][lo_p]) + endpoint_get_err(s_Tables[0].mode_6[b][hi_p][lo_p]) + endpoint_get_err(s_Tables[0].mode_6[a][hi_p][lo_p]);
+        uint32_t err = endpoint_get_err(get_table_mode6(r,hi_p,lo_p)) + endpoint_get_err(get_table_mode6(g,hi_p,lo_p)) + endpoint_get_err(get_table_mode6(b,hi_p,lo_p)) + endpoint_get_err(get_table_mode6(a,hi_p,lo_p));
         if (err < best_err)
         {
             best_err = err;
@@ -609,10 +617,10 @@ static ModePackResult pack_mode6_to_one_color(color_cell_compressor_params pPara
     uint32_t best_hi_p = best_p >> 1;
     uint32_t best_lo_p = best_p & 1;
 
-    endpoint_err pEr = s_Tables[0].mode_6[r][best_hi_p][best_lo_p];
-    endpoint_err pEg = s_Tables[0].mode_6[g][best_hi_p][best_lo_p];
-    endpoint_err pEb = s_Tables[0].mode_6[b][best_hi_p][best_lo_p];
-    endpoint_err pEa = s_Tables[0].mode_6[a][best_hi_p][best_lo_p];
+    endpoint_err pEr = get_table_mode6(r,best_hi_p,best_lo_p);
+    endpoint_err pEg = get_table_mode6(g,best_hi_p,best_lo_p);
+    endpoint_err pEb = get_table_mode6(b,best_hi_p,best_lo_p);
+    endpoint_err pEa = get_table_mode6(a,best_hi_p,best_lo_p);
 
     pResults.m_low_endpoint = int4(endpoint_get_lo(pEr), endpoint_get_lo(pEg), endpoint_get_lo(pEb), endpoint_get_lo(pEa));
     pResults.m_high_endpoint = int4(endpoint_get_hi(pEr), endpoint_get_hi(pEg), endpoint_get_hi(pEb), endpoint_get_hi(pEa));
@@ -651,7 +659,7 @@ static ModePackResult pack_mode7_to_one_color(color_cell_compressor_params pPara
     {
         uniform uint32_t hi_p = pp >> 1;
         uniform uint32_t lo_p = pp & 1;
-        uint32_t err = endpoint_get_err(s_Tables[0].mode_7[r][hi_p][lo_p]) + endpoint_get_err(s_Tables[0].mode_7[g][hi_p][lo_p]) + endpoint_get_err(s_Tables[0].mode_7[b][hi_p][lo_p]) + endpoint_get_err(s_Tables[0].mode_7[a][hi_p][lo_p]);
+        uint32_t err = endpoint_get_err(get_table_mode7(r, hi_p, lo_p)) + endpoint_get_err(get_table_mode7(g, hi_p, lo_p)) + endpoint_get_err(get_table_mode7(b, hi_p, lo_p)) + endpoint_get_err(get_table_mode7(a, hi_p, lo_p));
         if (err < best_err)
         {
             best_err = err;
@@ -662,10 +670,10 @@ static ModePackResult pack_mode7_to_one_color(color_cell_compressor_params pPara
     uint32_t best_hi_p = best_p >> 1;
     uint32_t best_lo_p = best_p & 1;
 
-    endpoint_err pEr = s_Tables[0].mode_7[r][best_hi_p][best_lo_p];
-    endpoint_err pEg = s_Tables[0].mode_7[g][best_hi_p][best_lo_p];
-    endpoint_err pEb = s_Tables[0].mode_7[b][best_hi_p][best_lo_p];
-    endpoint_err pEa = s_Tables[0].mode_7[a][best_hi_p][best_lo_p];
+    endpoint_err pEr = get_table_mode7(r, best_hi_p, best_lo_p);
+    endpoint_err pEg = get_table_mode7(g, best_hi_p, best_lo_p);
+    endpoint_err pEb = get_table_mode7(b, best_hi_p, best_lo_p);
+    endpoint_err pEa = get_table_mode7(a, best_hi_p, best_lo_p);
 
     pResults.m_low_endpoint = int4(endpoint_get_lo(pEr), endpoint_get_lo(pEg), endpoint_get_lo(pEb), endpoint_get_lo(pEa));
     pResults.m_high_endpoint = int4(endpoint_get_hi(pEr), endpoint_get_hi(pEg), endpoint_get_hi(pEb), endpoint_get_hi(pEa));
@@ -1814,7 +1822,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
 
     if ((mode <= 2) || (mode == 4) || (mode >= 6))
     {
-        color_cell_compressor_results avg_results;
+        color_cell_compressor_results avg_results = (color_cell_compressor_results)0;
                     
         avg_results.m_best_overall_err = pResults.m_best_overall_err;
         avg_results.m_selectors = pResults.m_selectors;
@@ -2600,7 +2608,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
             pParams.m_num_selector_weights = 4;
         }
                                 
-        color_cell_compressor_results results;
+        color_cell_compressor_results results = (color_cell_compressor_results)0;
         
         uint32_t trial_err = color_cell_compression(4, pParams, results, 16, pPixels, true);
         assert(trial_err == results.m_best_overall_err);
@@ -2807,7 +2815,7 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_
     
     pParams.m_perceptual = s_Globals[0].params.m_perceptual;
         
-    color_cell_compressor_results results5;
+    color_cell_compressor_results results5 = (color_cell_compressor_results)0;
 
     pMode5_err = color_cell_compression(5, pParams, results5, 16, pPixels, true);
     assert(*pMode5_err == results5.m_best_overall_err);
@@ -3048,7 +3056,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
 {
     pParams.m_perceptual = s_Globals[0].params.m_perceptual;
 
-    bc7_optimization_results opt_results;
+    bc7_optimization_results opt_results = (bc7_optimization_results)0;
     
     uint32_t best_err = UINT_MAX;
         
@@ -3090,7 +3098,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
             else
                 rot_pixels = pPixels;
 
-            bc7_optimization_results trial_opt_results4;
+            bc7_optimization_results trial_opt_results4 = (bc7_optimization_results)0;
 
             uint32_t trial_mode4_err = best_err;
 
@@ -3120,7 +3128,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
 
         // Note: m_mode67_error_weight_mul was always 1, removed
 
-        color_cell_compressor_results results6;
+        color_cell_compressor_results results6 = (color_cell_compressor_results)0;
         
         params6.m_selector_weights = g_bc7_weights4;
         params6.m_selector_weightsx = g_bc7_weights4x;
@@ -3190,7 +3198,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
             else
                 rot_pixels = pPixels;
 
-            bc7_optimization_results trial_opt_results5;
+            bc7_optimization_results trial_opt_results5 = (bc7_optimization_results)0;
 
             uint32_t trial_mode5_err = 0;
 
@@ -3377,7 +3385,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
 {
     int selectors_temp[16];
         
-    bc7_optimization_results opt_results;
+    bc7_optimization_results opt_results = (bc7_optimization_results)0;
         
     uint32_t best_err = UINT_MAX;
 
@@ -3394,7 +3402,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
 
         pParams->m_perceptual = s_Globals[0].params.m_perceptual;
                 
-        color_cell_compressor_results results6;
+        color_cell_compressor_results results6 = (color_cell_compressor_results)0;
         results6.m_pSelectors = opt_results.m_selectors;
         results6.m_pSelectors_temp = selectors_temp;
 
@@ -3841,7 +3849,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
                 pTrial_pixels = rot_pixels;
             }
 
-            bc7_optimization_results trial_opt_results5;
+            bc7_optimization_results trial_opt_results5 = (bc7_optimization_results)0;
 
             uint32_t trial_mode5_err = 0;
 
@@ -3981,7 +3989,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
                 pTrial_pixels = rot_pixels;
             }
 
-            bc7_optimization_results trial_opt_results4;
+            bc7_optimization_results trial_opt_results4 = (bc7_optimization_results)0;
 
             uint32_t trial_mode4_err = best_err;
 
@@ -4014,7 +4022,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
 
 static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cell_compressor_params pParams)
 {
-    bc7_optimization_results opt_results;
+    bc7_optimization_results opt_results = (bc7_optimization_results)0;
         
     uint32_t best_err = UINT_MAX;
 
@@ -4029,7 +4037,7 @@ static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cel
 
     pParams.m_perceptual = s_Globals[0].params.m_perceptual;
                 
-    color_cell_compressor_results results6;
+    color_cell_compressor_results results6 = (color_cell_compressor_results)0;
 
     best_err = color_cell_compression(6, pParams, results6, 16, pPixels, true);
                         

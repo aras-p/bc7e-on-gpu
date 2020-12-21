@@ -232,6 +232,7 @@ SmolKernel* SmolKernelCreate(const void* shaderCode, size_t shaderCodeSize, cons
     if (FAILED(hr))
     {
         const char* errMsg = (const char*)errors->GetBufferPointer();
+        OutputDebugStringA(errMsg);
         SMOL_RELEASE(bytecode);
         SMOL_RELEASE(errors);
         return nullptr;
