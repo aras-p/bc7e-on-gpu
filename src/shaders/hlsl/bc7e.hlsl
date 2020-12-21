@@ -26,7 +26,7 @@ typedef int int32_t;
 
 struct bc7e_compress_block_params // note: should match C++ code struct
 {
-    uint32_t m_max_partitions_mode[8];
+    uint4 m_max_partitions_mode[2];
 
     uint4    m_weights;
 
@@ -40,35 +40,28 @@ struct bc7e_compress_block_params // note: should match C++ code struct
     
     uint m_bools; // m_perceptual, m_pbit_search, m_mode6_only, m_unused0
     
-    struct
-    {
-        uint32_t m_max_mode13_partitions_to_try;
-        uint32_t m_max_mode0_partitions_to_try;
-        uint32_t m_max_mode2_partitions_to_try;
-        uint m_use_modes0123; // one byte per bool
-        uint m_use_modes456; // one byte per bool
-    } m_opaque_settings;
+    uint m_opaq_max_mode13_partitions_to_try;
+    uint m_opaq_max_mode0_partitions_to_try;
+    uint m_opaq_max_mode2_partitions_to_try;
+    uint m_opaq_use_modes0123; // one byte per bool
+    uint m_opaq_use_modes456; // one byte per bool
 
-    struct
-    {
-        uint32_t m_max_mode7_partitions_to_try;
-        uint32_t m_mode67_error_weight_mul[4];
-        uint m_use_modes4567; // one byte per bool
-        uint m_use_mode45_rotation; // one byte per bool
-    } m_alpha_settings;
+    uint m_alpha_max_mode7_partitions_to_try;
+    uint m_alpha_mode67_error_weight_mul0, m_alpha_mode67_error_weight_mul1, m_alpha_mode67_error_weight_mul2, m_alpha_mode67_error_weight_mul3;
+    uint m_alpha_use_modes4567; // one byte per bool
+    uint m_alpha_use_mode45_rotation; // one byte per bool
 };
 
-struct Globals // note: should match C++ code struct
+cbuffer Globals : register(b0) // note: should match C++ code struct
 {
-    uint width, height;
-    uint widthInBlocks, heightInBlocks;
-    bc7e_compress_block_params params;
+    uint g_width, g_height;
+    uint g_widthInBlocks, g_heightInBlocks;
+    bc7e_compress_block_params g_params;
 };
-StructuredBuffer<Globals> s_Globals : register(t0);
 
-bool glob_is_perceptual() { return (s_Globals[0].params.m_bools & 0xFF) != 0; }
-bool glob_is_pbit_search() { return (s_Globals[0].params.m_bools & 0xFF00) != 0; }
-bool glob_is_mode6_only() { return (s_Globals[0].params.m_bools & 0xFF0000) != 0; }
+bool glob_is_perceptual() { return (g_params.m_bools & 0xFF) != 0; }
+bool glob_is_pbit_search() { return (g_params.m_bools & 0xFF00) != 0; }
+bool glob_is_mode6_only() { return (g_params.m_bools & 0xFF0000) != 0; }
 
 
 static inline int32_t iabs32(int32_t v) { uint32_t msk = v >> 31; return (v ^ msk) - msk; }
@@ -1658,7 +1651,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
         return pResults.m_best_overall_err;
     
     // Note: m_refinement_passes is always 1, so hardcode to one loop iteration
-    //for (uniform uint32_t i = 0; i < s_Globals[0].params.m_refinement_passes; i++)
+    //for (uniform uint32_t i = 0; i < g_params.m_refinement_passes; i++)
     {
         vec4F xl = 0.0f, xh = 0.0f;
         if (pParams.m_has_alpha)
@@ -1678,7 +1671,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
     }
 
 #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
-    if (s_Globals[0].params.m_uber_level > 0)
+    if (g_params.m_uber_level > 0)
     {
         int selectors_temp[16], selectors_temp1[16];
         for (uniform uint32_t i = 0; i < num_pixels; i++)
@@ -1697,7 +1690,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
 
         vec4F xl = 0.0f, xh = 0.0f;
 
-        if (s_Globals[0].params.m_uber1_mask & 1)
+        if (g_params.m_uber1_mask & 1)
         {
             for (uniform uint32_t i = 0; i < num_pixels; i++)
             {
@@ -1723,7 +1716,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
                 return 0;
         }
 
-        if (s_Globals[0].params.m_uber1_mask & 2)
+        if (g_params.m_uber1_mask & 2)
         {
             for (uniform uint32_t i = 0; i < num_pixels; i++)
             {
@@ -1749,7 +1742,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
                 return 0;
         }
 
-        if (s_Globals[0].params.m_uber1_mask & 4)
+        if (g_params.m_uber1_mask & 4)
         {
             for (uniform uint32_t i = 0; i < num_pixels; i++)
             {
@@ -1778,9 +1771,9 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
         }
 
         const uint32_t uber_err_thresh = (num_pixels * 56) >> 4;
-        if ((s_Globals[0].params.m_uber_level >= 2) && (pResults->m_best_overall_err > uber_err_thresh))
+        if ((g_params.m_uber_level >= 2) && (pResults->m_best_overall_err > uber_err_thresh))
         {
-            const uniform int Q = (s_Globals[0].params.m_uber_level >= 4) ? (s_Globals[0].params.m_uber_level - 2) : 1;
+            const uniform int Q = (g_params.m_uber_level >= 4) ? (g_params.m_uber_level - 2) : 1;
             for (uniform int ly = -Q; ly <= 1; ly++)
             {
                 for (uniform int hy = max_selector - 1; hy <= (max_selector + Q); hy++)
@@ -1805,7 +1798,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
                     xl *= 1.0f / 255.0f;
                     xh *= 1.0f / 255.0f;
 
-                    if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search() && (s_Globals[0].params.m_uber_level >= 2), num_pixels, pPixels))
+                    if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search() && (g_params.m_uber_level >= 2), num_pixels, pPixels))
                         return 0;
                 }
             }
@@ -2053,7 +2046,7 @@ static uint32_t color_cell_compression_est_mode7(uniform uint32_t mode, const co
 static uint32_t estimate_partition(uniform uint32_t mode, const color_quad_i pPixels[16])
 {
     const uniform uint32_t total_subsets = g_bc7_num_subsets[mode];
-    uint32_t total_partitions = min(s_Globals[0].params.m_max_partitions_mode[mode], 1U << g_bc7_partition_bits[mode]);
+    uint32_t total_partitions = min(g_params.m_max_partitions_mode[mode>>2][mode&3], 1U << g_bc7_partition_bits[mode]);
 
     if (total_partitions <= 1)
         return 0;
@@ -2070,7 +2063,7 @@ static uint32_t estimate_partition(uniform uint32_t mode, const color_quad_i pPi
         params.m_selector_weights = g_bc7_weights3;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
-    params.m_weights = s_Globals[0].params.m_weights;
+    params.m_weights = g_params.m_weights;
 
     // Note: m_mode67_error_weight_mul was always 1, removed
 
@@ -2143,7 +2136,7 @@ static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const col
     const uniform int32_t orig_max_solutions = max_solutions;
 
     const uniform uint32_t total_subsets = g_bc7_num_subsets[mode];
-    uniform uint32_t total_partitions = min(s_Globals[0].params.m_max_partitions_mode[mode], 1U << g_bc7_partition_bits[mode]);
+    uniform uint32_t total_partitions = min(g_params.m_max_partitions_mode[mode>>2][mode&3], 1U << g_bc7_partition_bits[mode]);
 
     if (total_partitions <= 1)
     {
@@ -2177,7 +2170,7 @@ static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const col
         params.m_selector_weights = g_bc7_weights3;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
-    params.m_weights = s_Globals[0].params.m_weights;
+    params.m_weights = g_params.m_weights;
 
     // Note: m_mode67_error_weight_mul was always 1, removed
 
@@ -2585,7 +2578,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
 
     for (uniform uint32_t index_selector = 0; index_selector < 2; index_selector++)
     {
-        if ((s_Globals[0].params.m_mode4_index_mask & (1 << index_selector)) == 0)
+        if ((g_params.m_mode4_index_mask & (1 << index_selector)) == 0)
             continue;
 
         if (index_selector)
@@ -2700,9 +2693,9 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
         } // pss
 
 #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
-        if (s_Globals[0].params.m_uber_level > 0)
+        if (g_params.m_uber_level > 0)
         {
-            const uniform int D = min((int)s_Globals[0].params.m_uber_level, 3);
+            const uniform int D = min((int)g_params.m_uber_level, 3);
             for (uniform int ld = -D; ld <= D; ld++)
             {
                 for (uniform int hd = -D; hd <= D; hd++)
@@ -2883,9 +2876,9 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_
         }
 
 #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
-        if (s_Globals[0].params.m_uber_level > 0)
+        if (g_params.m_uber_level > 0)
         {
-            const uniform int D = min((int)s_Globals[0].params.m_uber_level, 3);
+            const uniform int D = min((int)g_params.m_uber_level, 3);
             for (uniform int ld = -D; ld <= D; ld++)
             {
                 for (uniform int hd = -D; hd <= D; hd++)
@@ -2975,11 +2968,11 @@ static uint4 get_lists_alpha(const color_quad_i pPixels[16])
 
     // Mode 7
     #ifndef OPT_ULTRAFAST_ONLY
-    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF000000)
+    if (g_params.m_alpha_use_modes4567 & 0xFF000000)
     {
         uint res = 0;
         solution solutions[4];
-        uniform uint32_t num_solutions = estimate_partition_list(7, pPixels, solutions, s_Globals[0].params.m_alpha_settings.m_max_mode7_partitions_to_try);
+        uniform uint32_t num_solutions = estimate_partition_list(7, pPixels, solutions, g_params.m_alpha_max_mode7_partitions_to_try);
         lists.x = encode_solutions(solutions, num_solutions);
     }
     #endif // #ifndef OPT_ULTRAFAST_ONLY
@@ -2994,50 +2987,50 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
     // w = mode 2 lists
     uint4 lists = 0;
     
-    if ((s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF00) || (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF000000))
+    if ((g_params.m_opaq_use_modes0123 & 0xFF00) || (g_params.m_opaq_use_modes0123 & 0xFF000000))
     {
         solution sol13[4];
         uint num_sol13 = 0;
-        if (s_Globals[0].params.m_opaque_settings.m_max_mode13_partitions_to_try == 1)
+        if (g_params.m_opaq_max_mode13_partitions_to_try == 1)
         {
             sol13[0].m_index = estimate_partition(1, pPixels);
             num_sol13 = 1;
         }
         else
         {
-            num_sol13 = estimate_partition_list(1, pPixels, sol13, s_Globals[0].params.m_opaque_settings.m_max_mode13_partitions_to_try);
+            num_sol13 = estimate_partition_list(1, pPixels, sol13, g_params.m_opaq_max_mode13_partitions_to_try);
         }
         lists.y = encode_solutions(sol13, num_sol13);
     }
     
-    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF)
+    if (g_params.m_opaq_use_modes0123 & 0xFF)
     {
         solution sol0[4];
         uint num_sol0 = 0;
-        if (s_Globals[0].params.m_opaque_settings.m_max_mode0_partitions_to_try == 1)
+        if (g_params.m_opaq_max_mode0_partitions_to_try == 1)
         {
             sol0[0].m_index = estimate_partition(0, pPixels);
             num_sol0 = 1;
         }
         else
         {
-            num_sol0 = estimate_partition_list(0, pPixels, sol0, s_Globals[0].params.m_opaque_settings.m_max_mode0_partitions_to_try);
+            num_sol0 = estimate_partition_list(0, pPixels, sol0, g_params.m_opaq_max_mode0_partitions_to_try);
         }
         lists.z = encode_solutions(sol0, num_sol0);
     }
     
-    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF0000)
+    if (g_params.m_opaq_use_modes0123 & 0xFF0000)
     {
         solution sol2[4];
         uint num_sol2 = 0;
-        if (s_Globals[0].params.m_opaque_settings.m_max_mode2_partitions_to_try == 1)
+        if (g_params.m_opaq_max_mode2_partitions_to_try == 1)
         {
             sol2[0].m_index = estimate_partition(2, pPixels);
             num_sol2 = 1;
         }
         else
         {
-            num_sol2 = estimate_partition_list(2, pPixels, sol2, s_Globals[0].params.m_opaque_settings.m_max_mode2_partitions_to_try);
+            num_sol2 = estimate_partition_list(2, pPixels, sol2, g_params.m_opaq_max_mode2_partitions_to_try);
         }
         lists.w = encode_solutions(sol2, num_sol2);
     }
@@ -3054,14 +3047,14 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
     uint32_t best_err = UINT_MAX;
         
     // Mode 4
-    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF)
+    if (g_params.m_alpha_use_modes4567 & 0xFF)
     {
         color_cell_compressor_params params4 = pParams;
 
-        const int num_rotations = (glob_is_perceptual() || (!(s_Globals[0].params.m_alpha_settings.m_use_mode45_rotation & 0xFF))) ? 1 : 4;
+        const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF))) ? 1 : 4;
         for (int rotation = 0; rotation < num_rotations; rotation++)
         {
-            if ((s_Globals[0].params.m_mode4_rotation_mask & (1 << rotation)) == 0)
+            if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
             params4.m_weights = pParams.m_weights;
@@ -3115,7 +3108,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
     }
     
     // Mode 6
-    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF0000)
+    if (g_params.m_alpha_use_modes4567 & 0xFF0000)
     {
         color_cell_compressor_params params6 = pParams;
 
@@ -3154,14 +3147,14 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
     }
 
     // Mode 5
-    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF00)
+    if (g_params.m_alpha_use_modes4567 & 0xFF00)
     {
         color_cell_compressor_params params5 = pParams;
 
-        const uniform int num_rotations = (glob_is_perceptual() || (!(s_Globals[0].params.m_alpha_settings.m_use_mode45_rotation & 0xFF00))) ? 1 : 4;
+        const uniform int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF00))) ? 1 : 4;
         for (uniform uint32_t rotation = 0; rotation < num_rotations; rotation++)
         {
-            if ((s_Globals[0].params.m_mode5_rotation_mask & (1 << rotation)) == 0)
+            if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
             params5.m_weights = pParams.m_weights;
@@ -3209,7 +3202,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
 
     // Mode 7
     #ifndef OPT_ULTRAFAST_ONLY
-    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF000000)
+    if (g_params.m_alpha_use_modes4567 & 0xFF000000)
     {
         solution solutions[4];
         uint num_solutions = decode_solutions(solution_lists.x, solutions);
@@ -3383,7 +3376,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     uint32_t best_err = UINT_MAX;
 
     // Mode 6
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[6])
+    if (g_params.m_opaq_use_mode[6])
     {
         pParams->m_pSelector_weights = g_bc7_weights4;
         pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights4x[0];
@@ -3419,7 +3412,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     const uniform bool disable_faster_part_selection = false;
                                 
     // Mode 1
-    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF00)
+    if (g_params.m_opaq_use_modes0123 & 0xFF00)
     {
         pParams->m_pSelector_weights = g_bc7_weights3;
         pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights3x[0];
@@ -3567,7 +3560,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
         
     // Mode 0
-    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF)
+    if (g_params.m_opaq_use_modes0123 & 0xFF)
     {
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.z, solutions3);
@@ -3654,7 +3647,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
         
     // Mode 3
-    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF000000)
+    if (g_params.m_opaq_use_modes0123 & 0xFF000000)
     {
         pParams->m_pSelector_weights = g_bc7_weights2;
         pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
@@ -3805,13 +3798,13 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
 
     // Mode 5
-    if ((!glob_is_perceptual()) && (s_Globals[0].params.m_opaque_settings.m_use_mode[5]))
+    if ((!glob_is_perceptual()) && (g_params.m_opaq_use_mode[5]))
     {
         uniform color_cell_compressor_params params5 = *pParams;
 
         for (uniform uint32_t rotation = 0; rotation < 4; rotation++)
         {
-            if ((s_Globals[0].params.m_mode5_rotation_mask & (1 << rotation)) == 0)
+            if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
             params5.m_weights = pParams->m_weights;
@@ -3859,7 +3852,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
 
     // Mode 2
-    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF0000)
+    if (g_params.m_opaq_use_modes0123 & 0xFF0000)
     {
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.w, solutions3);
@@ -3945,13 +3938,13 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
 
     // Mode 4
-    if ((!glob_is_perceptual()) && (s_Globals[0].params.m_opaque_settings.m_use_mode[4]))
+    if ((!glob_is_perceptual()) && (g_params.m_opaq_use_mode[4]))
     {
         uniform color_cell_compressor_params params4 = *pParams;
 
         for (uniform uint32_t rotation = 0; rotation < 4; rotation++)
         {
-            if ((s_Globals[0].params.m_mode4_rotation_mask & (1 << rotation)) == 0)
+            if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
                 continue;
 
             params4.m_weights = pParams->m_weights;
@@ -4088,17 +4081,17 @@ RWStructuredBuffer<uint4> s_BufOutput : register(u2);
 [numthreads(64,1,1)]
 void bc7e_estimate_partition_lists(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= s_Globals[0].widthInBlocks || id.y >= s_Globals[0].heightInBlocks)
+    if (id.x >= g_widthInBlocks || id.y >= g_heightInBlocks)
         return;
     
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
     
-    params.m_weights = s_Globals[0].params.m_weights;
+    params.m_weights = g_params.m_weights;
     
     color_quad_i pixels[16];
     float lo_a, hi_a;
-    load_pixel_block(pixels, lo_a, hi_a, id, s_Globals[0].width);
+    load_pixel_block(pixels, lo_a, hi_a, id, g_width);
     
     const bool has_alpha = (lo_a < 255);
 
@@ -4107,29 +4100,29 @@ void bc7e_estimate_partition_lists(uint3 id : SV_DispatchThreadID)
         lists = get_lists_alpha(pixels);
     else
         lists = get_lists_opaque(pixels);
-    uint block_index = id.y * s_Globals[0].widthInBlocks + id.x;
+    uint block_index = id.y * g_widthInBlocks + id.x;
     s_BufOutput[block_index] = lists;
 }
 
 [numthreads(64, 1, 1)]
 void bc7e_compress_blocks(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= s_Globals[0].widthInBlocks || id.y >= s_Globals[0].heightInBlocks)
+    if (id.x >= g_widthInBlocks || id.y >= g_heightInBlocks)
         return;
     
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
     
-    params.m_weights = s_Globals[0].params.m_weights;
+    params.m_weights = g_params.m_weights;
     
     color_quad_i pixels[16];
     float lo_a, hi_a;
-    load_pixel_block(pixels, lo_a, hi_a, id, s_Globals[0].width);
+    load_pixel_block(pixels, lo_a, hi_a, id, g_width);
     
     const bool has_alpha = (lo_a < 255);
     uint4 block;
     
-    uint block_index = id.y * s_Globals[0].widthInBlocks + id.x;
+    uint block_index = id.y * g_widthInBlocks + id.x;
     uint4 lists = s_BufOutput[block_index];
 
     if (has_alpha)
