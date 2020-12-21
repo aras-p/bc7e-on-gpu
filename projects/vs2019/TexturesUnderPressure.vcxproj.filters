@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="external">
+      <UniqueIdentifier>{a36b8ec8-fa33-45d0-8e5b-ba0abec9dcf1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{43173031-1cca-4869-968a-31fde3a8c0dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\shaders">
+      <UniqueIdentifier>{f763db12-95f1-4d88-9889-5a4aa570be5f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\shaders\metal">
+      <UniqueIdentifier>{8da25f1c-cd71-48c0-9195-e062fee0a736}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\shaders\hlsl">
+      <UniqueIdentifier>{649c9385-4268-418b-9e8a-fa0e4ad1bf01}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\external\ic_pfor.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\external\smolcompute.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\external\sokol_time.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\external\stb_image.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\external\stb_image_write.h">
+      <Filter>external</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\external\bc7enc\bc7decomp.h">
+      <Filter>external</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\external\bc7e\bc7e.ispc">
+      <Filter>external</Filter>
+    </None>
+    <None Include="..\..\src\externals.mm">
+      <Filter>src</Filter>
+    </None>
+    <None Include="..\..\src\shaders\metal\bc7e.metal">
+      <Filter>src\shaders\metal</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\external\bc7enc\bc7decomp.cpp">
+      <Filter>external</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\externals.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\testmain.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -144,6 +144,9 @@ SOKOL_API_DECL double stm_ns(uint64_t ticks);
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 typedef struct {
     uint32_t initialized;

@@ -2,3 +2,5 @@
 xcuserdata
 external/bc7e/bc7e_ispc.h
 artifacts/
+projects/vs2019/.vs
+build/
