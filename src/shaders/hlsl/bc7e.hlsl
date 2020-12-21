@@ -38,34 +38,23 @@ struct bc7e_compress_block_params // note: should match C++ code struct
     uint32_t m_mode5_rotation_mask;
     uint32_t m_uber1_mask;
     
-    bool m_perceptual;
-    bool m_pbit_search;
-    bool m_mode6_only;
-    bool m_unused0;
+    uint m_bools; // m_perceptual, m_pbit_search, m_mode6_only, m_unused0
     
     struct
     {
         uint32_t m_max_mode13_partitions_to_try;
         uint32_t m_max_mode0_partitions_to_try;
         uint32_t m_max_mode2_partitions_to_try;
-        bool m_use_mode[7];
-        bool m_unused1;
+        uint m_use_modes0123; // one byte per bool
+        uint m_use_modes456; // one byte per bool
     } m_opaque_settings;
 
     struct
     {
         uint32_t m_max_mode7_partitions_to_try;
         uint32_t m_mode67_error_weight_mul[4];
-                
-        bool m_use_mode4;
-        bool m_use_mode5;
-        bool m_use_mode6;
-        bool m_use_mode7;
-
-        bool m_use_mode4_rotation;
-        bool m_use_mode5_rotation;
-        bool m_unused2;
-        bool m_unused3;
+        uint m_use_modes4567; // one byte per bool
+        uint m_use_mode45_rotation; // one byte per bool
     } m_alpha_settings;
 };
 
@@ -76,6 +65,10 @@ struct Globals // note: should match C++ code struct
     bc7e_compress_block_params params;
 };
 StructuredBuffer<Globals> s_Globals : register(t0);
+
+bool glob_is_perceptual() { return (s_Globals[0].params.m_bools & 0xFF) != 0; }
+bool glob_is_pbit_search() { return (s_Globals[0].params.m_bools & 0xFF00) != 0; }
+bool glob_is_mode6_only() { return (s_Globals[0].params.m_bools & 0xFF0000) != 0; }
 
 
 static inline int32_t iabs32(int32_t v) { uint32_t msk = v >> 31; return (v ^ msk) - msk; }
@@ -1658,7 +1651,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
         maxColor = temp;
     }
 
-    if (!find_optimal_solution(mode, minColor, maxColor, pParams, pResults, s_Globals[0].params.m_pbit_search, num_pixels, pPixels))
+    if (!find_optimal_solution(mode, minColor, maxColor, pParams, pResults, glob_is_pbit_search(), num_pixels, pPixels))
         return 0;
     
     if (!refinement)
@@ -1680,7 +1673,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
         xl = xl * (1.0f / 255.0f);
         xh = xh * (1.0f / 255.0f);
 
-        if (!find_optimal_solution(mode, xl, xh, pParams, pResults, s_Globals[0].params.m_pbit_search, num_pixels, pPixels))
+        if (!find_optimal_solution(mode, xl, xh, pParams, pResults, glob_is_pbit_search(), num_pixels, pPixels))
             return 0;
     }
 
@@ -1726,7 +1719,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
             xl *= 1.0f / 255.0f;
             xh *= 1.0f / 255.0f;
 
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, s_Globals[0].params.m_pbit_search, num_pixels, pPixels))
+            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search(), num_pixels, pPixels))
                 return 0;
         }
 
@@ -1752,7 +1745,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
             xl *= 1.0f / 255.0f;
             xh *= 1.0f / 255.0f;
 
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, s_Globals[0].params.m_pbit_search, num_pixels, pPixels))
+            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search(), num_pixels, pPixels))
                 return 0;
         }
 
@@ -1780,7 +1773,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
             xl *= 1.0f / 255.0f;
             xh *= 1.0f / 255.0f;
 
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, s_Globals[0].params.m_pbit_search, num_pixels, pPixels))
+            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search(), num_pixels, pPixels))
                 return 0;
         }
 
@@ -1812,7 +1805,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
                     xl *= 1.0f / 255.0f;
                     xh *= 1.0f / 255.0f;
 
-                    if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, s_Globals[0].params.m_pbit_search && (s_Globals[0].params.m_uber_level >= 2), num_pixels, pPixels))
+                    if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search() && (s_Globals[0].params.m_uber_level >= 2), num_pixels, pPixels))
                         return 0;
                 }
             }
@@ -2081,7 +2074,7 @@ static uint32_t estimate_partition(uniform uint32_t mode, const color_quad_i pPi
 
     // Note: m_mode67_error_weight_mul was always 1, removed
 
-    params.m_perceptual = s_Globals[0].params.m_perceptual;
+    params.m_perceptual = glob_is_perceptual();
 
     for (uniform uint32_t partition = 0; partition < total_partitions; partition++)
     {
@@ -2188,7 +2181,7 @@ static uniform uint32_t estimate_partition_list(uniform uint32_t mode, const col
 
     // Note: m_mode67_error_weight_mul was always 1, removed
 
-    params.m_perceptual = s_Globals[0].params.m_perceptual;
+    params.m_perceptual = glob_is_perceptual();
 
     uniform int32_t num_solutions = 0;
 
@@ -2588,7 +2581,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
     pParams.m_comp_bits = 5;
     pParams.m_has_pbits = false;
     pParams.m_endpoints_share_pbit = false;
-    pParams.m_perceptual = s_Globals[0].params.m_perceptual;
+    pParams.m_perceptual = glob_is_perceptual();
 
     for (uniform uint32_t index_selector = 0; index_selector < 2; index_selector++)
     {
@@ -2813,7 +2806,7 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_
     pParams.m_has_pbits = false;
     pParams.m_endpoints_share_pbit = false;
     
-    pParams.m_perceptual = s_Globals[0].params.m_perceptual;
+    pParams.m_perceptual = glob_is_perceptual();
         
     color_cell_compressor_results results5 = (color_cell_compressor_results)0;
 
@@ -2982,7 +2975,7 @@ static uint4 get_lists_alpha(const color_quad_i pPixels[16])
 
     // Mode 7
     #ifndef OPT_ULTRAFAST_ONLY
-    if (s_Globals[0].params.m_alpha_settings.m_use_mode7)
+    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF000000)
     {
         uint res = 0;
         solution solutions[4];
@@ -3001,7 +2994,7 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
     // w = mode 2 lists
     uint4 lists = 0;
     
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[1] || s_Globals[0].params.m_opaque_settings.m_use_mode[3])
+    if ((s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF00) || (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF000000))
     {
         solution sol13[4];
         uint num_sol13 = 0;
@@ -3017,7 +3010,7 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
         lists.y = encode_solutions(sol13, num_sol13);
     }
     
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[0])
+    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF)
     {
         solution sol0[4];
         uint num_sol0 = 0;
@@ -3033,7 +3026,7 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
         lists.z = encode_solutions(sol0, num_sol0);
     }
     
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[2])
+    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF0000)
     {
         solution sol2[4];
         uint num_sol2 = 0;
@@ -3054,18 +3047,18 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
 
 static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_lists, color_cell_compressor_params pParams, int lo_a, int hi_a)
 {
-    pParams.m_perceptual = s_Globals[0].params.m_perceptual;
+    pParams.m_perceptual = glob_is_perceptual();
 
     bc7_optimization_results opt_results = (bc7_optimization_results)0;
     
     uint32_t best_err = UINT_MAX;
         
     // Mode 4
-    if (s_Globals[0].params.m_alpha_settings.m_use_mode4)
+    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF)
     {
         color_cell_compressor_params params4 = pParams;
 
-        const int num_rotations = (s_Globals[0].params.m_perceptual || (!s_Globals[0].params.m_alpha_settings.m_use_mode4_rotation)) ? 1 : 4;
+        const int num_rotations = (glob_is_perceptual() || (!(s_Globals[0].params.m_alpha_settings.m_use_mode45_rotation & 0xFF))) ? 1 : 4;
         for (int rotation = 0; rotation < num_rotations; rotation++)
         {
             if ((s_Globals[0].params.m_mode4_rotation_mask & (1 << rotation)) == 0)
@@ -3122,7 +3115,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
     }
     
     // Mode 6
-    if (s_Globals[0].params.m_alpha_settings.m_use_mode6)
+    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF0000)
     {
         color_cell_compressor_params params6 = pParams;
 
@@ -3161,11 +3154,11 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
     }
 
     // Mode 5
-    if (s_Globals[0].params.m_alpha_settings.m_use_mode5)
+    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF00)
     {
         color_cell_compressor_params params5 = pParams;
 
-        const uniform int num_rotations = (s_Globals[0].params.m_perceptual || (!s_Globals[0].params.m_alpha_settings.m_use_mode5_rotation)) ? 1 : 4;
+        const uniform int num_rotations = (glob_is_perceptual() || (!(s_Globals[0].params.m_alpha_settings.m_use_mode45_rotation & 0xFF00))) ? 1 : 4;
         for (uniform uint32_t rotation = 0; rotation < num_rotations; rotation++)
         {
             if ((s_Globals[0].params.m_mode5_rotation_mask & (1 << rotation)) == 0)
@@ -3216,7 +3209,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
 
     // Mode 7
     #ifndef OPT_ULTRAFAST_ONLY
-    if (s_Globals[0].params.m_alpha_settings.m_use_mode7)
+    if (s_Globals[0].params.m_alpha_settings.m_use_modes4567 & 0xFF000000)
     {
         solution solutions[4];
         uint num_solutions = decode_solutions(solution_lists.x, solutions);
@@ -3400,7 +3393,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
         pParams->m_has_pbits = true;
         pParams->m_endpoints_share_pbit = false;
 
-        pParams->m_perceptual = s_Globals[0].params.m_perceptual;
+        pParams->m_perceptual = glob_is_perceptual();
                 
         color_cell_compressor_results results6 = (color_cell_compressor_results)0;
         results6.m_pSelectors = opt_results.m_selectors;
@@ -3426,7 +3419,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     const uniform bool disable_faster_part_selection = false;
                                 
     // Mode 1
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[1])
+    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF00)
     {
         pParams->m_pSelector_weights = g_bc7_weights3;
         pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights3x[0];
@@ -3436,7 +3429,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
         pParams->m_has_pbits = true;
         pParams->m_endpoints_share_pbit = true;
 
-        pParams->m_perceptual = s_Globals[0].params.m_perceptual;
+        pParams->m_perceptual = glob_is_perceptual();
 
         for (uniform uint32_t solution_index = 0; solution_index < num_solutions2; solution_index++)
         {
@@ -3574,7 +3567,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
         
     // Mode 0
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[0])
+    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF)
     {
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.z, solutions3);
@@ -3587,7 +3580,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
         pParams->m_has_pbits = true;
         pParams->m_endpoints_share_pbit = false;
 
-        pParams->m_perceptual = s_Globals[0].params.m_perceptual;
+        pParams->m_perceptual = glob_is_perceptual();
                 
         for (uniform uint32_t solution_index = 0; solution_index < num_solutions3; solution_index++)
         {
@@ -3661,7 +3654,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
         
     // Mode 3
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[3])
+    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF000000)
     {
         pParams->m_pSelector_weights = g_bc7_weights2;
         pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
@@ -3671,7 +3664,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
         pParams->m_has_pbits = true;
         pParams->m_endpoints_share_pbit = false;
 
-        pParams->m_perceptual = s_Globals[0].params.m_perceptual;
+        pParams->m_perceptual = glob_is_perceptual();
 
         for (uniform uint32_t solution_index = 0; solution_index < num_solutions2; solution_index++)
         {
@@ -3812,7 +3805,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
 
     // Mode 5
-    if ((!s_Globals[0].params.m_perceptual) && (s_Globals[0].params.m_opaque_settings.m_use_mode[5]))
+    if ((!glob_is_perceptual()) && (s_Globals[0].params.m_opaque_settings.m_use_mode[5]))
     {
         uniform color_cell_compressor_params params5 = *pParams;
 
@@ -3866,7 +3859,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
 
     // Mode 2
-    if (s_Globals[0].params.m_opaque_settings.m_use_mode[2])
+    if (s_Globals[0].params.m_opaque_settings.m_use_modes0123 & 0xFF0000)
     {
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.w, solutions3);
@@ -3879,7 +3872,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
         pParams->m_has_pbits = false;
         pParams->m_endpoints_share_pbit = false;
 
-        pParams->m_perceptual = s_Globals[0].params.m_perceptual;
+        pParams->m_perceptual = glob_is_perceptual();
 
         for (uniform uint32_t solution_index = 0; solution_index < num_solutions3; solution_index++)
         {
@@ -3952,7 +3945,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     }
 
     // Mode 4
-    if ((!s_Globals[0].params.m_perceptual) && (s_Globals[0].params.m_opaque_settings.m_use_mode[4]))
+    if ((!glob_is_perceptual()) && (s_Globals[0].params.m_opaque_settings.m_use_mode[4]))
     {
         uniform color_cell_compressor_params params4 = *pParams;
 
@@ -4035,7 +4028,7 @@ static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cel
     pParams.m_has_pbits = true;
     pParams.m_endpoints_share_pbit = false;
 
-    pParams.m_perceptual = s_Globals[0].params.m_perceptual;
+    pParams.m_perceptual = glob_is_perceptual();
                 
     color_cell_compressor_results results6 = (color_cell_compressor_results)0;
 
@@ -4083,7 +4076,7 @@ void load_pixel_block(out color_quad_i pixels[16], out float out_lo_a, out float
     out_hi_a = hi_a;
 }
 
-RWStructuredBuffer<uint4> s_BufOutput : register(u0);
+RWStructuredBuffer<uint4> s_BufOutput : register(u2);
 
 // First pass: figures out mode partition lists
 // (writes them into the output texture buffer)
@@ -4146,7 +4139,7 @@ void bc7e_compress_blocks(uint3 id : SV_DispatchThreadID)
 #ifdef OPT_ULTRAFAST_ONLY
         block = handle_opaque_block_mode6(pixels, params);
 #else
-        if (s_Globals[0].params.m_mode6_only)
+        if (glob_is_mode6_only())
             block = handle_opaque_block_mode6(pixels, params);
         else
             block = handle_opaque_block(pixels, lists, params);
