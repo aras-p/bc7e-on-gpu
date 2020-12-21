@@ -508,7 +508,7 @@ static bool TestOnFile(TestFile& tf)
                 ispc::bc7e_compress_blocks(counter, (uint64_t*)sliceOutput, (const uint32_t*)blocks, &settings);
             }
         });
-        float sec = stm_sec(stm_since(t0));
+        float sec = (float)stm_sec(stm_since(t0));
         tf.timeRef = std::min(tf.timeRef, sec);
     }
     
@@ -534,7 +534,7 @@ static bool TestOnFile(TestFile& tf)
         SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 32, 1, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());
-        float sec = stm_sec(stm_since(t0));
+        float sec = (float)stm_sec(stm_since(t0));
         tf.timeGot = std::min(tf.timeGot, sec);
     }
     

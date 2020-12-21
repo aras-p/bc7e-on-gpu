@@ -38,9 +38,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\external\bc7e\bc7e.ispc">
-      <Filter>external</Filter>
-    </None>
     <None Include="..\..\src\externals.mm">
       <Filter>src</Filter>
     </None>
@@ -58,5 +55,10 @@
     <ClCompile Include="..\..\src\testmain.cpp">
       <Filter>src</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\external\bc7e\bc7e.ispc">
+      <Filter>external</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>
