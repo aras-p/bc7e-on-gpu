@@ -424,9 +424,9 @@ static SmolBuffer* s_Bc7GlobBuffer;
 static SmolBuffer* s_Bc7InputBuffer;
 static SmolBuffer* s_Bc7OutputBuffer;
 
-static bool InitializeMetalCompressorBuffers(size_t maxRgbaSize, size_t maxBc7Size)
+static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
 {
-    printf("Initialize Metal shaders & buffers...\n");
+    printf("Initialize shaders & buffers...\n");
     size_t kernelSourceSize = 0;
     void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
     if (kernelSource == nullptr)
@@ -462,6 +462,16 @@ static bool InitializeMetalCompressorBuffers(size_t maxRgbaSize, size_t maxBc7Si
     s_Bc7OutputBuffer = SmolBufferCreate(maxBc7Size, SmolBufferType::Structured, 16);
     SmolBufferSetData(s_Bc7TablesBuffer, &s_Tables, sizeof(s_Tables));
     return true;
+}
+
+static void CleanupCompressorResources()
+{
+    SmolKernelDelete(s_Bc7KernelEncode);
+	SmolKernelDelete(s_Bc7KernelLists);
+    SmolBufferDelete(s_Bc7TablesBuffer);
+	SmolBufferDelete(s_Bc7GlobBuffer);
+	SmolBufferDelete(s_Bc7InputBuffer);
+	SmolBufferDelete(s_Bc7OutputBuffer);
 }
 
 static bool TestOnFile(TestFile& tf)
@@ -615,7 +625,7 @@ int main()
     }
     
     // Create compression shaders & buffers
-    if (!InitializeMetalCompressorBuffers(maxRgbaSize, maxBc7Size))
+    if (!InitializeCompressorResources(maxRgbaSize, maxBc7Size))
     {
         ++errorCount;
     }
@@ -657,5 +667,9 @@ int main()
         printf("ERROR: %i tests failed\n", errorCount);
     else
         printf("All OK!\n");
+
+    CleanupCompressorResources();
+    SmolComputeDelete();
+
     return errorCount ? 1 : 0;
 }
