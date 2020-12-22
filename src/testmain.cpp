@@ -325,7 +325,7 @@ static void Initialize()
     ispc::bc7e_compress_block_init();
     gpu_bc7e_compress_block_init();
     ic::init_pfor();
-    if (!SmolComputeCreate())
+    if (!SmolComputeCreate(SmolComputeCreateFlags::EnableCapture))
     {
         printf("Failed to initialize smol-compute\n");
     }
@@ -438,9 +438,13 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
         printf("ERROR: could not read compute shader source file\n");
         return false;
     }
+    SmolKernelCreateFlags flags = SmolKernelCreateFlags::GenerateDebugInfo;
+#ifdef _DEBUG
+    flags |= SmolKernelCreateFlags::DisableOptimizations;
+#endif
     {
         uint64_t tComp0 = stm_now();
-        s_Bc7KernelLists = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_estimate_partition_lists");
+        s_Bc7KernelLists = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_estimate_partition_lists", flags);
         if (s_Bc7KernelLists == nullptr)
         {
             printf("ERROR: failed to create lists compute shader\n");
@@ -450,7 +454,7 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
     }
     {
         uint64_t tComp0 = stm_now();
-        s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks");
+        s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks", flags);
         if (s_Bc7KernelEncode == nullptr)
         {
             printf("ERROR: failed to create encode compute shader\n");
