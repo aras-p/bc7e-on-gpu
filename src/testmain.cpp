@@ -325,7 +325,7 @@ static void Initialize()
     ispc::bc7e_compress_block_init();
     gpu_bc7e_compress_block_init();
     ic::init_pfor();
-    if (!SmolComputeCreate(SmolComputeCreateFlags::EnableCapture))
+    if (!SmolComputeCreate(SmolComputeCreateFlags::EnableCapture | SmolComputeCreateFlags::EnableDebugLayers | SmolComputeCreateFlags::UseSoftwareRenderer))
     {
         printf("Failed to initialize smol-compute\n");
     }
@@ -587,7 +587,7 @@ static bool TestOnFile(TestFile& tf)
                 break;
             }
             printf("    block %6zi exp %08x %08x %08x %08x\n", i, ptrExp[0], ptrExp[1], ptrExp[2], ptrExp[3]);
-            printf("                 got %08x %08x %08x %08x\n", ptrGot[0], ptrGot[1], ptrGot[2], ptrGot[3]);
+            printf("       (%3i,%3i) got %08x %08x %08x %08x\n", int(i) % tf.widthInBlocks, int(i) / tf.widthInBlocks, ptrGot[0], ptrGot[1], ptrGot[2], ptrGot[3]);
             ++printed;
         }
     }
@@ -657,6 +657,7 @@ int main()
     else
     {
         printf("Running tests on %zi images...\n", testFiles.size());
+        //SmolCaptureStart();
         for (int ir = 0; ir < kRunCount; ++ir)
         {
             printf("Run %i of %i...\n", ir+1, kRunCount);
@@ -666,6 +667,7 @@ int main()
                     ++errorCount;
             }
         }
+        //SmolCaptureFinish();
         
         printf("Timing results, Mpix/sec CPU vs GPU:\n");
         double mpixsRefSum = 0, mpixsGotSum = 0;

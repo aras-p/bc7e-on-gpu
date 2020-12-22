@@ -5,12 +5,12 @@
 typedef uint uint32_t;
 typedef int int32_t;
 #define assert(x)
-#define select(a, b, c) ((c) ? (a) : (b))
+#define select(a, b, c) ((c) ? (b) : (a))
 #define max3(a, b, c) (max((a), max((b), (c))))
 
 #define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
-#define OPT_OPAQUE_ONLY // disabled all transparency handling
+//#define OPT_OPAQUE_ONLY // disabled all transparency handling
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
