@@ -424,46 +424,68 @@ static SmolBuffer* s_Bc7GlobBuffer;
 static SmolBuffer* s_Bc7InputBuffer;
 static SmolBuffer* s_Bc7OutputBuffer;
 
+#ifdef _MSC_VER
+typedef unsigned char BYTE;
+#include "../build/bc7e_encode.h"
+#include "../build/bc7e_lists.h"
+static bool InitializeCompressorShaders()
+{
+    s_Bc7KernelLists = SmolKernelCreate(g_Bc7BytecodeLists, sizeof(g_Bc7BytecodeLists));
+	if (s_Bc7KernelLists == nullptr)
+	{
+		printf("ERROR: failed to create lists compute shader\n");
+		return false;
+	}
+	s_Bc7KernelEncode = SmolKernelCreate(g_Bc7BytecodeEncode, sizeof(g_Bc7BytecodeEncode));
+	if (s_Bc7KernelEncode == nullptr)
+	{
+		printf("ERROR: failed to create encode compute shader\n");
+		return false;
+	}
+    return true;
+}
+#else
+static bool InitializeCompressorShaders()
+{
+	size_t kernelSourceSize = 0;
+	void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
+	if (kernelSource == nullptr)
+	{
+		printf("ERROR: could not read compute shader source file\n");
+		return false;
+	}
+	SmolKernelCreateFlags flags = SmolKernelCreateFlags::GenerateDebugInfo;
+	{
+		s_Bc7KernelLists = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_estimate_partition_lists", flags);
+		if (s_Bc7KernelLists == nullptr)
+		{
+			printf("ERROR: failed to create lists compute shader\n");
+			return false;
+		}
+	}
+	{
+		s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks", flags);
+		if (s_Bc7KernelEncode == nullptr)
+		{
+			printf("ERROR: failed to create encode compute shader\n");
+			return false;
+		}
+	}
+	free(kernelSource);
+    return true;
+}
+#endif
+
 static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
 {
-    printf("Initialize shaders & buffers...\n");
-    size_t kernelSourceSize = 0;
-#ifdef _MSC_VER
-	void* kernelSource = ReadFile("src/shaders/hlsl/bc7e.hlsl", &kernelSourceSize);
-#else
-    void* kernelSource = ReadFile("src/shaders/metal/bc7e.metal", &kernelSourceSize);
-#endif
-    if (kernelSource == nullptr)
-    {
-        printf("ERROR: could not read compute shader source file\n");
+    printf("Initialize shaders...\n");
+    uint64_t tComp0 = stm_now();
+    if (!InitializeCompressorShaders())
         return false;
-    }
-    SmolKernelCreateFlags flags = SmolKernelCreateFlags::GenerateDebugInfo;
-#ifdef _DEBUG
-    flags |= SmolKernelCreateFlags::DisableOptimizations;
-#endif
-    {
-        uint64_t tComp0 = stm_now();
-        s_Bc7KernelLists = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_estimate_partition_lists", flags);
-        if (s_Bc7KernelLists == nullptr)
-        {
-            printf("ERROR: failed to create lists compute shader\n");
-            return false;
-        }
-        printf("  lists shader created in %.1fs\n", stm_sec(stm_since(tComp0)));
-    }
-    {
-        uint64_t tComp0 = stm_now();
-        s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks", flags);
-        if (s_Bc7KernelEncode == nullptr)
-        {
-            printf("ERROR: failed to create encode compute shader\n");
-            return false;
-        }
-        printf("  encode shader created in %.1fs\n", stm_sec(stm_since(tComp0)));
-    }
-    free(kernelSource);
+    printf("  shaders created in %.1fs\n", stm_sec(stm_since(tComp0)));
 
+
+	printf("Initialize buffers...\n");
     s_Bc7TablesBuffer = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Structured, 4);
     s_Bc7GlobBuffer = SmolBufferCreate(sizeof(Globals), SmolBufferType::Constant);
     s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
