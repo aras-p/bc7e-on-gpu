@@ -573,6 +573,23 @@ static bool TestOnFile(TestFile& tf)
         stbi_write_tga(("artifacts/"+tf.fileNameBase+"-got.tga").c_str(), tf.width, tf.height, 4, rgbaGot);
         delete[] rgbaExp;
         delete[] rgbaGot;
+        size_t printed = 0;
+        size_t blockCount = tf.bc7got.size() / 16;
+        const uint32_t* ptrExp = (const uint32_t*)tf.bc7exp.data();
+        const uint32_t* ptrGot = (const uint32_t*)tf.bc7got.data();
+        for (size_t i = 0; i < blockCount; ++i, ptrExp += 4, ptrGot += 4)
+        {
+            if (memcmp(ptrExp, ptrGot, 16) == 0)
+                continue;
+            if (printed > 16)
+            {
+                printf("    ...more skipped\n");
+                break;
+            }
+            printf("    block %6zi exp %08x %08x %08x %08x\n", i, ptrExp[0], ptrExp[1], ptrExp[2], ptrExp[3]);
+            printf("                 got %08x %08x %08x %08x\n", ptrGot[0], ptrGot[1], ptrGot[2], ptrGot[3]);
+            ++printed;
+        }
     }
     return result;
 }
