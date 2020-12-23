@@ -10,7 +10,7 @@ typedef int int32_t;
 
 #define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
-//#define OPT_OPAQUE_ONLY // disabled all transparency handling
+//#define OPT_OPAQUE_ONLY // disables all transparency handling
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)

@@ -456,20 +456,24 @@ static bool InitializeCompressorShaders()
 	}
 	SmolKernelCreateFlags flags = SmolKernelCreateFlags::GenerateDebugInfo;
 	{
+        uint64_t tComp0 = stm_now();
 		s_Bc7KernelLists = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_estimate_partition_lists", flags);
 		if (s_Bc7KernelLists == nullptr)
 		{
 			printf("ERROR: failed to create lists compute shader\n");
 			return false;
 		}
+        printf("  (lists shader %.1fs)", stm_sec(stm_since(tComp0)));
 	}
 	{
+        uint64_t tComp0 = stm_now();
 		s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks", flags);
 		if (s_Bc7KernelEncode == nullptr)
 		{
 			printf("ERROR: failed to create encode compute shader\n");
 			return false;
 		}
+        printf("  (encode shader %.1fs)", stm_sec(stm_since(tComp0)));
 	}
 	free(kernelSource);
     return true;

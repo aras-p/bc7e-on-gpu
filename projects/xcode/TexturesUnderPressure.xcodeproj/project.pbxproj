@@ -42,6 +42,9 @@
 		2B235399258A1E1B00C47578 /* bc7decomp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bc7decomp.h; path = bc7enc/bc7decomp.h; sourceTree = "<group>"; };
 		2B23539A258A1E1B00C47578 /* bc7decomp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = bc7decomp.cpp; path = bc7enc/bc7decomp.cpp; sourceTree = "<group>"; };
 		2B23539D258A1E2200C47578 /* stb_image_write.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stb_image_write.h; sourceTree = "<group>"; };
+		2B2353A92593456C00C47578 /* bc7e_encode.hlsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bc7e_encode.hlsl; sourceTree = "<group>"; };
+		2B2353AA2593456C00C47578 /* bc7e.hlsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bc7e.hlsl; sourceTree = "<group>"; };
+		2B2353AB2593456C00C47578 /* bc7e_lists.hlsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bc7e_lists.hlsl; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +108,7 @@
 		2B2353832589F3F900C47578 /* shaders */ = {
 			isa = PBXGroup;
 			children = (
+				2B2353A82593455900C47578 /* hlsl */,
 				2B2353842589F3FE00C47578 /* metal */,
 			);
 			path = shaders;
@@ -124,6 +128,16 @@
 				2B23538E2589F4EB00C47578 /* Metal.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		2B2353A82593455900C47578 /* hlsl */ = {
+			isa = PBXGroup;
+			children = (
+				2B2353A92593456C00C47578 /* bc7e_encode.hlsl */,
+				2B2353AB2593456C00C47578 /* bc7e_lists.hlsl */,
+				2B2353AA2593456C00C47578 /* bc7e.hlsl */,
+			);
+			path = hlsl;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
