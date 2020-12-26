@@ -22,8 +22,8 @@ const int kRunCount = 8;
 
 static const char* kTestFileNames[] =
 {
+	"textures/20x20.png",
     "textures/2dSignsCrop.png",
-    "textures/20x16.png",
     "textures/AoCrop-gray.png",
     "textures/DecalRust.png",
     "textures/EllenBodyCrop_MADS.png",
@@ -601,18 +601,26 @@ static bool TestOnFile(TestFile& tf)
 		memset(s_Bc7DecompressGot, 0x77, rawSize);
 		decompress_bc7(tf.width, tf.height, tf.bc7exp.data(), s_Bc7DecompressExpected);
 		decompress_bc7(tf.width, tf.height, tf.bc7got.data(), s_Bc7DecompressGot);
-        const int kAllowedPixelValueDiff = 64; //@TODO: this is way too high
+        const int kAllowedPixelValueDiff = 2;
         int maxDiff = 0;
+        size_t maxDiffIdx = 0;
         for (size_t i = 0; i < tf.width * tf.height * 4; ++i)
         {
             int vexp = s_Bc7DecompressExpected[i];
 			int vgot = s_Bc7DecompressGot[i];
             int diff = abs(vexp - vgot);
-            maxDiff = std::max(maxDiff, diff);
+            if (diff > maxDiff)
+            {
+                maxDiff = diff;
+                maxDiffIdx = i;
+            }
         }
         if (maxDiff > kAllowedPixelValueDiff)
         {
-            printf("    ERROR: did not match reference (max diff %i)\n", maxDiff);
+            int maxDiffX = maxDiffIdx / 4 % tf.width;
+			int maxDiffY = maxDiffIdx / 4 / tf.width;
+            int maxDiffCh = maxDiffIdx % 4;
+            printf("    ERROR: did not match reference (max diff %i at pixel %i,%i ch %i block %i,%i)\n", maxDiff, maxDiffX, maxDiffY, maxDiffCh, maxDiffX/4, maxDiffY/4);
             tf.errors = true;
             result = false;
             stbi_write_tga(("artifacts/"+tf.fileNameBase+"-exp.tga").c_str(), tf.width, tf.height, 4, s_Bc7DecompressExpected);
