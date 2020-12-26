@@ -325,7 +325,7 @@ static void Initialize()
     ispc::bc7e_compress_block_init();
     gpu_bc7e_compress_block_init();
     ic::init_pfor();
-    if (!SmolComputeCreate(SmolComputeCreateFlags::EnableCapture | SmolComputeCreateFlags::EnableDebugLayers | SmolComputeCreateFlags::UseSoftwareRenderer))
+    if (!SmolComputeCreate(SmolComputeCreateFlags::EnableCapture | SmolComputeCreateFlags::EnableDebugLayers/* | SmolComputeCreateFlags::UseSoftwareRenderer*/))
     {
         printf("Failed to initialize smol-compute\n");
     }
@@ -423,6 +423,8 @@ static SmolBuffer* s_Bc7TablesBuffer;
 static SmolBuffer* s_Bc7GlobBuffer;
 static SmolBuffer* s_Bc7InputBuffer;
 static SmolBuffer* s_Bc7OutputBuffer;
+static uint8_t* s_Bc7DecompressExpected;
+static uint8_t* s_Bc7DecompressGot;
 
 #ifdef _MSC_VER
 typedef unsigned char BYTE;
@@ -495,6 +497,10 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
     s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
     s_Bc7OutputBuffer = SmolBufferCreate(maxBc7Size, SmolBufferType::Structured, 16);
     SmolBufferSetData(s_Bc7TablesBuffer, &s_Tables, sizeof(s_Tables));
+
+	s_Bc7DecompressExpected = new uint8_t[maxRgbaSize];
+    s_Bc7DecompressGot = new uint8_t[maxRgbaSize];
+
     return true;
 }
 
@@ -564,11 +570,14 @@ static bool TestOnFile(TestFile& tf)
         SmolBufferSetData(s_Bc7GlobBuffer, &glob, sizeof(glob));
         SmolBufferSetData(s_Bc7InputBuffer, tf.rgba.data(), tf.rgba.size());
         
-        SmolKernelSet(s_Bc7KernelLists);
-        SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
-        SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
-        SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
-        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 32, 1, 1);
+        if (kQuality > 0)
+        {
+			SmolKernelSet(s_Bc7KernelLists);
+			SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+			SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+			SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 32, 1, 1);
+        }
         
         SmolKernelSet(s_Bc7KernelEncode);
         SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
@@ -586,36 +595,44 @@ static bool TestOnFile(TestFile& tf)
     bool result = true;
     if (memcmp(tf.bc7exp.data(), tf.bc7got.data(), tf.bc7got.size()) != 0)
     {
-        printf("    ERROR: did not match reference\n");
-        tf.errors = true;
-        result = false;
-        unsigned char* rgbaExp = new unsigned char[rawSize];
-        unsigned char* rgbaGot = new unsigned char[rawSize];
-        memset(rgbaExp, 0x77, rawSize);
-        memset(rgbaGot, 0x77, rawSize);
-        decompress_bc7(tf.width, tf.height, tf.bc7exp.data(), rgbaExp);
-        decompress_bc7(tf.width, tf.height, tf.bc7got.data(), rgbaGot);
-        stbi_write_tga(("artifacts/"+tf.fileNameBase+"-exp.tga").c_str(), tf.width, tf.height, 4, rgbaExp);
-        stbi_write_tga(("artifacts/"+tf.fileNameBase+"-got.tga").c_str(), tf.width, tf.height, 4, rgbaGot);
-        delete[] rgbaExp;
-        delete[] rgbaGot;
-        size_t printed = 0;
-        size_t blockCount = tf.bc7got.size() / 16;
-        const uint32_t* ptrExp = (const uint32_t*)tf.bc7exp.data();
-        const uint32_t* ptrGot = (const uint32_t*)tf.bc7got.data();
-        for (size_t i = 0; i < blockCount; ++i, ptrExp += 4, ptrGot += 4)
+		memset(s_Bc7DecompressExpected, 0x77, rawSize);
+		memset(s_Bc7DecompressGot, 0x77, rawSize);
+		decompress_bc7(tf.width, tf.height, tf.bc7exp.data(), s_Bc7DecompressExpected);
+		decompress_bc7(tf.width, tf.height, tf.bc7got.data(), s_Bc7DecompressGot);
+        const int kAllowedPixelValueDiff = 4;
+        int maxDiff = 0;
+        for (size_t i = 0; i < tf.width * tf.height * 4; ++i)
         {
-            if (memcmp(ptrExp, ptrGot, 16) == 0)
-                continue;
-            if (printed > 16)
-            {
-                printf("    ...more skipped\n");
-                break;
-            }
-            printf("    block %6zi exp %08x %08x %08x %08x\n", i, ptrExp[0], ptrExp[1], ptrExp[2], ptrExp[3]);
-            printf("       (%3i,%3i) got %08x %08x %08x %08x\n", int(i) % tf.widthInBlocks, int(i) / tf.widthInBlocks, ptrGot[0], ptrGot[1], ptrGot[2], ptrGot[3]);
-            ++printed;
+            int vexp = s_Bc7DecompressExpected[i];
+			int vgot = s_Bc7DecompressGot[i];
+            int diff = abs(vexp - vgot);
+            maxDiff = std::max(maxDiff, diff);
         }
+        if (maxDiff > kAllowedPixelValueDiff)
+        {
+            printf("    ERROR: did not match reference (max diff %i)\n", maxDiff);
+            tf.errors = true;
+            result = false;
+            stbi_write_tga(("artifacts/"+tf.fileNameBase+"-exp.tga").c_str(), tf.width, tf.height, 4, s_Bc7DecompressExpected);
+            stbi_write_tga(("artifacts/"+tf.fileNameBase+"-got.tga").c_str(), tf.width, tf.height, 4, s_Bc7DecompressGot);
+            size_t printed = 0;
+            size_t blockCount = tf.bc7got.size() / 16;
+            const uint32_t* ptrExp = (const uint32_t*)tf.bc7exp.data();
+            const uint32_t* ptrGot = (const uint32_t*)tf.bc7got.data();
+            for (size_t i = 0; i < blockCount; ++i, ptrExp += 4, ptrGot += 4)
+            {
+                if (memcmp(ptrExp, ptrGot, 16) == 0)
+                    continue;
+                if (printed > 4)
+                {
+                    printf("    ...more skipped\n");
+                    break;
+                }
+                printf("    block %6zi exp %08x %08x %08x %08x\n", i, ptrExp[0], ptrExp[1], ptrExp[2], ptrExp[3]);
+                printf("       (%3i,%3i) got %08x %08x %08x %08x\n", int(i) % tf.widthInBlocks, int(i) / tf.widthInBlocks, ptrGot[0], ptrGot[1], ptrGot[2], ptrGot[3]);
+                ++printed;
+            }
+		}
     }
     return result;
 }
