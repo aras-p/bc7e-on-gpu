@@ -18,6 +18,7 @@
 
 const int kQuality = 0;
 const int kRunCount = 8;
+const int kAllowedPixelValueDiff = 17;
 
 
 static const char* kTestFileNames[] =
@@ -325,7 +326,7 @@ static void Initialize()
     ispc::bc7e_compress_block_init();
     gpu_bc7e_compress_block_init();
     ic::init_pfor();
-    if (!SmolComputeCreate(SmolComputeCreateFlags::EnableCapture | SmolComputeCreateFlags::EnableDebugLayers/* | SmolComputeCreateFlags::UseSoftwareRenderer*/))
+    if (!SmolComputeCreate(/*SmolComputeCreateFlags::EnableCapture | SmolComputeCreateFlags::EnableDebugLayers | SmolComputeCreateFlags::UseSoftwareRenderer*/))
     {
         printf("Failed to initialize smol-compute\n");
     }
@@ -601,7 +602,6 @@ static bool TestOnFile(TestFile& tf)
 		memset(s_Bc7DecompressGot, 0x77, rawSize);
 		decompress_bc7(tf.width, tf.height, tf.bc7exp.data(), s_Bc7DecompressExpected);
 		decompress_bc7(tf.width, tf.height, tf.bc7got.data(), s_Bc7DecompressGot);
-        const int kAllowedPixelValueDiff = 2;
         int maxDiff = 0;
         size_t maxDiffIdx = 0;
         for (size_t i = 0; i < tf.width * tf.height * 4; ++i)
@@ -703,6 +703,7 @@ int main()
     }
     
     // Create compression shaders & buffers
+	//SmolCaptureStart();
     if (!InitializeCompressorResources(maxRgbaSize, maxBc7Size))
     {
         ++errorCount;
@@ -710,7 +711,6 @@ int main()
     else
     {
         printf("Running tests on %zi images...\n", testFiles.size());
-        //SmolCaptureStart();
         for (int ir = 0; ir < kRunCount; ++ir)
         {
             printf("Run %i of %i...\n", ir+1, kRunCount);

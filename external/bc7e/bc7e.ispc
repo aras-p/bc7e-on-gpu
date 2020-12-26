@@ -3,7 +3,7 @@
 // Typically compiled as: ispc -g -O2 "%(Filename).ispc" -o "$(TargetDir)%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --target=sse2,sse4,avx,avx2 --opt=fast-math --opt=disable-assertions
 // --opt=fast-math is optional (doesn't make much if any measurable difference). 
 
-#define OPT_OPAQUE_ONLY
+//#define OPT_OPAQUE_ONLY
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)

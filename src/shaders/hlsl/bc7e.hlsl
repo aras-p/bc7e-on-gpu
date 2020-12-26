@@ -1,6 +1,7 @@
 
 #define uniform
 #define varying
+//#define precise
 
 typedef uint uint32_t;
 typedef int int32_t;
@@ -89,7 +90,7 @@ typedef float4 vec4F;
 
 static inline vec4F vec4F_normalize(vec4F v)
 {
-    float lensq = dot(v, v);
+    precise float lensq = dot(v, v);
     if (lensq != 0.0f)
     {
         float invlen = 1.0f / sqrt(lensq);
@@ -111,9 +112,11 @@ static const float4 g_bc7_weights3x[16] = {
     float4(0.000000f, 0.000000f, 1.000000f, 0.000000f), float4(0.019775f, 0.120850f, 0.738525f, 0.140625f), float4(0.079102f, 0.202148f, 0.516602f, 0.281250f), float4(0.177979f, 0.243896f, 0.334229f, 0.421875f),
     float4(0.334229f, 0.243896f, 0.177979f, 0.578125f), float4(0.516602f, 0.202148f, 0.079102f, 0.718750f), float4(0.738525f, 0.120850f, 0.019775f, 0.859375f), float4(1.000000f, 0.000000f, 0.000000f, 1.000000f),
     float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0)};
-static const float4 g_bc7_weights4x[16] = { 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.003906f, 0.058594f, 0.878906f, 0.062500f, 0.019775f, 0.120850f, 0.738525f, 0.140625f, 0.041260f, 0.161865f, 0.635010f, 0.203125f, 0.070557f, 0.195068f, 0.539307f, 0.265625f, 0.107666f, 0.220459f,
-    0.451416f, 0.328125f, 0.165039f, 0.241211f, 0.352539f, 0.406250f, 0.219727f, 0.249023f, 0.282227f, 0.468750f, 0.282227f, 0.249023f, 0.219727f, 0.531250f, 0.352539f, 0.241211f, 0.165039f, 0.593750f, 0.451416f, 0.220459f, 0.107666f, 0.671875f, 0.539307f, 0.195068f, 0.070557f, 0.734375f,
-    0.635010f, 0.161865f, 0.041260f, 0.796875f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 0.878906f, 0.058594f, 0.003906f, 0.937500f, 1.000000f, 0.000000f, 0.000000f, 1.000000f };
+static const float4 g_bc7_weights4x[16] = {
+    float4(0.000000f, 0.000000f, 1.000000f, 0.000000f), float4(0.003906f, 0.058594f, 0.878906f, 0.062500f), float4(0.019775f, 0.120850f, 0.738525f, 0.140625f), float4(0.041260f, 0.161865f, 0.635010f, 0.203125f),
+    float4(0.070557f, 0.195068f, 0.539307f, 0.265625f), float4(0.107666f, 0.220459f, 0.451416f, 0.328125f), float4(0.165039f, 0.241211f, 0.352539f, 0.406250f), float4(0.219727f, 0.249023f, 0.282227f, 0.468750f),
+    float4(0.282227f, 0.249023f, 0.219727f, 0.531250f), float4(0.352539f, 0.241211f, 0.165039f, 0.593750f), float4(0.451416f, 0.220459f, 0.107666f, 0.671875f), float4(0.539307f, 0.195068f, 0.070557f, 0.734375f),
+    float4(0.635010f, 0.161865f, 0.041260f, 0.796875f), float4(0.738525f, 0.120850f, 0.019775f, 0.859375f), float4(0.878906f, 0.058594f, 0.003906f, 0.937500f), float4(1.000000f, 0.000000f, 0.000000f, 1.000000f) };
 
 static const int g_bc7_partition1[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 
@@ -212,12 +215,12 @@ static const uint32_t BC7E_MODE_4_OPTIMAL_INDEX2 = 1;
 static const uint32_t BC7E_MODE_0_OPTIMAL_INDEX = 2;
 
 
-static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], float4 selector_weights[16], out float4 pXl, out float4 pXh, color_quad_i colors[16])
+static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], float4 selector_weights[16], out precise float4 pXl, out precise float4 pXh, color_quad_i colors[16])
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
-    float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    float4 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
+    precise float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
+    precise float4 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
     for (uniform uint32_t i = 0; i < N; i++)
     {
         const uint32_t sel = selectors[i];
@@ -234,11 +237,11 @@ static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], floa
 
     z01 = z10;
 
-    float det = z00 * z11 - z01 * z10;
+    precise float det = z00 * z11 - z01 * z10;
     if (det != 0.0f)
         det = 1.0f / det;
 
-    float iz00, iz01, iz10, iz11;
+    precise float iz00, iz01, iz10, iz11;
     iz00 = z11 * det;
     iz01 = -z01 * det;
     iz10 = -z10 * det;
@@ -247,12 +250,12 @@ static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], floa
     pXl = iz00 * q00 + iz01 * q10; pXh = iz10 * q00 + iz11 * q10;
 }
 
-static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], float4 selector_weights[16], inout float4 pXl, inout float4 pXh, color_quad_i colors[16])
+static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], float4 selector_weights[16], inout precise float4 pXl, inout precise float4 pXh, color_quad_i colors[16])
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
-    float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    float3 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
+    precise float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
+    precise float3 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
     for (uniform uint32_t i = 0; i < N; i++)
     {
         const uint32_t sel = selectors[i];
@@ -269,11 +272,11 @@ static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], float
 
     z01 = z10;
 
-    float det = z00 * z11 - z01 * z10;
+    precise float det = z00 * z11 - z01 * z10;
     if (det != 0.0f)
         det = 1.0f / det;
 
-    float iz00, iz01, iz10, iz11;
+    precise float iz00, iz01, iz10, iz11;
     iz00 = z11 * det;
     iz01 = -z01 * det;
     iz10 = -z10 * det;
@@ -370,11 +373,11 @@ static inline uint32_t compute_color_distance_rgb(color_quad_i e1, color_quad_i 
 {
     if (perceptual)
     {
-        const float l1 = e1.r * .2126f + e1.g * .7152f + e1.b * .0722f;
+        precise const float l1 = e1.r * .2126f + e1.g * .7152f + e1.b * .0722f;
         const float cr1 = e1.r - l1;
         const float cb1 = e1.b - l1;
 
-        const float l2 = e2.r * .2126f + e2.g * .7152f + e2.b * .0722f;
+        precise const float l2 = e2.r * .2126f + e2.g * .7152f + e2.b * .0722f;
         const float cr2 = e2.r - l2;
         const float cb2 = e2.b - l2;
 
@@ -382,7 +385,8 @@ static inline uint32_t compute_color_distance_rgb(color_quad_i e1, color_quad_i 
         float dcr = cr1 - cr2;
         float dcb = cb1 - cb2;
 
-        return (int32_t)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb));
+        precise float res = (weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb));
+        return (uint32_t)res;
     }
     else
     {
@@ -397,15 +401,15 @@ static inline uint32_t compute_color_distance_rgb(color_quad_i e1, color_quad_i 
 static inline uint32_t compute_color_distance_rgba(color_quad_i e1, color_quad_i e2, uniform bool perceptual, uint4 weights)
 {
     float da = (float)e1.a - (float)e2.a;
-    float a_err = weights[3] * (da * da);
+    precise float a_err = weights[3] * (da * da);
 
     if (perceptual)
     {
-        const float l1 = e1.r * .2126f + e1.g * .7152f + e1.b * .0722f;
+        precise const float l1 = e1.r * .2126f + e1.g * .7152f + e1.b * .0722f;
         const float cr1 = e1.r - l1;
         const float cb1 = e1.b - l1;
 
-        const float l2 = e2.r * .2126f + e2.g * .7152f + e2.b * .0722f;
+        precise const float l2 = e2.r * .2126f + e2.g * .7152f + e2.b * .0722f;
         const float cr2 = e2.r - l2;
         const float cb2 = e2.b - l2;
 
@@ -413,7 +417,8 @@ static inline uint32_t compute_color_distance_rgba(color_quad_i e1, color_quad_i
         float dcr = cr1 - cr2;
         float dcb = cb1 - cb2;
 
-        return (int32_t)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb) + a_err);
+        precise float res = (weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb) + a_err);
+        return (uint32_t)res;
     }
     else
     {
@@ -736,14 +741,14 @@ static uint32_t evaluate_solution(const color_quad_i pLow, const color_quad_i pH
     const uniform uint32_t N = pParams.m_num_selector_weights;
     const uniform uint32_t nc = pParams.m_has_alpha ? 4 : 3;
 
-    float total_errf = 0;
+    precise float total_errf = 0;
 
-    float wr = pParams.m_weights[0];
-    float wg = pParams.m_weights[1];
-    float wb = pParams.m_weights[2];
-    float wa = pParams.m_weights[3];
+    precise float wr = pParams.m_weights[0];
+    precise float wg = pParams.m_weights[1];
+    precise float wb = pParams.m_weights[2];
+    precise float wa = pParams.m_weights[3];
 
-    color_quad_f weightedColors[16];
+    precise color_quad_f weightedColors[16];
     weightedColors[0] = float4(actualMinColor);
     weightedColors[N-1] = float4(actualMaxColor);
         
@@ -1105,7 +1110,7 @@ static uint32_t evaluate_solution(const color_quad_i pLow, const color_quad_i pH
         wg *= pr_weight;
         wb *= pb_weight;
 
-        float weightedColorsY[16], weightedColorsCr[16], weightedColorsCb[16];
+        precise float weightedColorsY[16], weightedColorsCr[16], weightedColorsCb[16];
         
         for (uniform uint32_t i = 0; i < N; i++)
         {
@@ -1113,7 +1118,7 @@ static uint32_t evaluate_solution(const color_quad_i pLow, const color_quad_i pH
             float g = weightedColors[i][1];
             float b = weightedColors[i][2];
 
-            float y = r * .2126f + g * .7152f + b * .0722f;
+            precise float y = r * .2126f + g * .7152f + b * .0722f;
                                     
             weightedColorsY[i] = y;
             weightedColorsCr[i] = r - y;
@@ -1129,7 +1134,7 @@ static uint32_t evaluate_solution(const color_quad_i pLow, const color_quad_i pH
                 float b = pPixels[i][2];
                 float a = pPixels[i][3];
 
-                float y = r * .2126f + g * .7152f + b * .0722f;
+                precise float y = r * .2126f + g * .7152f + b * .0722f;
                 float cr = r - y;
                 float cb = b - y;
 
@@ -1143,7 +1148,7 @@ static uint32_t evaluate_solution(const color_quad_i pLow, const color_quad_i pH
                     float dcb = cb - weightedColorsCb[j];
                     float da = a - weightedColors[j][3];
 
-                    float err = (wr * dl * dl) + (wg * dcr * dcr) + (wb * dcb * dcb) + (wa * da * da);
+                    precise float err = (wr * dl * dl) + (wg * dcr * dcr) + (wb * dcb * dcb) + (wa * da * da);
                     if (err < best_err)
                     {
                         best_err = err;
@@ -1164,9 +1169,9 @@ static uint32_t evaluate_solution(const color_quad_i pLow, const color_quad_i pH
                 float g = pPixels[i][1];
                 float b = pPixels[i][2];
 
-                float y = r * .2126f + g * .7152f + b * .0722f;
-                float cr = r - y;
-                float cb = b - y;
+                precise float y = r * .2126f + g * .7152f + b * .0722f;
+                precise float cr = r - y;
+                precise float cb = b - y;
 
                 float best_err = 1e+10f;
                 int32_t best_sel;
@@ -1177,7 +1182,7 @@ static uint32_t evaluate_solution(const color_quad_i pLow, const color_quad_i pH
                     float dcr = cr - weightedColorsCr[j];
                     float dcb = cb - weightedColorsCb[j];
 
-                    float err = (wr * dl * dl) + (wg * dcr * dcr) + (wb * dcb * dcb);
+                    precise float err = (wr * dl * dl) + (wg * dcr * dcr) + (wb * dcb * dcb);
                     if (err < best_err)
                     {
                         best_err = err;
@@ -1264,8 +1269,8 @@ static void fixDegenerateEndpoints(uint32_t mode, inout color_quad_i pTrialMinCo
 static uint32_t find_optimal_solution(uniform uint32_t mode, const vec4F pXl, const vec4F pXh, const color_cell_compressor_params pParams, inout color_cell_compressor_results pResults,
     bool pbit_search, uint32_t num_pixels, const color_quad_i pPixels[16])
 {
-    vec4F xl = saturate(pXl);
-    vec4F xh = saturate(pXh);
+    precise vec4F xl = saturate(pXl);
+    precise vec4F xh = saturate(pXh);
         
     if (pParams.m_has_pbits)
     {
@@ -1355,7 +1360,7 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, const vec4F pXl, co
         {
             // compensated rounding
             const uniform int iscalep = (1 << (pParams.m_comp_bits + 1)) - 1;
-            const uniform float scalep = (float)iscalep;
+            precise const uniform float scalep = (float)iscalep;
 
             const uniform int32_t totalComps = pParams.m_has_alpha ? 4 : 3;
 
@@ -1384,8 +1389,8 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, const vec4F pXl, co
                     color_quad_i scaledLow = scale_color(xMinColor, pParams);
                     color_quad_i scaledHigh = scale_color(xMaxColor, pParams);
 
-                    float err0 = 0;
-                    float err1 = 0;
+                    precise float err0 = 0;
+                    precise float err1 = 0;
                     for (uniform int i = 0; i < totalComps; i++)
                     {
                         err0 += square(scaledLow[i] - xl[i]*255.0f);
@@ -1506,17 +1511,17 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
         }
     }
 
-    vec4F meanColor = 0.0f;
+    precise vec4F meanColor = 0.0f;
     for (uint32_t im = 0; im < num_pixels; im++)
         meanColor += float4(pPixels[im]);
-    vec4F meanColorScaled = meanColor * (1.0f / num_pixels);
+    precise vec4F meanColorScaled = meanColor * (1.0f / num_pixels);
 
     meanColor = saturate(meanColor * (1.0f / (num_pixels * 255.0f)));
 
-    vec4F axis;
+    precise vec4F axis;
     if (pParams.m_has_alpha)
     {
-        vec4F v = 0.0f;
+        precise vec4F v = 0.0f;
         for (uint32_t ia = 0; ia < num_pixels; ia++)
         {
             vec4F color = float4(pPixels[ia]) - meanColorScaled;
@@ -1526,7 +1531,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
             vec4F c = color * color.b;
             vec4F d = color * color.a;
 
-            vec4F n = ia ? v : color;
+            precise vec4F n = ia ? v : color;
             n = vec4F_normalize(n);
 
             v.r += dot(a, n);
@@ -1539,17 +1544,17 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
     }
     else
     {
-        float cov[6];
+        precise float cov[6];
         cov[0] = 0; cov[1] = 0; cov[2] = 0;
         cov[3] = 0; cov[4] = 0;    cov[5] = 0;
 
         for (uint32_t ic = 0; ic < num_pixels; ic++)
         {
-            float3 p = float3(pPixels[ic].rgb);
+            precise float3 p = float3(pPixels[ic].rgb);
 
-            float r = p.r - meanColorScaled.r;
-            float g = p.g - meanColorScaled.g;
-            float b = p.b - meanColorScaled.b;
+            precise float r = p.r - meanColorScaled.r;
+            precise float g = p.g - meanColorScaled.g;
+            precise float b = p.b - meanColorScaled.b;
                 
             cov[0] += r*r;
             cov[1] += r*g;
@@ -1559,7 +1564,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
             cov[5] += b*b;
         }
 
-        float vfr, vfg, vfb;
+        precise float vfr, vfg, vfb;
         //vfr = hi[0] - lo[0];
         //vfg = hi[1] - lo[1];
         //vfb = hi[2] - lo[2];
@@ -1570,11 +1575,11 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
 
         for (uniform uint32_t iter = 0; iter < 3; iter++)
         {
-            float r = vfr*cov[0] + vfg*cov[1] + vfb*cov[2];
-            float g = vfr*cov[1] + vfg*cov[3] + vfb*cov[4];
-            float b = vfr*cov[2] + vfg*cov[4] + vfb*cov[5];
+            precise float r = vfr*cov[0] + vfg*cov[1] + vfb*cov[2];
+            precise float g = vfr*cov[1] + vfg*cov[3] + vfb*cov[4];
+            precise float b = vfr*cov[2] + vfg*cov[4] + vfb*cov[5];
 
-            float m = max3(abs(r), abs(g), abs(b));
+            precise float m = max3(abs(r), abs(g), abs(b));
             if (m > 1e-10f)
             {
                 m = 1.0f / m;
@@ -1593,7 +1598,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
             //    break;
         }
 
-        float len = vfr*vfr + vfg*vfg + vfb*vfb;
+        precise float len = vfr*vfr + vfg*vfg + vfb*vfb;
 
         if (len < 1e-10f)
             axis = 0.0f;
@@ -1616,12 +1621,12 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
         axis = vec4F_normalize(axis);
     }
 
-    float l = 1e+9f, h = -1e+9f;
+    precise float l = 1e+9f, h = -1e+9f;
 
     for (uint32_t i = 0; i < num_pixels; i++)
     {
-        vec4F q = float4(pPixels[i]) - meanColorScaled;
-        float d = dot(q, axis);
+        precise vec4F q = float4(pPixels[i]) - meanColorScaled;
+        precise float d = dot(q, axis);
 
         l = min(l, d);
         h = max(h, d);
@@ -1630,14 +1635,14 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
     l *= (1.0f / 255.0f);
     h *= (1.0f / 255.0f);
 
-    vec4F b0 = axis * l;
-    vec4F b1 = axis * h;
-    vec4F c0 = meanColor + b0;
-    vec4F c1 = meanColor + b1;
-    vec4F minColor = saturate(c0);
-    vec4F maxColor = saturate(c1);
+    precise vec4F b0 = axis * l;
+    precise vec4F b1 = axis * h;
+    precise vec4F c0 = meanColor + b0;
+    precise vec4F c1 = meanColor + b1;
+    precise vec4F minColor = saturate(c0);
+    precise vec4F maxColor = saturate(c1);
                 
-    vec4F whiteVec = 1.0f;
+    precise vec4F whiteVec = 1.0f;
     if (dot(minColor, whiteVec) > dot(maxColor, whiteVec))
     {
         vec4F temp = minColor;
@@ -1654,7 +1659,7 @@ static uint32_t color_cell_compression(uint32_t mode, const color_cell_compresso
     // Note: m_refinement_passes is always 1, so hardcode to one loop iteration
     //for (uniform uint32_t i = 0; i < g_params.m_refinement_passes; i++)
     {
-        vec4F xl = 0.0f, xh = 0.0f;
+        precise vec4F xl = 0.0f, xh = 0.0f;
         if (pParams.m_has_alpha)
             compute_least_squares_endpoints_rgba(num_pixels, pResults.m_selectors, pParams.m_selector_weightsx, xl, xh, pPixels);
         else

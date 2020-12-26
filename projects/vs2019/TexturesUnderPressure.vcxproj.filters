@@ -60,15 +60,11 @@
     <CustomBuild Include="..\..\external\bc7e\bc7e.ispc">
       <Filter>external</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_encode.hlsl" />
+    <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_lists.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\..\src\shaders\hlsl\bc7e.hlsl">
-      <Filter>src\shaders\hlsl</Filter>
-    </FxCompile>
-    <FxCompile Include="..\..\src\shaders\hlsl\bc7e_encode.hlsl">
-      <Filter>src\shaders\hlsl</Filter>
-    </FxCompile>
-    <FxCompile Include="..\..\src\shaders\hlsl\bc7e_lists.hlsl">
       <Filter>src\shaders\hlsl</Filter>
     </FxCompile>
   </ItemGroup>
