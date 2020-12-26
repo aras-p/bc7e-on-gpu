@@ -9,6 +9,6 @@
 
 #ifdef _MSC_VER
 #define SMOL_COMPUTE_IMPLEMENTATION 1
-#define SMOL_COMPUTE_D3D11 1
+#define SMOL_COMPUTE_VULKAN 1
 #include "../external/smolcompute.h"
 #endif
