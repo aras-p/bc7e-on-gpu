@@ -23,7 +23,7 @@ const int kRunCount = 8;
 static const char* kTestFileNames[] =
 {
     "textures/2dSignsCrop.png",
-    "textures/16x16.png",
+    "textures/20x16.png",
     "textures/AoCrop-gray.png",
     "textures/DecalRust.png",
     "textures/EllenBodyCrop_MADS.png",
