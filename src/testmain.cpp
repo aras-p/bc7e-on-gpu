@@ -446,6 +446,7 @@ static SmolKernel* s_Bc7KernelLists;
 static SmolBuffer* s_Bc7TablesBuffer;
 static SmolBuffer* s_Bc7GlobBuffer;
 static SmolBuffer* s_Bc7InputBuffer;
+static SmolBuffer* s_Bc7TempBuffer;
 static SmolBuffer* s_Bc7OutputBuffer;
 static uint8_t* s_Bc7DecompressExpected;
 static uint8_t* s_Bc7DecompressGot;
@@ -521,6 +522,7 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
     s_Bc7TablesBuffer = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Structured, 4);
     s_Bc7GlobBuffer = SmolBufferCreate(sizeof(Globals), SmolBufferType::Constant);
     s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
+    s_Bc7TempBuffer = SmolBufferCreate(maxBc7Size / 16 * 64, SmolBufferType::Structured, 64); // 64 bytes per block
     s_Bc7OutputBuffer = SmolBufferCreate(maxBc7Size, SmolBufferType::Structured, 16);
     SmolBufferSetData(s_Bc7TablesBuffer, &s_Tables, sizeof(s_Tables));
 
@@ -537,6 +539,7 @@ static void CleanupCompressorResources()
     SmolBufferDelete(s_Bc7TablesBuffer);
 	SmolBufferDelete(s_Bc7GlobBuffer);
 	SmolBufferDelete(s_Bc7InputBuffer);
+    SmolBufferDelete(s_Bc7TempBuffer);
 	SmolBufferDelete(s_Bc7OutputBuffer);
 }
 
@@ -623,20 +626,19 @@ static bool TestOnFile(TestFile& tf)
         SmolBufferSetData(s_Bc7GlobBuffer, &glob, sizeof(glob));
         SmolBufferSetData(s_Bc7InputBuffer, tf.rgba.data(), tf.rgba.size());
         
-        if (kQuality > 0)
-        {
-			SmolKernelSet(s_Bc7KernelLists);
-			SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
-			SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
-			SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
-        }
+        SmolKernelSet(s_Bc7KernelLists);
+        SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+        SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+        SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
+        SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
         
         SmolKernelSet(s_Bc7KernelEncode);
         SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
         SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
         SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
-        SmolKernelSetBuffer(s_Bc7TablesBuffer, 3, SmolBufferBinding::Input);
+        SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+        SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Input);
         SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());

@@ -4052,6 +4052,7 @@ kernel void bc7e_estimate_partition_lists(
     constant Globals& glob [[buffer(0)]],
     const device uint* bufInput [[buffer(1)]],
     device uint4* bufOutput [[buffer(2)]],
+    device bc7_optimization_results* bufTemp [[buffer(3)]],
     uint3 id [[thread_position_in_grid]])
 {
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
@@ -4068,12 +4069,26 @@ kernel void bc7e_estimate_partition_lists(
     
     const bool has_alpha = (lo_a < 255);
 
-    uint4 lists;
+    uint4 lists = 0;
+    
+#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
         lists = get_lists_alpha(pixels, &glob.params);
     else
-        lists = get_lists_opaque(pixels, &glob.params);
+#endif
+    {
+#ifdef OPT_ULTRAFAST_ONLY
+        ;
+#else
+        if (glob.params.m_mode6_only)
+            ;
+        else
+            lists = get_lists_opaque(pixels, &glob.params);
+#endif
+    }
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
+    bufTemp[block_index].m_error = UINT_MAX;
     bufOutput[block_index] = lists;
 }
 
@@ -4082,7 +4097,8 @@ kernel void bc7e_compress_blocks(
     constant Globals& glob [[buffer(0)]],
     const device uint* bufInput [[buffer(1)]],
     device uint4* bufOutput [[buffer(2)]],
-    const constant LookupTables* tables [[buffer(3)]],
+    device bc7_optimization_results* bufTemp [[buffer(3)]],
+    const constant LookupTables* tables [[buffer(4)]],
     uint3 id [[thread_position_in_grid]])
 {
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
