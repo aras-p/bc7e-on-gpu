@@ -2244,17 +2244,16 @@ static uint32_t estimate_partition_list(uint32_t mode, const thread color_quad_i
     return min(num_solutions, orig_max_solutions);
 }
 
-static inline void set_block_bits(thread uint8_t *pBytes, uint32_t val, uint32_t num_bits, thread uint32_t* pCur_ofs)
+static inline void set_block_bits(thread uint32_t* pWords, uint32_t val, uint32_t num_bits, thread uint32_t* pCur_ofs)
 {
     assert(num_bits < 32);
-    uint32_t limit = 1U << num_bits;
-    assert(val < limit);
+    assert(val < (1U << num_bits));
         
     while (num_bits)
     {
-        const uint32_t n = min(8 - (*pCur_ofs & 7), num_bits);
+        const uint32_t n = min(32 - (*pCur_ofs & 31), num_bits);
 
-        pBytes[*pCur_ofs >> 3] |= (uint8_t)(val << (*pCur_ofs & 7));
+        pWords[*pCur_ofs >> 5] |= (val << (*pCur_ofs & 31));
 
         val >>= n;
         num_bits -= n;
@@ -2395,28 +2394,27 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
         }
     }
 
-    uint8_t pBlock_bytes[16] = {0};
-
+    uint32_t block[4] = {0};
     uint32_t cur_bit_ofs = 0;
         
-    set_block_bits(pBlock_bytes, 1 << best_mode, best_mode + 1, &cur_bit_ofs);
+    set_block_bits(block, 1 << best_mode, best_mode + 1, &cur_bit_ofs);
 
     if ((best_mode == 4) || (best_mode == 5))
-        set_block_bits(pBlock_bytes, pResults->m_rotation, 2, &cur_bit_ofs);
+        set_block_bits(block, pResults->m_rotation, 2, &cur_bit_ofs);
 
     if (best_mode == 4)
-        set_block_bits(pBlock_bytes, pResults->m_index_selector, 1, &cur_bit_ofs);
+        set_block_bits(block, pResults->m_index_selector, 1, &cur_bit_ofs);
 
     if (total_partitions > 1)
-        set_block_bits(pBlock_bytes, pResults->m_partition, (total_partitions == 64) ? 6 : 4, &cur_bit_ofs);
+        set_block_bits(block, pResults->m_partition, (total_partitions == 64) ? 6 : 4, &cur_bit_ofs);
 
     const uint32_t total_comps = (best_mode >= 4) ? 4 : 3;
     for (uint32_t comp = 0; comp < total_comps; comp++)
     {
         for (uint32_t subset = 0; subset < total_subsets; subset++)
         {
-            set_block_bits(pBlock_bytes, low[subset][comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
-            set_block_bits(pBlock_bytes, high[subset][comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
+            set_block_bits(block, low[subset][comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
+            set_block_bits(block, high[subset][comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
         }
     }
 
@@ -2424,9 +2422,9 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
     {
         for (uint32_t subset = 0; subset < total_subsets; subset++)
         {
-            set_block_bits(pBlock_bytes, pbits[subset][0], 1, &cur_bit_ofs);
+            set_block_bits(block, pbits[subset][0], 1, &cur_bit_ofs);
             if (!g_bc7_mode_has_shared_p_bits[best_mode])
-                set_block_bits(pBlock_bytes, pbits[subset][1], 1, &cur_bit_ofs);
+                set_block_bits(block, pbits[subset][1], 1, &cur_bit_ofs);
         }
     }
 
@@ -2441,7 +2439,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
             if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
                 n--;
 
-            set_block_bits(pBlock_bytes, pResults->m_index_selector ? alpha_selectors[idx] : color_selectors[idx], n, &cur_bit_ofs);
+            set_block_bits(block, pResults->m_index_selector ? alpha_selectors[idx] : color_selectors[idx], n, &cur_bit_ofs);
         }
     }
 
@@ -2458,13 +2456,13 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
                 if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
                     n--;
 
-                set_block_bits(pBlock_bytes, pResults->m_index_selector ? color_selectors[idx] : alpha_selectors[idx], n, &cur_bit_ofs);
+                set_block_bits(block, pResults->m_index_selector ? color_selectors[idx] : alpha_selectors[idx], n, &cur_bit_ofs);
             }
         }
     }
 
     assert(cur_bit_ofs == 128);
-    return *(thread uint4*)pBlock_bytes;
+    return uint4(block[0], block[1], block[2], block[3]);
 }
 
 static inline uint4 encode_bc7_block_mode6(thread bc7_optimization_results* pResults)
