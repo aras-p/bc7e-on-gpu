@@ -77,8 +77,16 @@ static inline bool color_quad_i_equals(color_quad_i a, color_quad_i b)
 {
     return all(a == b);
 }
+static inline bool color_quad_i_equals(uchar4 a, uchar4 b)
+{
+    return all(a == b);
+}
 
 static inline bool color_quad_i_notequals(color_quad_i a, color_quad_i b)
+{
+    return !color_quad_i_equals(a, b);
+}
+static inline bool color_quad_i_notequals(uchar4 a, uchar4 b)
 {
     return !color_quad_i_equals(a, b);
 }
@@ -321,8 +329,8 @@ static inline void color_cell_compressor_params_clear(thread color_cell_compress
 struct color_cell_compressor_results
 {
     uint32_t m_best_overall_err;
-    color_quad_i m_low_endpoint;
-    color_quad_i m_high_endpoint;
+    uchar4 m_low_endpoint;
+    uchar4 m_high_endpoint;
     uchar m_pbits;
     thread uchar* m_pSelectors;
 };
@@ -429,8 +437,8 @@ static ModePackResult pack_mode1_to_one_color(const thread color_cell_compressor
     const endpoint_err pEg = tables->mode_1[g][best_p];
     const endpoint_err pEb = tables->mode_1[b][best_p];
 
-    pResults->m_low_endpoint = int4(pEr.m_lo, pEg.m_lo, pEb.m_lo, 0);
-    pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, 0);
+    pResults->m_low_endpoint = uchar4(pEr.m_lo, pEg.m_lo, pEb.m_lo, 0);
+    pResults->m_high_endpoint = uchar4(pEr.m_hi, pEg.m_hi, pEb.m_hi, 0);
     pResults->m_pbits = best_p;
 
     res.bestSelector = BC7E_MODE_1_OPTIMAL_INDEX;
@@ -476,8 +484,8 @@ static ModePackResult pack_mode24_to_one_color(const thread color_cell_compresso
         eb = tables->mode_4_2[b];
     }
     
-    pResults->m_low_endpoint = int4(er & 0xFF, eg & 0xFF, eb & 0xFF, 0);
-    pResults->m_high_endpoint = int4(er >> 8, eg >> 8, eb >> 8, 0);
+    pResults->m_low_endpoint = uchar4(er & 0xFF, eg & 0xFF, eb & 0xFF, 0);
+    pResults->m_high_endpoint = uchar4(er >> 8, eg >> 8, eb >> 8, 0);
 
     res.bestSelector = (pParams->m_num_selector_weights == 8) ? BC7E_MODE_4_OPTIMAL_INDEX3 : BC7E_MODE_4_OPTIMAL_INDEX2;
 
@@ -527,9 +535,8 @@ static ModePackResult pack_mode0_to_one_color(const thread color_cell_compressor
     const endpoint_err pEg = tables->mode_0[g][best_p >> 1][best_p & 1];
     const endpoint_err pEb = tables->mode_0[b][best_p >> 1][best_p & 1];
 
-    pResults->m_low_endpoint = int4(pEr.m_lo, pEg.m_lo, pEb.m_lo, 0);
-
-    pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, 0);
+    pResults->m_low_endpoint = uchar4(pEr.m_lo, pEg.m_lo, pEb.m_lo, 0);
+    pResults->m_high_endpoint = uchar4(pEr.m_hi, pEg.m_hi, pEb.m_hi, 0);
 
     pResults->m_pbits = best_p;
 
@@ -584,9 +591,8 @@ static ModePackResult pack_mode6_to_one_color(const thread color_cell_compressor
     const endpoint_err pEb = tables->mode_6[b][best_hi_p][best_lo_p];
     const endpoint_err pEa = tables->mode_6[a][best_hi_p][best_lo_p];
 
-    pResults->m_low_endpoint = int4(pEr.m_lo, pEg.m_lo, pEb.m_lo, pEa.m_lo);
-
-    pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, pEa.m_hi);
+    pResults->m_low_endpoint = uchar4(pEr.m_lo, pEg.m_lo, pEb.m_lo, pEa.m_lo);
+    pResults->m_high_endpoint = uchar4(pEr.m_hi, pEg.m_hi, pEb.m_hi, pEa.m_hi);
 
     pResults->m_pbits = best_p;
 
@@ -637,9 +643,8 @@ static ModePackResult pack_mode7_to_one_color(const thread color_cell_compressor
     const endpoint_err pEb = tables->mode_7[b][best_hi_p][best_lo_p];
     const endpoint_err pEa = tables->mode_7[a][best_hi_p][best_lo_p];
 
-    pResults->m_low_endpoint = int4(pEr.m_lo, pEg.m_lo, pEb.m_lo, pEa.m_lo);
-
-    pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, pEa.m_hi);
+    pResults->m_low_endpoint = uchar4(pEr.m_lo, pEg.m_lo, pEb.m_lo, pEa.m_lo);
+    pResults->m_high_endpoint = uchar4(pEr.m_hi, pEg.m_hi, pEb.m_hi, pEa.m_hi);
 
     pResults->m_pbits = best_p;
 
@@ -684,11 +689,11 @@ static ModePackResult pack_mode_to_one_color(
         return pack_mode24_to_one_color(pParams, pResults, col.r, col.g, col.b, num_pixels, pPixels, tables);
 }
 
-static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread color_quad_i* pHigh, const thread uint32_t* pbits,
+static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const thread uint32_t* pbits,
     const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uint32_t num_pixels, const thread color_quad_i* pPixels, const constant LookupTables* tables)
 {
-    color_quad_i quantMinColor = *pLow;
-    color_quad_i quantMaxColor = *pHigh;
+    color_quad_i quantMinColor = color_quad_i(pLow);
+    color_quad_i quantMaxColor = color_quad_i(pHigh);
 
     if (pParams->m_has_pbits)
     {
@@ -702,8 +707,8 @@ static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread 
             maxPBit = pbits[1];
         }
 
-        quantMinColor = (*pLow << 1) | minPBit;
-        quantMaxColor = (*pHigh << 1) | maxPBit;
+        quantMinColor = (quantMinColor << 1) | minPBit;
+        quantMaxColor = (quantMaxColor << 1) | maxPBit;
     }
 
     color_quad_i actualMinColor = scale_color(&quantMinColor, pParams);
@@ -1179,8 +1184,8 @@ static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread 
     {
         pResults->m_best_overall_err = total_err;
 
-        pResults->m_low_endpoint = *pLow;
-        pResults->m_high_endpoint = *pHigh;
+        pResults->m_low_endpoint = pLow;
+        pResults->m_high_endpoint = pHigh;
 
         pResults->m_pbits = pbits[0] | (pbits[1] << 1);
 
@@ -1191,48 +1196,48 @@ static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread 
     return total_err;
 }
 
-static void fixDegenerateEndpoints(uint32_t mode, thread color_quad_i* pTrialMinColor, thread color_quad_i* pTrialMaxColor, const thread vec4F* pXl, const thread vec4F* pXh, uint32_t iscale)
+static void fixDegenerateEndpoints(uint32_t mode, thread uchar4& pTrialMinColor, thread uchar4& pTrialMaxColor, const vec4F pXl, const vec4F pXh, uint32_t iscale)
 {
     if ((mode == 1) || (mode == 4)) // also mode 2
     {
         // fix degenerate case where the input collapses to a single colorspace voxel, and we loose all freedom (test with grayscale ramps)
         for (uint32_t i = 0; i < 3; i++)
         {
-            if (pTrialMinColor[0][i] == pTrialMaxColor[0][i])
+            if (pTrialMinColor[i] == pTrialMaxColor[i])
             {
-                if (abs(pXl[0][i] - pXh[0][i]) > 0.0f)
+                if (abs(pXl[i] - pXh[i]) > 0.0f)
                 {
-                    if (pTrialMinColor[0][i] > (iscale >> 1))
+                    if (pTrialMinColor[i] > (iscale >> 1))
                     {
-                        if (pTrialMinColor[0][i] > 0)
-                            pTrialMinColor[0][i]--;
+                        if (pTrialMinColor[i] > 0)
+                            pTrialMinColor[i]--;
                         else
-                            if (pTrialMaxColor[0][i] < iscale)
-                                pTrialMaxColor[0][i]++;
+                            if (pTrialMaxColor[i] < iscale)
+                                pTrialMaxColor[i]++;
                     }
                     else
                     {
-                        if (pTrialMaxColor[0][i] < iscale)
-                            pTrialMaxColor[0][i]++;
-                        else if (pTrialMinColor[0][i] > 0)
-                            pTrialMinColor[0][i]--;
+                        if (pTrialMaxColor[i] < iscale)
+                            pTrialMaxColor[i]++;
+                        else if (pTrialMinColor[i] > 0)
+                            pTrialMinColor[i]--;
                     }
 
                     if (mode == 4)
                     {
-                        if (pTrialMinColor[0][i] > (iscale >> 1))
+                        if (pTrialMinColor[i] > (iscale >> 1))
                         {
-                            if (pTrialMaxColor[0][i] < iscale)
-                                pTrialMaxColor[0][i]++;
-                            else if (pTrialMinColor[0][i] > 0)
-                                pTrialMinColor[0][i]--;
+                            if (pTrialMaxColor[i] < iscale)
+                                pTrialMaxColor[i]++;
+                            else if (pTrialMinColor[i] > 0)
+                                pTrialMinColor[i]--;
                         }
                         else
                         {
-                            if (pTrialMinColor[0][i] > 0)
-                                pTrialMinColor[0][i]--;
-                            else if (pTrialMaxColor[0][i] < iscale)
-                                pTrialMaxColor[0][i]++;
+                            if (pTrialMinColor[i] > 0)
+                                pTrialMinColor[i]--;
+                            else if (pTrialMaxColor[i] < iscale)
+                                pTrialMaxColor[i]++;
                         }
                     }
                 }
@@ -1340,7 +1345,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
             const int32_t totalComps = pParams->m_has_alpha ? 4 : 3;
 
             uint32_t best_pbits[2];
-            color_quad_i bestMinColor, bestMaxColor;
+            uchar4 bestMinColor, bestMaxColor;
                         
             if (!pParams->m_endpoints_share_pbit)
             {
@@ -1377,7 +1382,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                         best_err0 = err0;
                         best_pbits[0] = p;
                         
-                        bestMinColor = xMinColor >> 1;
+                        bestMinColor = uchar4(xMinColor >> 1);
                     }
 
                     if (err1 < best_err1)
@@ -1385,7 +1390,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                         best_err1 = err1;
                         best_pbits[1] = p;
                         
-                        bestMaxColor = xMaxColor >> 1;
+                        bestMaxColor = uchar4(xMaxColor >> 1);
                     }
                 }
             }
@@ -1416,18 +1421,18 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                         best_pbits[0] = p;
                         best_pbits[1] = p;
                         
-                        bestMinColor = xMinColor >> 1;
-                        bestMaxColor = xMaxColor >> 1;
+                        bestMinColor = uchar4(xMinColor >> 1);
+                        bestMaxColor = uchar4(xMaxColor >> 1);
                     }
                 }
             }
 
-            fixDegenerateEndpoints(mode, &bestMinColor, &bestMaxColor, &xl, &xh, iscalep >> 1);
+            fixDegenerateEndpoints(mode, bestMinColor, bestMaxColor, xl, xh, iscalep >> 1);
 
             uint best_pbits_mask = best_pbits[0] | (best_pbits[1] << 1);
             if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits_mask != pResults->m_pbits))
             {
-                evaluate_solution(&bestMinColor, &bestMaxColor, best_pbits, pParams, pResults, num_pixels, pPixels, tables);
+                evaluate_solution(bestMinColor, bestMaxColor, best_pbits, pParams, pResults, num_pixels, pPixels, tables);
             }
         }
     }
@@ -1436,10 +1441,10 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
         const int iscale = (1 << pParams->m_comp_bits) - 1;
         const float scale = (float)iscale;
 
-        color_quad_i trialMinColor = clamp(int4(xl * scale + .5f), 0, 255);
-        color_quad_i trialMaxColor = clamp(int4(xh * scale + .5f), 0, 255);
+        uchar4 trialMinColor = uchar4(clamp(int4(xl * scale + .5f), 0, 255));
+        uchar4 trialMaxColor = uchar4(clamp(int4(xh * scale + .5f), 0, 255));
 
-        fixDegenerateEndpoints(mode, &trialMinColor, &trialMaxColor, &xl, &xh, iscale);
+        fixDegenerateEndpoints(mode, trialMinColor, trialMaxColor, xl, xh, iscale);
 
         if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(trialMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(trialMaxColor, pResults->m_high_endpoint))
         {
@@ -1447,7 +1452,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
             pbits[0] = 0;
             pbits[1] = 0;
 
-            evaluate_solution(&trialMinColor, &trialMaxColor, pbits, pParams, pResults, num_pixels, pPixels, tables);
+            evaluate_solution(trialMinColor, trialMaxColor, pbits, pParams, pResults, num_pixels, pPixels, tables);
         }
     }
 
@@ -2262,8 +2267,8 @@ struct bc7_optimization_results
 {
     uchar m_selectors[16];          // 16B
     uchar m_alpha_selectors[16];    // 16B
-    color_quad_i m_low[3];          // 12B
-    color_quad_i m_high[3];         // 12B
+    uchar4 m_low[3];                // 12B
+    uchar4 m_high[3];               // 12B
     uchar m_mode;                   // 1B
     uchar m_partition;              // 1B
     uchar m_pbits;                  // 1B [3][2] array of one bit each
@@ -2295,7 +2300,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
     for (int i = 0; i < 16; i++)
         alpha_selectors[i] = pResults->m_alpha_selectors[i];
 
-    color_quad_i low[3], high[3];
+    uchar4 low[3], high[3];
     low[0] = pResults->m_low[0];
     low[1] = pResults->m_low[1];
     low[2] = pResults->m_low[2];
@@ -2352,13 +2357,13 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 
             if (get_bc7_mode_has_seperate_alpha_selectors(best_mode))
             {
-                int3 t = low[k].rgb;
+                auto t = low[k].rgb;
                 low[k].rgb = high[k].rgb;
                 high[k].rgb = t;
             }
             else
             {
-                color_quad_i tmp = low[k];
+                auto tmp = low[k];
                 low[k] = high[k];
                 high[k] = tmp;
             }
@@ -2464,7 +2469,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 
 static inline uint4 encode_bc7_block_mode6(thread bc7_optimization_results* pResults)
 {
-    color_quad_i low, high;
+    uchar4 low, high;
     uchar pbits[2];
         
     uint32_t invert_selectors = 0;
