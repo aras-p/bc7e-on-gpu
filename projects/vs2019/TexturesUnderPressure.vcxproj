@@ -169,8 +169,8 @@
       <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\bc7e_encode.h</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\bc7e_encode.h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\dxc -E bc7e_compress_blocks -Fh ..\..\build\bc7e_encode.h -Vn g_Bc7BytecodeEncode -Gis -T cs_6_0 -spirv %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\dxc -E bc7e_compress_blocks -Fh ..\..\build\bc7e_encode.h -Vn g_Bc7BytecodeEncode -Gis -T cs_6_0 -spirv %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e bc7e_compress_blocks -D -S comp -g -V %(Identity) --vn g_Bc7BytecodeEncode -o ..\..\build\bc7e_encode.h</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e bc7e_compress_blocks -D -S comp -g -V %(Identity) --vn g_Bc7BytecodeEncode -o ..\..\build\bc7e_encode.h</Command>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_lists.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">bc7e_estimate_partition_lists</EntryPointName>
@@ -194,8 +194,8 @@
       <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
       <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
       <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\dxc -E bc7e_estimate_partition_lists -Fh ..\..\build\bc7e_lists.h -Vn g_Bc7BytecodeLists -Gis -T cs_6_0 -spirv %(Identity)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\dxc -E bc7e_estimate_partition_lists -Fh ..\..\build\bc7e_lists.h -Vn g_Bc7BytecodeLists -Gis -T cs_6_0 -spirv %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e bc7e_estimate_partition_lists -D -S comp -g -V %(Identity) --vn g_Bc7BytecodeLists -o ..\..\build\bc7e_lists.h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e bc7e_estimate_partition_lists -D -S comp -g -V %(Identity) --vn g_Bc7BytecodeLists -o ..\..\build\bc7e_lists.h </Command>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
