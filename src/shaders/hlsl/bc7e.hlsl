@@ -13,6 +13,15 @@ typedef int int32_t;
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 //#define OPT_OPAQUE_ONLY // disables all transparency handling
 
+//#define OPT_DISABLE_MODE0
+//#define OPT_DISABLE_MODE1
+//#define OPT_DISABLE_MODE2
+//#define OPT_DISABLE_MODE3
+//#define OPT_DISABLE_MODE4
+//#define OPT_DISABLE_MODE5
+//#define OPT_DISABLE_MODE6
+//#define OPT_DISABLE_MODE7
+
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
 #define BC7E_MAX_PARTITIONS0 (16)
@@ -3053,6 +3062,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
     uint32_t best_err = UINT_MAX;
         
     // Mode 4
+#if !defined(OPT_DISABLE_MODE4)
     if (g_params.m_alpha_use_modes4567 & 0xFF)
     {
         color_cell_compressor_params params4 = pParams;
@@ -3112,8 +3122,10 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
             }
         } // rotation
     }
+#endif // #if !defined(OPT_DISABLE_MODE4)
     
     // Mode 6
+#if !defined(OPT_DISABLE_MODE6)
     if (g_params.m_alpha_use_modes4567 & 0xFF0000)
     {
         color_cell_compressor_params params6 = pParams;
@@ -3151,8 +3163,10 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
             opt_results.m_selectors = results6.m_selectors;
         }
     }
+#endif // #if !defined(OPT_DISABLE_MODE6)
 
     // Mode 5
+#if !defined(OPT_DISABLE_MODE5)
     if (g_params.m_alpha_use_modes4567 & 0xFF00)
     {
         color_cell_compressor_params params5 = pParams;
@@ -3205,9 +3219,10 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
             }
         } // rotation
     }
+#endif // #if !defined(OPT_DISABLE_MODE5)
 
     // Mode 7
-    #ifndef OPT_ULTRAFAST_ONLY
+    #if !defined(OPT_ULTRAFAST_ONLY) && !defined(OPT_DISABLE_MODE7)
     if (g_params.m_alpha_use_modes4567 & 0xFF000000)
     {
         solution solutions[4];
@@ -3355,7 +3370,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
             }
         }
     }
-    #endif // #ifndef OPT_ULTRAFAST_ONLY
+    #endif // #if !defined(OPT_ULTRAFAST_ONLY) && !defined(OPT_DISABLE_MODE7)
 
     return encode_bc7_block(opt_results);
 }
