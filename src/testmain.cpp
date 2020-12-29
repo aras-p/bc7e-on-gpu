@@ -18,7 +18,7 @@
 
 const int kQuality = 0;
 const int kRunCount = 8;
-const int kAllowedPixelValueDiff = 17;
+const float kAllowedPsnrDiff = 48;
 
 
 static const char* kTestFileNames[] =
@@ -326,7 +326,7 @@ static void Initialize()
     ispc::bc7e_compress_block_init();
     gpu_bc7e_compress_block_init();
     ic::init_pfor();
-    if (!SmolComputeCreate(/*SmolComputeCreateFlags::EnableCapture | SmolComputeCreateFlags::EnableDebugLayers | SmolComputeCreateFlags::UseSoftwareRenderer*/))
+    if (!SmolComputeCreate(SmolComputeCreateFlags::EnableCapture/* | SmolComputeCreateFlags::EnableDebugLayers | SmolComputeCreateFlags::UseSoftwareRenderer*/))
     {
         printf("Failed to initialize smol-compute\n");
     }
@@ -517,6 +517,33 @@ static void CleanupCompressorResources()
 	SmolBufferDelete(s_Bc7OutputBuffer);
 }
 
+inline int get_luma(const unsigned char* rgba)
+{
+	return (13938u * rgba[0] + 46869u * rgba[1] + 4729u * rgba[2] + 32768u) >> 16u;
+}
+
+static float eval_psnr(int width, int height, int channels, const unsigned char* rgbaOrig, const unsigned char* rgbaDecoded)
+{
+	double squareErr = 0;
+	for (int i = 0; i < width * height * 4; i += 4)
+	{
+		int lumaDif = get_luma(rgbaOrig + i) - get_luma(rgbaDecoded + i);
+		squareErr += lumaDif * lumaDif;
+		if (channels == 4)
+		{
+			int dif = (int)rgbaOrig[i + 3] - (int)rgbaDecoded[i + 3];
+			squareErr += dif * dif;
+		}
+	}
+	double mse = squareErr / (width * height * (channels == 4 ? 2 : 1));
+	double rmse = sqrt(mse);
+	double psnr = log10(255 / rmse) * 20;
+	if (psnr < 0) psnr = 0;
+	if (psnr > 300) psnr = 300;
+	return (float)psnr;
+}
+
+
 static bool TestOnFile(TestFile& tf)
 {
     printf("  testing %s\n", tf.fileNameBase.c_str());
@@ -615,12 +642,13 @@ static bool TestOnFile(TestFile& tf)
                 maxDiffIdx = i;
             }
         }
-        if (maxDiff > kAllowedPixelValueDiff)
+        float psnr = eval_psnr(tf.width, tf.height, tf.channels, s_Bc7DecompressExpected, s_Bc7DecompressGot);
+        if (psnr < kAllowedPsnrDiff)
         {
             int maxDiffX = maxDiffIdx / 4 % tf.width;
 			int maxDiffY = maxDiffIdx / 4 / tf.width;
             int maxDiffCh = maxDiffIdx % 4;
-            printf("    ERROR: did not match reference (max diff %i at pixel %i,%i ch %i block %i,%i)\n", maxDiff, maxDiffX, maxDiffY, maxDiffCh, maxDiffX/4, maxDiffY/4);
+            printf("    ERROR: did not match reference (PSNR diff %.2f; max pixel diff %i at pixel %i,%i ch %i block %i,%i)\n", psnr, maxDiff, maxDiffX, maxDiffY, maxDiffCh, maxDiffX/4, maxDiffY/4);
             tf.errors = true;
             result = false;
             stbi_write_tga(("artifacts/"+tf.fileNameBase+"-exp.tga").c_str(), tf.width, tf.height, 4, s_Bc7DecompressExpected);
