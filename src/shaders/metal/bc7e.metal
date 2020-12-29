@@ -2270,9 +2270,9 @@ struct bc7_optimization_results
     uchar m_mode;                   // 1B
     uchar m_partition;              // 1B
     uchar m_pbits;                  // 1B [3][2] array of one bit each
-    uchar m_rotation;               // 1B
-    uchar m_index_selector;         // 1B
+    uchar m_rotation_index_sel;     // 1B low 4 bits rotation, high 4 bits index selector
 };
+static_assert(sizeof(bc7_optimization_results) == 60, "unexpected bc7_optimization_results struct size");
 
 static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 {
@@ -2320,6 +2320,9 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
     anchor[0] = -1;
     anchor[1] = -1;
     anchor[2] = -1;
+    
+    int index_selector = pResults->m_rotation_index_sel >> 4;
+    int rotation = pResults->m_rotation_index_sel & 0xF;
 
     for (uint32_t k = 0; k < total_subsets; k++)
     {
@@ -2342,7 +2345,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 
         anchor[k] = anchor_index;
 
-        const uint32_t color_index_bits = get_bc7_color_index_size(best_mode, pResults->m_index_selector);
+        const uint32_t color_index_bits = get_bc7_color_index_size(best_mode, index_selector);
         const uint32_t num_color_indices = 1 << color_index_bits;
 
         if (color_selectors[anchor_index] & (num_color_indices >> 1))
@@ -2376,7 +2379,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 
         if (get_bc7_mode_has_seperate_alpha_selectors(best_mode))
         {
-            const uint32_t alpha_index_bits = get_bc7_alpha_index_size(best_mode, pResults->m_index_selector);
+            const uint32_t alpha_index_bits = get_bc7_alpha_index_size(best_mode, index_selector);
             const uint32_t num_alpha_indices = 1 << alpha_index_bits;
 
             if (alpha_selectors[anchor_index] & (num_alpha_indices >> 1))
@@ -2400,10 +2403,10 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
     set_block_bits(block, 1 << best_mode, best_mode + 1, &cur_bit_ofs);
 
     if ((best_mode == 4) || (best_mode == 5))
-        set_block_bits(block, pResults->m_rotation, 2, &cur_bit_ofs);
+        set_block_bits(block, rotation, 2, &cur_bit_ofs);
 
     if (best_mode == 4)
-        set_block_bits(block, pResults->m_index_selector, 1, &cur_bit_ofs);
+        set_block_bits(block, index_selector, 1, &cur_bit_ofs);
 
     if (total_partitions > 1)
         set_block_bits(block, pResults->m_partition, (total_partitions == 64) ? 6 : 4, &cur_bit_ofs);
@@ -2434,12 +2437,12 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
         {
             int idx = x + y * 4;
 
-            uint32_t n = pResults->m_index_selector ? get_bc7_alpha_index_size(best_mode, pResults->m_index_selector) : get_bc7_color_index_size(best_mode, pResults->m_index_selector);
+            uint32_t n = index_selector ? get_bc7_alpha_index_size(best_mode, index_selector) : get_bc7_color_index_size(best_mode, index_selector);
 
             if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
                 n--;
 
-            set_block_bits(block, pResults->m_index_selector ? alpha_selectors[idx] : color_selectors[idx], n, &cur_bit_ofs);
+            set_block_bits(block, index_selector ? alpha_selectors[idx] : color_selectors[idx], n, &cur_bit_ofs);
         }
     }
 
@@ -2451,12 +2454,12 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
             {
                 int idx = x + y * 4;
 
-                uint32_t n = pResults->m_index_selector ? get_bc7_color_index_size(best_mode, pResults->m_index_selector) : get_bc7_alpha_index_size(best_mode, pResults->m_index_selector);
+                uint32_t n = index_selector ? get_bc7_color_index_size(best_mode, index_selector) : get_bc7_alpha_index_size(best_mode, index_selector);
 
                 if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
                     n--;
 
-                set_block_bits(block, pResults->m_index_selector ? color_selectors[idx] : alpha_selectors[idx], n, &cur_bit_ofs);
+                set_block_bits(block, index_selector ? color_selectors[idx] : alpha_selectors[idx], n, &cur_bit_ofs);
             }
         }
     }
@@ -2743,8 +2746,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
             *pMode4_err = trial_err;
 
             pOpt_results4->m_mode = 4;
-            pOpt_results4->m_index_selector = index_selector;
-            pOpt_results4->m_rotation = 0;
+            pOpt_results4->m_rotation_index_sel = index_selector << 4;
             pOpt_results4->m_partition = 0;
 
             pOpt_results4->m_low[0] = results.m_low_endpoint;
@@ -2906,8 +2908,7 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
     }
 
     pOpt_results5->m_mode = 5;
-    pOpt_results5->m_index_selector = 0;
-    pOpt_results5->m_rotation = 0;
+    pOpt_results5->m_rotation_index_sel = 0;
     pOpt_results5->m_partition = 0;
 }
 
@@ -3070,8 +3071,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
                 best_err = trial_mode4_err;
 
                 opt_results.m_mode = 4;
-                opt_results.m_index_selector = trial_opt_results4.m_index_selector;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
                 opt_results.m_partition = 0;
 
                 opt_results.m_low[0] = trial_opt_results4.m_low[0];
@@ -3114,8 +3114,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             best_err = mode6_err;
 
             opt_results.m_mode = 6;
-            opt_results.m_index_selector = 0;
-            opt_results.m_rotation = 0;
+            opt_results.m_rotation_index_sel = 0;
             opt_results.m_partition = 0;
 
             opt_results.m_low[0] = results6.m_low_endpoint;
@@ -3178,7 +3177,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
                 best_err = trial_mode5_err;
 
                 opt_results = trial_opt_results5;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation;
             }
         } // rotation
     }
@@ -3369,8 +3368,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
         best_err = color_cell_compression(6, pParams, &results6, pComp_params, 16, pPixels, true, tables);
                         
         opt_results.m_mode = 6;
-        opt_results.m_index_selector = 0;
-        opt_results.m_rotation = 0;
+        opt_results.m_rotation_index_sel = 0;
         opt_results.m_partition = 0;
 
         opt_results.m_low[0] = results6.m_low_endpoint;
@@ -3444,8 +3442,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 best_err = trial_err;
 
                 opt_results.m_mode = 1;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
 
                 for (uint32_t subset = 0; subset < 2; subset++)
@@ -3597,8 +3594,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 best_err = mode0_err;
 
                 opt_results.m_mode = 0;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = best_partition0;
 
                 for (uint32_t subset = 0; subset < 3; subset++)
@@ -3681,8 +3677,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 best_err = trial_err;
                                         
                 opt_results.m_mode = 3;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
 
                 for (uint32_t subset = 0; subset < 2; subset++)
@@ -3823,7 +3818,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 best_err = trial_mode5_err;
 
                 opt_results = trial_opt_results5;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation;
             }
         } // rotation
     }
@@ -3892,8 +3887,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 best_err = mode2_err;
 
                 opt_results.m_mode = 2;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = best_partition2;
 
                 for (uint32_t subset = 0; subset < 3; subset++)
@@ -3961,8 +3955,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 best_err = trial_mode4_err;
 
                 opt_results.m_mode = 4;
-                opt_results.m_index_selector = trial_opt_results4.m_index_selector;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
                 opt_results.m_partition = 0;
 
                 opt_results.m_low[0] = trial_opt_results4.m_low[0];
@@ -4001,8 +3994,7 @@ static uint4 handle_opaque_block_mode6(const thread color_quad_i* pPixels, const
     best_err = color_cell_compression(6, pParams, &results6, pComp_params, 16, pPixels, true, tables);
                         
     opt_results.m_mode = 6;
-    opt_results.m_index_selector = 0;
-    opt_results.m_rotation = 0;
+    opt_results.m_rotation_index_sel = 0;
     opt_results.m_partition = 0;
 
     opt_results.m_low[0] = results6.m_low_endpoint;
