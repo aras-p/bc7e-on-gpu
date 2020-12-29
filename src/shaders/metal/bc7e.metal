@@ -63,8 +63,6 @@ struct bc7e_compress_block_params // note: should match C++ code struct
     } m_alpha_settings;
 };
 
-static inline int32_t iabs32(int32_t v) { uint32_t msk = v >> 31; return (v ^ msk) - msk; }
-
 static inline void swapu(thread uint32_t* a, thread uint32_t* b) { uint32_t t = *a; *a = *b; *b = t; }
 static inline void swapf(thread float* a, thread float* b) { float t = *a; *a = *b; *b = t; }
 
@@ -2625,18 +2623,18 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
                 const int32_t a = pPixels[i].a;
 
                 int s = 0;
-                int32_t be = iabs32(a - vals[0]);
+                int32_t be = abs(a - vals[0]);
 
-                int e = iabs32(a - vals[1]); if (e < be) { be = e; s = 1; }
-                e = iabs32(a - vals[2]); if (e < be) { be = e; s = 2; }
-                e = iabs32(a - vals[3]); if (e < be) { be = e; s = 3; }
+                int e = abs(a - vals[1]); if (e < be) { be = e; s = 1; }
+                e = abs(a - vals[2]); if (e < be) { be = e; s = 2; }
+                e = abs(a - vals[3]); if (e < be) { be = e; s = 3; }
 
                 if (index_selector == 0)
                 {
-                    e = iabs32(a - vals[4]); if (e < be) { be = e; s = 4; }
-                    e = iabs32(a - vals[5]); if (e < be) { be = e; s = 5; }
-                    e = iabs32(a - vals[6]); if (e < be) { be = e; s = 6; }
-                    e = iabs32(a - vals[7]); if (e < be) { be = e; s = 7; }
+                    e = abs(a - vals[4]); if (e < be) { be = e; s = 4; }
+                    e = abs(a - vals[5]); if (e < be) { be = e; s = 5; }
+                    e = abs(a - vals[6]); if (e < be) { be = e; s = 6; }
+                    e = abs(a - vals[7]); if (e < be) { be = e; s = 7; }
                 }
 
                 trial_alpha_err += (be * be) * pParams->m_weights[3];
@@ -2704,18 +2702,18 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
                         const int32_t a = pPixels[i].a;
 
                         int s = 0;
-                        int32_t be = iabs32(a - vals[0]);
+                        int32_t be = abs(a - vals[0]);
 
-                        int e = iabs32(a - vals[1]); if (e < be) { be = e; s = 1; }
-                        e = iabs32(a - vals[2]); if (e < be) { be = e; s = 2; }
-                        e = iabs32(a - vals[3]); if (e < be) { be = e; s = 3; }
+                        int e = abs(a - vals[1]); if (e < be) { be = e; s = 1; }
+                        e = abs(a - vals[2]); if (e < be) { be = e; s = 2; }
+                        e = abs(a - vals[3]); if (e < be) { be = e; s = 3; }
 
                         if (index_selector == 0)
                         {
-                            e = iabs32(a - vals[4]); if (e < be) { be = e; s = 4; }
-                            e = iabs32(a - vals[5]); if (e < be) { be = e; s = 5; }
-                            e = iabs32(a - vals[6]); if (e < be) { be = e; s = 6; }
-                            e = iabs32(a - vals[7]); if (e < be) { be = e; s = 7; }
+                            e = abs(a - vals[4]); if (e < be) { be = e; s = 4; }
+                            e = abs(a - vals[5]); if (e < be) { be = e; s = 5; }
+                            e = abs(a - vals[6]); if (e < be) { be = e; s = 6; }
+                            e = abs(a - vals[7]); if (e < be) { be = e; s = 7; }
                         }
 
                         trial_alpha_err += (be * be) * pParams->m_weights[3];
@@ -2815,10 +2813,10 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
                 const int32_t a = pPixels[i].a;
 
                 int s = 0;
-                int32_t be = iabs32(a - vals[0]);
-                int e = iabs32(a - vals[1]); if (e < be) { be = e; s = 1; }
-                e = iabs32(a - vals[2]); if (e < be) { be = e; s = 2; }
-                e = iabs32(a - vals[3]); if (e < be) { be = e; s = 3; }
+                int32_t be = abs(a - vals[0]);
+                int e = abs(a - vals[1]); if (e < be) { be = e; s = 1; }
+                e = abs(a - vals[2]); if (e < be) { be = e; s = 2; }
+                e = abs(a - vals[3]); if (e < be) { be = e; s = 3; }
 
                 trial_alpha_selectors[i] = s;
                                 
@@ -2879,10 +2877,10 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
                         const int32_t a = pPixels[i].a;
 
                         int s = 0;
-                        int32_t be = iabs32(a - vals[0]);
-                        int e = iabs32(a - vals[1]); if (e < be) { be = e; s = 1; }
-                        e = iabs32(a - vals[2]); if (e < be) { be = e; s = 2; }
-                        e = iabs32(a - vals[3]); if (e < be) { be = e; s = 3; }
+                        int32_t be = abs(a - vals[0]);
+                        int e = abs(a - vals[1]); if (e < be) { be = e; s = 1; }
+                        e = abs(a - vals[2]); if (e < be) { be = e; s = 2; }
+                        e = abs(a - vals[3]); if (e < be) { be = e; s = 3; }
 
                         trial_alpha_selectors[i] = s;
                                 
