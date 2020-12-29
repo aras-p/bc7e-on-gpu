@@ -323,7 +323,7 @@ struct color_cell_compressor_results
     uint32_t m_best_overall_err;
     color_quad_i m_low_endpoint;
     color_quad_i m_high_endpoint;
-    uint32_t m_pbits[2];
+    uchar m_pbits;
     thread uchar* m_pSelectors;
 };
 
@@ -431,17 +431,16 @@ static ModePackResult pack_mode1_to_one_color(const thread color_cell_compressor
 
     pResults->m_low_endpoint = int4(pEr.m_lo, pEg.m_lo, pEb.m_lo, 0);
     pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, 0);
-    pResults->m_pbits[0] = best_p;
-    pResults->m_pbits[1] = 0;
+    pResults->m_pbits = best_p;
 
     res.bestSelector = BC7E_MODE_1_OPTIMAL_INDEX;
 
     color_quad_i p;
     {
-        uint3 low = uint3(((pResults->m_low_endpoint.rgb << 1) | pResults->m_pbits[0]) << 1);
+        uint3 low = uint3(((pResults->m_low_endpoint.rgb << 1) | best_p) << 1);
         low |= (low >> 7);
 
-        uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | pResults->m_pbits[0]) << 1);
+        uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | best_p) << 1);
         high |= (high >> 7);
 
         p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_1_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_1_OPTIMAL_INDEX] + 32) >> 6);
@@ -532,17 +531,16 @@ static ModePackResult pack_mode0_to_one_color(const thread color_cell_compressor
 
     pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, 0);
 
-    pResults->m_pbits[0] = best_p & 1;
-    pResults->m_pbits[1] = best_p >> 1;
+    pResults->m_pbits = best_p;
 
     res.bestSelector = BC7E_MODE_0_OPTIMAL_INDEX;
 
     color_quad_i p;
     {
-        uint3 low = uint3(((pResults->m_low_endpoint.rgb << 1) | pResults->m_pbits[0]) << 3);
+        uint3 low = uint3(((pResults->m_low_endpoint.rgb << 1) | (best_p & 1)) << 3);
         low |= (low >> 5);
 
-        uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | pResults->m_pbits[1]) << 3);
+        uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | (best_p >> 1)) << 3);
         high |= (high >> 5);
 
         p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_0_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_0_OPTIMAL_INDEX] + 32) >> 6);
@@ -590,15 +588,14 @@ static ModePackResult pack_mode6_to_one_color(const thread color_cell_compressor
 
     pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, pEa.m_hi);
 
-    pResults->m_pbits[0] = best_lo_p;
-    pResults->m_pbits[1] = best_hi_p;
+    pResults->m_pbits = best_p;
 
     res.bestSelector = BC7E_MODE_6_OPTIMAL_INDEX;
 
     color_quad_i p;
     {
-        uint4 low = uint4((pResults->m_low_endpoint << 1) | pResults->m_pbits[0]);
-        uint4 high = uint4((pResults->m_high_endpoint << 1) | pResults->m_pbits[1]);
+        uint4 low = uint4((pResults->m_low_endpoint << 1) | best_lo_p);
+        uint4 high = uint4((pResults->m_high_endpoint << 1) | best_hi_p);
         
         p = int4((low * (64 - tables->g_bc7_weights[kBC7Weights4Index+BC7E_MODE_6_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights4Index+BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6);
     }
@@ -644,15 +641,14 @@ static ModePackResult pack_mode7_to_one_color(const thread color_cell_compressor
 
     pResults->m_high_endpoint = int4(pEr.m_hi, pEg.m_hi, pEb.m_hi, pEa.m_hi);
 
-    pResults->m_pbits[0] = best_lo_p;
-    pResults->m_pbits[1] = best_hi_p;
+    pResults->m_pbits = best_p;
 
     res.bestSelector = BC7E_MODE_7_OPTIMAL_INDEX;
 
     color_quad_i p;
     {
-        uint4 low = uint4((pResults->m_low_endpoint << 1) | pResults->m_pbits[0]);
-        uint4 high = uint4((pResults->m_high_endpoint << 1) | pResults->m_pbits[1]);
+        uint4 low = uint4((pResults->m_low_endpoint << 1) | best_lo_p);
+        uint4 high = uint4((pResults->m_high_endpoint << 1) | best_hi_p);
         
         p = int4((low * (64 - tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_7_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6);
     }
@@ -1186,8 +1182,7 @@ static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread 
         pResults->m_low_endpoint = *pLow;
         pResults->m_high_endpoint = *pHigh;
 
-        pResults->m_pbits[0] = pbits[0];
-        pResults->m_pbits[1] = pbits[1];
+        pResults->m_pbits = pbits[0] | (pbits[1] << 1);
 
         for (uint32_t i = 0; i < num_pixels; i++)
             pResults->m_pSelectors[i] = selectors[i];
@@ -1429,7 +1424,8 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
 
             fixDegenerateEndpoints(mode, &bestMinColor, &bestMaxColor, &xl, &xh, iscalep >> 1);
 
-            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits[0] != pResults->m_pbits[0]) || (best_pbits[1] != pResults->m_pbits[1]))
+            uint best_pbits_mask = best_pbits[0] | (best_pbits[1] << 1);
+            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits_mask != pResults->m_pbits))
             {
                 evaluate_solution(&bestMinColor, &bestMaxColor, best_pbits, pParams, pResults, num_pixels, pPixels, tables);
             }
@@ -1808,8 +1804,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
             pResults->m_best_overall_err = avg_res.err;
             pResults->m_low_endpoint = avg_results.m_low_endpoint;
             pResults->m_high_endpoint = avg_results.m_high_endpoint;
-            pResults->m_pbits[0] = avg_results.m_pbits[0];
-            pResults->m_pbits[1] = avg_results.m_pbits[1];
+            pResults->m_pbits = avg_results.m_pbits;
 
             for (uint i = 0; i < num_pixels; ++i)
                 pResults->m_pSelectors[i] = avg_res.bestSelector;
@@ -2265,15 +2260,15 @@ static inline void set_block_bits(thread uint32_t* pWords, uint32_t val, uint32_
 
 struct bc7_optimization_results
 {
-    uint32_t m_mode;
-    uint32_t m_partition;
-    uchar m_selectors[16];
-    uchar m_alpha_selectors[16];
-    color_quad_i m_low[3];
-    color_quad_i m_high[3];
-    uint32_t m_pbits[3][2];
-    uint32_t m_rotation;
-    uint32_t m_index_selector;
+    uchar m_selectors[16];          // 16B
+    uchar m_alpha_selectors[16];    // 16B
+    color_quad_i m_low[3];          // 12B
+    color_quad_i m_high[3];         // 12B
+    uchar m_mode;                   // 1B
+    uchar m_partition;              // 1B
+    uchar m_pbits;                  // 1B [3][2] array of one bit each
+    uchar m_rotation;               // 1B
+    uchar m_index_selector;         // 1B
 };
 
 static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
@@ -2309,12 +2304,14 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
     high[1] = pResults->m_high[1];
     high[2] = pResults->m_high[2];
     
-    uint32_t pbits[3][2];
-    for (int i = 0; i < 3; i++)
-    {
-        pbits[i][0] = pResults->m_pbits[i][0];
-        pbits[i][1] = pResults->m_pbits[i][1];
-    }
+    auto rpbits = pResults->m_pbits;
+    uchar pbits[3][2];
+    pbits[0][0] = (rpbits & 1) ? 1 : 0;
+    pbits[0][1] = (rpbits & 2) ? 1 : 0;
+    pbits[1][0] = (rpbits & 4) ? 1 : 0;
+    pbits[1][1] = (rpbits & 8) ? 1 : 0;
+    pbits[2][0] = (rpbits & 16) ? 1 : 0;
+    pbits[2][1] = (rpbits & 32) ? 1 : 0;
 
     int anchor[3];
     anchor[0] = -1;
@@ -2468,7 +2465,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 static inline uint4 encode_bc7_block_mode6(thread bc7_optimization_results* pResults)
 {
     color_quad_i low, high;
-    uint32_t pbits[2];
+    uchar pbits[2];
         
     uint32_t invert_selectors = 0;
     uint32_t invert_maskz = 0;
@@ -2482,16 +2479,16 @@ static inline uint4 encode_bc7_block_mode6(thread bc7_optimization_results* pRes
         low = pResults->m_high[0];
         high = pResults->m_low[0];
 
-        pbits[0] = pResults->m_pbits[0][1];
-        pbits[1] = pResults->m_pbits[0][0];
+        pbits[0] = (pResults->m_pbits & 2) ? 1 : 0;
+        pbits[1] = (pResults->m_pbits & 1) ? 1 : 0;
     }
     else
     {
         low = pResults->m_low[0];
         high = pResults->m_high[0];
 
-        pbits[0] = pResults->m_pbits[0][0];
-        pbits[1] = pResults->m_pbits[0][1];
+        pbits[0] = (pResults->m_pbits & 1) ? 1 : 0;
+        pbits[1] = (pResults->m_pbits & 2) ? 1 : 0;
     }
 
     uint4 r = 0;
@@ -3121,8 +3118,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             opt_results.m_low[0] = results6.m_low_endpoint;
             opt_results.m_high[0] = results6.m_high_endpoint;
 
-            opt_results.m_pbits[0][0] = results6.m_pbits[0];
-            opt_results.m_pbits[0][1] = results6.m_pbits[1];
+            opt_results.m_pbits = (opt_results.m_pbits & ~3) | results6.m_pbits;
 
             for (int i = 0; i < 16; i++)
                 opt_results.m_selectors[i] = selectors[i];
@@ -3377,8 +3373,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
         opt_results.m_low[0] = results6.m_low_endpoint;
         opt_results.m_high[0] = results6.m_high_endpoint;
 
-        opt_results.m_pbits[0][0] = results6.m_pbits[0];
-        opt_results.m_pbits[0][1] = results6.m_pbits[1];
+        opt_results.m_pbits = results6.m_pbits;
     }
 
     solution solutions2[4];
@@ -3462,7 +3457,10 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                     opt_results.m_low[subset] = subset_results1[subset].m_low_endpoint;
                     opt_results.m_high[subset] = subset_results1[subset].m_high_endpoint;
 
-                    opt_results.m_pbits[subset][0] = subset_results1[subset].m_pbits[0];
+                    uint pbits = opt_results.m_pbits;
+                    pbits &= ~(3<<subset*2);
+                    pbits |= subset_results1[subset].m_pbits << subset*2;
+                    opt_results.m_pbits = pbits;
                 }
             }
         }
@@ -3525,7 +3523,10 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                     opt_results.m_low[subset] = subset_results1[subset].m_low_endpoint;
                     opt_results.m_high[subset] = subset_results1[subset].m_high_endpoint;
 
-                    opt_results.m_pbits[subset][0] = subset_results1[subset].m_pbits[0];
+                    uint pbits = opt_results.m_pbits;
+                    pbits &= ~(3<<subset*2);
+                    pbits |= subset_results1[subset].m_pbits << subset*2;
+                    opt_results.m_pbits = pbits;
                 }
             }
         }
@@ -3609,8 +3610,10 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                     opt_results.m_low[subset] = subset_results0[subset].m_low_endpoint;
                     opt_results.m_high[subset] = subset_results0[subset].m_high_endpoint;
 
-                    opt_results.m_pbits[subset][0] = subset_results0[subset].m_pbits[0];
-                    opt_results.m_pbits[subset][1] = subset_results0[subset].m_pbits[1];
+                    uint pbits = opt_results.m_pbits;
+                    pbits &= ~(3<<subset*2);
+                    pbits |= subset_results0[subset].m_pbits << subset*2;
+                    opt_results.m_pbits = pbits;
                 }
             }
         }
@@ -3690,8 +3693,10 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                     opt_results.m_low[subset] = subset_results3[subset].m_low_endpoint;
                     opt_results.m_high[subset] = subset_results3[subset].m_high_endpoint;
 
-                    opt_results.m_pbits[subset][0] = subset_results3[subset].m_pbits[0];
-                    opt_results.m_pbits[subset][1] = subset_results3[subset].m_pbits[1];
+                    uint pbits = opt_results.m_pbits;
+                    pbits &= ~(3<<subset*2);
+                    pbits |= subset_results3[subset].m_pbits << subset*2;
+                    opt_results.m_pbits = pbits;
                 }
             }
 
@@ -3757,8 +3762,10 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                     opt_results.m_low[subset] = subset_results3[subset].m_low_endpoint;
                     opt_results.m_high[subset] = subset_results3[subset].m_high_endpoint;
 
-                    opt_results.m_pbits[subset][0] = subset_results3[subset].m_pbits[0];
-                    opt_results.m_pbits[subset][1] = subset_results3[subset].m_pbits[1];
+                    uint pbits = opt_results.m_pbits;
+                    pbits &= ~(3<<subset*2);
+                    pbits |= subset_results3[subset].m_pbits << subset*2;
+                    opt_results.m_pbits = pbits;
                 }
             }
         }
@@ -3998,8 +4005,7 @@ static uint4 handle_opaque_block_mode6(const thread color_quad_i* pPixels, const
     opt_results.m_low[0] = results6.m_low_endpoint;
     opt_results.m_high[0] = results6.m_high_endpoint;
 
-    opt_results.m_pbits[0][0] = results6.m_pbits[0];
-    opt_results.m_pbits[0][1] = results6.m_pbits[1];
+    opt_results.m_pbits = results6.m_pbits;
         
     return encode_bc7_block_mode6(&opt_results);
 }
