@@ -191,7 +191,7 @@ const constant uint32_t BC7E_MODE_0_OPTIMAL_INDEX = 2;
 
 
 
-static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
+static void compute_least_squares_endpoints_rgba(uint32_t N, const thread uchar* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -225,7 +225,7 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* p
     *pXl = iz00 * q00 + iz01 * q10; *pXh = iz10 * q00 + iz11 * q10;
 }
 
-static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
+static void compute_least_squares_endpoints_rgb(uint32_t N, const thread uchar* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -259,7 +259,7 @@ static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pS
     pXl->rgb = iz00 * q00 + iz01 * q10; pXh->rgb = iz10 * q00 + iz11 * q10;
 }
 
-static void compute_least_squares_endpoints_a(uint32_t N, const thread int* pSelectors, uint weights_index, thread float* pXl, thread float* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
+static void compute_least_squares_endpoints_a(uint32_t N, const thread uchar* pSelectors, uint weights_index, thread float* pXl, thread float* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -324,7 +324,7 @@ struct color_cell_compressor_results
     color_quad_i m_low_endpoint;
     color_quad_i m_high_endpoint;
     uint32_t m_pbits[2];
-    thread int* m_pSelectors;
+    thread uchar* m_pSelectors;
 };
 
 static inline color_quad_i scale_color(const thread color_quad_i* pC, const thread color_cell_compressor_params* pParams)
@@ -736,7 +736,7 @@ static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread 
         }
     }
     
-    int selectors[16];
+    uchar selectors[16];
 
     if (!pParams->m_perceptual)
     {
@@ -2267,8 +2267,8 @@ struct bc7_optimization_results
 {
     uint32_t m_mode;
     uint32_t m_partition;
-    int m_selectors[16];
-    int m_alpha_selectors[16];
+    uchar m_selectors[16];
+    uchar m_alpha_selectors[16];
     color_quad_i m_low[3];
     color_quad_i m_high[3];
     uint32_t m_pbits[3][2];
@@ -2292,11 +2292,11 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
     else
         pPartition = &g_bc7_partition3[pResults->m_partition * 16];
 
-    int color_selectors[16];
+    uchar color_selectors[16];
     for (int i = 0; i < 16; i++)
         color_selectors[i] = pResults->m_selectors[i];
 
-    int alpha_selectors[16];
+    uchar alpha_selectors[16];
     for (int i = 0; i < 16; i++)
         alpha_selectors[i] = pResults->m_alpha_selectors[i];
 
@@ -2569,7 +2569,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
                                 
         color_cell_compressor_results results;
         
-        int selectors[16];
+        uchar selectors[16];
         results.m_pSelectors = selectors;
 
         uint32_t trial_err = color_cell_compression(4, pParams, &results, pComp_params, 16, pPixels, true, tables);
@@ -2591,7 +2591,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
 
         uint32_t best_alpha_err = UINT_MAX;
         uint32_t best_la = 0, best_ha = 0;
-        int best_alpha_selectors[16];
+        uchar best_alpha_selectors[16];
                         
         for (int32_t pass = 0; pass < 2; pass++)
         {
@@ -2617,7 +2617,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
 
             uint32_t trial_alpha_err = 0;
 
-            int trial_alpha_selectors[16];
+            uchar trial_alpha_selectors[16];
             for (uint32_t i = 0; i < 16; i++)
             {
                 const int32_t a = pPixels[i].a;
@@ -2696,7 +2696,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
 
                     uint32_t trial_alpha_err = 0;
 
-                    int trial_alpha_selectors[16];
+                    uchar trial_alpha_selectors[16];
                     for (uint32_t i = 0; i < 16; i++)
                     {
                         const int32_t a = pPixels[i].a;
@@ -2805,7 +2805,7 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
             vals[1] = (vals[0] * (64 - w_s1) + vals[3] * w_s1 + 32) >> 6;
             vals[2] = (vals[0] * (64 - w_s2) + vals[3] * w_s2 + 32) >> 6;
 
-            int trial_alpha_selectors[16];
+            uchar trial_alpha_selectors[16];
 
             uint32_t trial_alpha_err = 0;
             for (uint32_t i = 0; i < 16; i++)
@@ -2869,7 +2869,7 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
                     vals[1] = (vals[0] * (64 - w_s1) + vals[3] * w_s1 + 32) >> 6;
                     vals[2] = (vals[0] * (64 - w_s2) + vals[3] * w_s2 + 32) >> 6;
 
-                    int trial_alpha_selectors[16];
+                    uchar trial_alpha_selectors[16];
 
                     uint32_t trial_alpha_err = 0;
                     for (uint32_t i = 0; i < 16; i++)
@@ -3103,7 +3103,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
         params6.m_endpoints_share_pbit = false;
         params6.m_has_alpha = true;
                 
-        int selectors[16];
+        uchar selectors[16];
         results6.m_pSelectors = selectors;
 
         uint32_t mode6_err = color_cell_compression(6, &params6, &results6, pComp_params, 16, pPixels, true, tables);
@@ -3220,8 +3220,8 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             subset_total_colors7[0] = 0;
             subset_total_colors7[1] = 0;
              
-            int subset_pixel_index7[2][16];
-            int subset_selectors7[2][16];
+            uchar subset_pixel_index7[2][16];
+            uchar subset_selectors7[2][16];
             color_cell_compressor_results subset_results7[2];
 
             for (uint32_t idx = 0; idx < 16; idx++)
@@ -3262,7 +3262,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
                 {
                     for (uint32_t i = 0; i < subset_total_colors7[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index7[subset][i];
+                        auto pixel_index = subset_pixel_index7[subset][i];
 
                         opt_results.m_selectors[pixel_index] = subset_selectors7[subset][i];
                     }
@@ -3290,8 +3290,8 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             subset_total_colors7[0] = 0;
             subset_total_colors7[1] = 0;
              
-            int subset_pixel_index7[2][16];
-            int subset_selectors7[2][16];
+            uchar subset_pixel_index7[2][16];
+            uchar subset_selectors7[2][16];
             color_cell_compressor_results subset_results7[2];
 
             for (uint32_t idx = 0; idx < 16; idx++)
@@ -3327,7 +3327,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
                 {
                     for (uint32_t i = 0; i < subset_total_colors7[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index7[subset][i];
+                        auto pixel_index = subset_pixel_index7[subset][i];
 
                         opt_results.m_selectors[pixel_index] = subset_selectors7[subset][i];
                     }
@@ -3411,8 +3411,8 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             subset_total_colors1[0] = 0;
             subset_total_colors1[1] = 0;
                 
-            int subset_pixel_index1[2][16];
-            int subset_selectors1[2][16];
+            uchar subset_pixel_index1[2][16];
+            uchar subset_selectors1[2][16];
             color_cell_compressor_results subset_results1[2];
 
             for (uint32_t idx = 0; idx < 16; idx++)
@@ -3454,7 +3454,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 {
                     for (uint32_t i = 0; i < subset_total_colors1[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index1[subset][i];
+                        auto pixel_index = subset_pixel_index1[subset][i];
 
                         opt_results.m_selectors[pixel_index] = subset_selectors1[subset][i];
                     }
@@ -3480,8 +3480,8 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             subset_total_colors1[0] = 0;
             subset_total_colors1[1] = 0;
                 
-            int subset_pixel_index1[2][16];
-            int subset_selectors1[2][16];
+            uchar subset_pixel_index1[2][16];
+            uchar subset_selectors1[2][16];
             color_cell_compressor_results subset_results1[2];
 
             for (uint32_t idx = 0; idx < 16; idx++)
@@ -3518,7 +3518,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 {
                     for (uint32_t i = 0; i < subset_total_colors1[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index1[subset][i];
+                        auto pixel_index = subset_pixel_index1[subset][i];
                         opt_results.m_selectors[pixel_index] = subset_selectors1[subset][i];
                     }
 
@@ -3559,7 +3559,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             subset_total_colors0[1] = 0;
             subset_total_colors0[2] = 0;
 
-            int subset_pixel_index0[3][16];
+            uchar subset_pixel_index0[3][16];
                         
             for (uint32_t idx = 0; idx < 16; idx++)
             {
@@ -3571,7 +3571,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             }
                                     
             color_cell_compressor_results subset_results0[3];
-            int subset_selectors0[3][16];
+            uchar subset_selectors0[3][16];
 
             uint32_t mode0_err = 0;
             for (uint32_t subset = 0; subset < 3; subset++)
@@ -3601,7 +3601,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 {
                     for (uint32_t i = 0; i < subset_total_colors0[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index0[subset][i];
+                        auto pixel_index = subset_pixel_index0[subset][i];
 
                         opt_results.m_selectors[pixel_index] = subset_selectors0[subset][i];
                     }
@@ -3641,8 +3641,8 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             subset_total_colors3[0] = 0;
             subset_total_colors3[1] = 0;
              
-            int subset_pixel_index3[2][16];
-            int subset_selectors3[2][16];
+            uchar subset_pixel_index3[2][16];
+            uchar subset_selectors3[2][16];
             color_cell_compressor_results subset_results3[2];
 
             for (uint32_t idx = 0; idx < 16; idx++)
@@ -3683,7 +3683,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 {
                     for (uint32_t i = 0; i < subset_total_colors3[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index3[subset][i];
+                        auto pixel_index = subset_pixel_index3[subset][i];
                         opt_results.m_selectors[pixel_index] = subset_selectors3[subset][i];
                     }
 
@@ -3710,8 +3710,8 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             subset_total_colors3[0] = 0;
             subset_total_colors3[1] = 0;
              
-            int subset_pixel_index3[2][16];
-            int subset_selectors3[2][16];
+            uchar subset_pixel_index3[2][16];
+            uchar subset_selectors3[2][16];
             color_cell_compressor_results subset_results3[2];
 
             for (uint32_t idx = 0; idx < 16; idx++)
@@ -3749,7 +3749,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 {
                     for (uint32_t i = 0; i < subset_total_colors3[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index3[subset][i];
+                        auto pixel_index = subset_pixel_index3[subset][i];
 
                         opt_results.m_selectors[pixel_index] = subset_selectors3[subset][i];
                     }
@@ -3842,7 +3842,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             subset_total_colors2[1] = 0;
             subset_total_colors2[2] = 0;
 
-            int subset_pixel_index2[3][16];
+            uchar subset_pixel_index2[3][16];
                             
             const constant int *pPartition = &g_bc7_partition3[best_partition2 * 16];
 
@@ -3859,7 +3859,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 subset_total_colors2[p]++;
             }
             
-            int subset_selectors2[3][16];
+            uchar subset_selectors2[3][16];
             color_cell_compressor_results subset_results2[3];
                         
             uint32_t mode2_err = 0;
@@ -3890,7 +3890,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
                 {
                     for (uint32_t i = 0; i < subset_total_colors2[subset]; i++)
                     {
-                        const uint32_t pixel_index = subset_pixel_index2[subset][i];
+                        auto pixel_index = subset_pixel_index2[subset][i];
 
                         opt_results.m_selectors[pixel_index] = subset_selectors2[subset][i];
                     }
