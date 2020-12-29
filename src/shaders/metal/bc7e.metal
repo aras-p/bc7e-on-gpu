@@ -171,8 +171,9 @@ struct endpoint_err // note: should match C++ code struct
     uint8_t m_hi;
 };
 
-struct OptimalEndpointTables // note: should match C++ code struct
+struct LookupTables // note: should match C++ code struct
 {
+    // optimal endpoint tables
     endpoint_err mode_1[256][2]; // [c][pbit]
     endpoint_err mode_7[256][2][2]; // [c][pbit][hp][lp]
     endpoint_err mode_6[256][2][2]; // [c][hp][lp]
@@ -416,7 +417,7 @@ struct ModePackResult
 };
 
 static ModePackResult pack_mode1_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
-    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
+    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const constant LookupTables* tables)
 {
     ModePackResult res;
 
@@ -433,9 +434,9 @@ static ModePackResult pack_mode1_to_one_color(const thread color_cell_compressor
         }
     }
 
-    const device endpoint_err *pEr = &tables->mode_1[r][best_p];
-    const device endpoint_err *pEg = &tables->mode_1[g][best_p];
-    const device endpoint_err *pEb = &tables->mode_1[b][best_p];
+    const constant endpoint_err *pEr = &tables->mode_1[r][best_p];
+    const constant endpoint_err *pEg = &tables->mode_1[g][best_p];
+    const constant endpoint_err *pEb = &tables->mode_1[b][best_p];
 
     pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, 0);
     pResults->m_high_endpoint = int4(pEr->m_hi, pEg->m_hi, pEb->m_hi, 0);
@@ -467,7 +468,7 @@ static ModePackResult pack_mode1_to_one_color(const thread color_cell_compressor
 }
 
 static ModePackResult pack_mode24_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
-    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
+    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const constant LookupTables* tables)
 {
     ModePackResult res;
     uint32_t er, eg, eb;
@@ -516,7 +517,7 @@ static ModePackResult pack_mode24_to_one_color(const thread color_cell_compresso
 }
 
 static ModePackResult pack_mode0_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b,
-    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
+    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const constant LookupTables* tables)
 {
     ModePackResult res;
     uint32_t best_err = UINT_MAX;
@@ -532,9 +533,9 @@ static ModePackResult pack_mode0_to_one_color(const thread color_cell_compressor
         }
     }
 
-    const device endpoint_err *pEr = &tables->mode_0[r][best_p >> 1][best_p & 1];
-    const device endpoint_err *pEg = &tables->mode_0[g][best_p >> 1][best_p & 1];
-    const device endpoint_err *pEb = &tables->mode_0[b][best_p >> 1][best_p & 1];
+    const constant endpoint_err *pEr = &tables->mode_0[r][best_p >> 1][best_p & 1];
+    const constant endpoint_err *pEg = &tables->mode_0[g][best_p >> 1][best_p & 1];
+    const constant endpoint_err *pEb = &tables->mode_0[b][best_p >> 1][best_p & 1];
 
     pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, 0);
 
@@ -568,7 +569,7 @@ static ModePackResult pack_mode0_to_one_color(const thread color_cell_compressor
 }
 
 static ModePackResult pack_mode6_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b, uint32_t a,
-    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
+    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const constant LookupTables* tables)
 {
     ModePackResult res;
     uint32_t best_err = UINT_MAX;
@@ -589,10 +590,10 @@ static ModePackResult pack_mode6_to_one_color(const thread color_cell_compressor
     uint32_t best_hi_p = best_p >> 1;
     uint32_t best_lo_p = best_p & 1;
 
-    const device endpoint_err *pEr = &tables->mode_6[r][best_hi_p][best_lo_p];
-    const device endpoint_err *pEg = &tables->mode_6[g][best_hi_p][best_lo_p];
-    const device endpoint_err *pEb = &tables->mode_6[b][best_hi_p][best_lo_p];
-    const device endpoint_err *pEa = &tables->mode_6[a][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEr = &tables->mode_6[r][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEg = &tables->mode_6[g][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEb = &tables->mode_6[b][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEa = &tables->mode_6[a][best_hi_p][best_lo_p];
 
     pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, pEa->m_lo);
 
@@ -622,7 +623,7 @@ static ModePackResult pack_mode6_to_one_color(const thread color_cell_compressor
 }
 
 static ModePackResult pack_mode7_to_one_color(const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults, uint32_t r, uint32_t g, uint32_t b, uint32_t a,
-    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const device OptimalEndpointTables* tables)
+    uint32_t num_pixels, const varying color_quad_i *uniform pPixels, const constant LookupTables* tables)
 {
     ModePackResult res;
     uint32_t best_err = UINT_MAX;
@@ -643,10 +644,10 @@ static ModePackResult pack_mode7_to_one_color(const thread color_cell_compressor
     uint32_t best_hi_p = best_p >> 1;
     uint32_t best_lo_p = best_p & 1;
 
-    const device endpoint_err *pEr = &tables->mode_7[r][best_hi_p][best_lo_p];
-    const device endpoint_err *pEg = &tables->mode_7[g][best_hi_p][best_lo_p];
-    const device endpoint_err *pEb = &tables->mode_7[b][best_hi_p][best_lo_p];
-    const device endpoint_err *pEa = &tables->mode_7[a][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEr = &tables->mode_7[r][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEg = &tables->mode_7[g][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEb = &tables->mode_7[b][best_hi_p][best_lo_p];
+    const constant endpoint_err *pEa = &tables->mode_7[a][best_hi_p][best_lo_p];
 
     pResults->m_low_endpoint = int4(pEr->m_lo, pEg->m_lo, pEb->m_lo, pEa->m_lo);
 
@@ -682,7 +683,7 @@ static ModePackResult pack_mode_to_one_color(
     color_quad_i col,
     uint32_t num_pixels,
     const thread color_quad_i* pPixels,
-    const device OptimalEndpointTables* tables)
+    const constant LookupTables* tables)
 {
     if (mode == 0)
         return pack_mode0_to_one_color(pParams, pResults, col.r, col.g, col.b, num_pixels, pPixels, tables);
@@ -1461,7 +1462,7 @@ static uint32_t find_optimal_solution(uniform uint32_t mode, varying vec4F *unif
 
 // Note: In mode 6, m_has_alpha will only be true for transparent blocks.
 static uint32_t color_cell_compression(uniform uint32_t mode, const thread color_cell_compressor_params *uniform pParams, varying color_cell_compressor_results *uniform pResults,
-    const constant bc7e_compress_block_params* pComp_params, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, uniform bool refinement, const device OptimalEndpointTables* tables)
+    const constant bc7e_compress_block_params* pComp_params, uint32_t num_pixels, const varying color_quad_i *uniform pPixels, uniform bool refinement, const constant LookupTables* tables)
 {
     pResults->m_best_overall_err = UINT_MAX;
 
@@ -2547,7 +2548,7 @@ static inline uint4 encode_bc7_block_mode6(varying bc7_optimization_results *uni
 }
 
 static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, uint32_t lo_a, uint32_t hi_a,
-    varying bc7_optimization_results *uniform pOpt_results4, varying uint32_t *uniform pMode4_err, const device OptimalEndpointTables* tables)
+    varying bc7_optimization_results *uniform pOpt_results4, varying uint32_t *uniform pMode4_err, const constant LookupTables* tables)
 {
     pParams->m_has_alpha = false;
     pParams->m_comp_bits = 5;
@@ -2772,7 +2773,7 @@ static void handle_alpha_block_mode4(const varying color_quad_i *uniform pPixels
 }
 
 static void handle_alpha_block_mode5(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, uint32_t lo_a, uint32_t hi_a,
-    varying bc7_optimization_results *uniform pOpt_results5, varying uint32_t *uniform pMode5_err, const device OptimalEndpointTables* tables)
+    varying bc7_optimization_results *uniform pOpt_results5, varying uint32_t *uniform pMode5_err, const constant LookupTables* tables)
 {
     pParams->m_pSelector_weights = g_bc7_weights2;
     pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
@@ -3025,7 +3026,7 @@ static uint4 get_lists_opaque(const varying color_quad_i* pPixels, const constan
     return lists;
 }
 
-static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, uint4 solution_lists, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, int lo_a, int hi_a, const device OptimalEndpointTables* tables)
+static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, uint4 solution_lists, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, int lo_a, int hi_a, const constant LookupTables* tables)
 {
     pParams->m_perceptual = pComp_params->m_perceptual;
 
@@ -3367,7 +3368,7 @@ static uint4 handle_alpha_block(const varying color_quad_i *uniform pPixels, uin
     return encode_bc7_block(&opt_results);
 }
 
-static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, uint4 solution_lists, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
+static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, uint4 solution_lists, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const constant LookupTables* tables)
 {
     int selectors_temp[16];
         
@@ -4005,7 +4006,7 @@ static uint4 handle_opaque_block(const varying color_quad_i *uniform pPixels, ui
     return encode_bc7_block(&opt_results);
 }
 
-static uint4 handle_opaque_block_mode6(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const device OptimalEndpointTables* tables)
+static uint4 handle_opaque_block_mode6(const varying color_quad_i *uniform pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params *uniform pParams, const constant LookupTables* tables)
 {
     int selectors_temp[16];
         
@@ -4117,7 +4118,7 @@ kernel void bc7e_compress_blocks(
     constant Globals& glob [[buffer(0)]],
     const device uint* bufInput [[buffer(1)]],
     device uint4* bufOutput [[buffer(2)]],
-    const device OptimalEndpointTables* tables [[buffer(3)]],
+    const constant LookupTables* tables [[buffer(3)]],
     uint3 id [[thread_position_in_grid]])
 {
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
