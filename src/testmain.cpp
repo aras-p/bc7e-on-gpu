@@ -18,7 +18,8 @@
 
 const int kQuality = 0;
 const int kRunCount = 8;
-const float kAllowedPsnrDiff = 48;
+const bool kRequireExactResultsMatch = true;
+const float kAllowedPsnrDiff = 80;
 
 
 static const char* kTestFileNames[] =
@@ -643,7 +644,7 @@ static bool TestOnFile(TestFile& tf)
             }
         }
         float psnr = eval_psnr(tf.width, tf.height, tf.channels, s_Bc7DecompressExpected, s_Bc7DecompressGot);
-        if (psnr < kAllowedPsnrDiff)
+        if (psnr < kAllowedPsnrDiff || kRequireExactResultsMatch)
         {
             int maxDiffX = maxDiffIdx / 4 % tf.width;
 			int maxDiffY = maxDiffIdx / 4 / tf.width;
