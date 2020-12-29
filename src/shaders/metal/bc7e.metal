@@ -1,7 +1,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
+//#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 //#define OPT_OPAQUE_ONLY // disables all transparency handling
 
@@ -2267,12 +2267,13 @@ struct bc7_optimization_results
     uchar m_alpha_selectors[16];    // 16B
     uchar4 m_low[3];                // 12B
     uchar4 m_high[3];               // 12B
+    uint  m_error;                  // 4B
     uchar m_mode;                   // 1B
     uchar m_partition;              // 1B
     uchar m_pbits;                  // 1B [3][2] array of one bit each
     uchar m_rotation_index_sel;     // 1B low 4 bits rotation, high 4 bits index selector
 };
-static_assert(sizeof(bc7_optimization_results) == 60, "unexpected bc7_optimization_results struct size");
+static_assert(sizeof(bc7_optimization_results) == 64, "unexpected bc7_optimization_results struct size");
 
 static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 {
@@ -2546,7 +2547,7 @@ static inline uint4 encode_bc7_block_mode6(thread bc7_optimization_results* pRes
 }
 
 static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
-                                     thread bc7_optimization_results* pOpt_results4, thread uint32_t* pMode4_err, const constant LookupTables* tables)
+                                     thread bc7_optimization_results* pOpt_results4, const constant LookupTables* tables)
 {
     pParams->m_has_alpha = false;
     pParams->m_comp_bits = 5;
@@ -2741,9 +2742,9 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
 
         trial_err += best_alpha_err;
 
-        if (trial_err < *pMode4_err)
+        if (trial_err < pOpt_results4->m_error)
         {
-            *pMode4_err = trial_err;
+            pOpt_results4->m_error = trial_err;
 
             pOpt_results4->m_mode = 4;
             pOpt_results4->m_rotation_index_sel = index_selector << 4;
@@ -2765,7 +2766,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
 }
 
 static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
-                                     thread bc7_optimization_results* pOpt_results5, thread uint32_t* pMode5_err, const constant LookupTables* tables)
+                                     thread bc7_optimization_results* pOpt_results5, const constant LookupTables* tables)
 {
     pParams->m_weights_index = kBC7Weights2Index;
     pParams->m_num_selector_weights = 4;
@@ -2780,8 +2781,8 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
     color_cell_compressor_results results5;
     results5.m_pSelectors = pOpt_results5->m_selectors;
 
-    *pMode5_err = color_cell_compression(5, pParams, &results5, pComp_params, 16, pPixels, true, tables);
-    assert(*pMode5_err == results5.m_best_overall_err);
+    pOpt_results5->m_error = color_cell_compression(5, pParams, &results5, pComp_params, 16, pPixels, true, tables);
+    assert(pOpt_results5->m_error == results5.m_best_overall_err);
 
     pOpt_results5->m_low[0] = results5.m_low_endpoint;
     pOpt_results5->m_high[0] = results5.m_high_endpoint;
@@ -2904,7 +2905,7 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
         }
 #endif // #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
 
-        *pMode5_err += mode5_alpha_err;
+        pOpt_results5->m_error += mode5_alpha_err;
     }
 
     pOpt_results5->m_mode = 5;
@@ -2945,7 +2946,6 @@ static uint4 get_lists_alpha(const thread color_quad_i* pPixels, const constant 
     #ifndef OPT_ULTRAFAST_ONLY
     if (pComp_params->m_alpha_settings.m_use_mode7)
     {
-        uint res = 0;
         solution solutions[4];
         uint32_t num_solutions = estimate_partition_list(7, pPixels, pComp_params, solutions, pComp_params->m_alpha_settings.m_max_mode7_partitions_to_try);
         lists.x = encode_solutions(solutions, num_solutions);
@@ -3061,15 +3061,14 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             }
 
             bc7_optimization_results trial_opt_results4;
+            trial_opt_results4.m_error = best_err;
+            handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_opt_results4, tables);
 
-            uint32_t trial_mode4_err = best_err;
-
-            handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_opt_results4, &trial_mode4_err, tables);
-
-            if (trial_mode4_err < best_err)
+            if (trial_opt_results4.m_error < best_err)
             {
-                best_err = trial_mode4_err;
+                best_err = trial_opt_results4.m_error;
 
+                opt_results.m_error = best_err;
                 opt_results.m_mode = 4;
                 opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
                 opt_results.m_partition = 0;
@@ -3113,6 +3112,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
         {
             best_err = mode6_err;
 
+            opt_results.m_error = best_err;
             opt_results.m_mode = 6;
             opt_results.m_rotation_index_sel = 0;
             opt_results.m_partition = 0;
@@ -3167,15 +3167,12 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             }
 
             bc7_optimization_results trial_opt_results5;
+            trial_opt_results5.m_error = 0;
+            handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_opt_results5, tables);
 
-            uint32_t trial_mode5_err = 0;
-
-            handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_opt_results5, &trial_mode5_err, tables);
-
-            if (trial_mode5_err < best_err)
+            if (trial_opt_results5.m_error < best_err)
             {
-                best_err = trial_mode5_err;
-
+                best_err = trial_opt_results5.m_error;
                 opt_results = trial_opt_results5;
                 opt_results.m_rotation_index_sel = rotation;
             }
@@ -3193,8 +3190,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
         
         // Note: m_mode67_error_weight_mul was always 1, removed
         
-        params7.m_pSelector_weights = g_bc7_weights2;
-        params7.m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
+        params7.m_weights_index = kBC7Weights2Index;
         params7.m_num_selector_weights = 4;
 
         params7.m_comp_bits = 5;
@@ -3250,10 +3246,10 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             if (trial_err < best_err)
             {
                 best_err = trial_err;
-                                        
+                                     
+                opt_results.m_error = best_err;
                 opt_results.m_mode = 7;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
 
                 for (uint32_t subset = 0; subset < 2; subset++)
@@ -3268,8 +3264,10 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
                     opt_results.m_low[subset] = subset_results7[subset].m_low_endpoint;
                     opt_results.m_high[subset] = subset_results7[subset].m_high_endpoint;
 
-                    opt_results.m_pbits[subset][0] = subset_results7[subset].m_pbits[0];
-                    opt_results.m_pbits[subset][1] = subset_results7[subset].m_pbits[1];
+                    uint pbits = opt_results.m_pbits;
+                    pbits &= ~(3<<subset*2);
+                    pbits |= subset_results7[subset].m_pbits << subset*2;
+                    opt_results.m_pbits = pbits;
                 }
             }
 
@@ -3320,6 +3318,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
             if (trial_err < best_err)
             {
                 best_err = trial_err;
+                opt_results.m_error = best_err;
                                         
                 for (uint32_t subset = 0; subset < 2; subset++)
                 {
@@ -3333,8 +3332,10 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
                     opt_results.m_low[subset] = subset_results7[subset].m_low_endpoint;
                     opt_results.m_high[subset] = subset_results7[subset].m_high_endpoint;
 
-                    opt_results.m_pbits[subset][0] = subset_results7[subset].m_pbits[0];
-                    opt_results.m_pbits[subset][1] = subset_results7[subset].m_pbits[1];
+                    uint pbits = opt_results.m_pbits;
+                    pbits &= ~(3<<subset*2);
+                    pbits |= subset_results7[subset].m_pbits << subset*2;
+                    opt_results.m_pbits = pbits;
                 }
             }
         }
@@ -3366,7 +3367,8 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
         results6.m_pSelectors = opt_results.m_selectors;
 
         best_err = color_cell_compression(6, pParams, &results6, pComp_params, 16, pPixels, true, tables);
-                        
+                      
+        opt_results.m_error = best_err;
         opt_results.m_mode = 6;
         opt_results.m_rotation_index_sel = 0;
         opt_results.m_partition = 0;
@@ -3441,6 +3443,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             {
                 best_err = trial_err;
 
+                opt_results.m_error = best_err;
                 opt_results.m_mode = 1;
                 opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
@@ -3511,6 +3514,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             if (trial_err < best_err)
             {
                 best_err = trial_err;
+                opt_results.m_error = best_err;
 
                 for (uint32_t subset = 0; subset < 2; subset++)
                 {
@@ -3593,6 +3597,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             {
                 best_err = mode0_err;
 
+                opt_results.m_error = best_err;
                 opt_results.m_mode = 0;
                 opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = best_partition0;
@@ -3675,7 +3680,8 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             if (trial_err < best_err)
             {
                 best_err = trial_err;
-                                        
+                                
+                opt_results.m_error = best_err;
                 opt_results.m_mode = 3;
                 opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
@@ -3747,6 +3753,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             if (trial_err < best_err)
             {
                 best_err = trial_err;
+                opt_results.m_error = best_err;
                                         
                 for (uint32_t subset = 0; subset < 2; subset++)
                 {
@@ -3808,14 +3815,12 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             }
 
             bc7_optimization_results trial_opt_results5;
+            trial_opt_results5.m_error = 0;
+            handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_opt_results5, tables);
 
-            uint32_t trial_mode5_err = 0;
-
-            handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_opt_results5, &trial_mode5_err, tables);
-
-            if (trial_mode5_err < best_err)
+            if (trial_opt_results5.m_error < best_err)
             {
-                best_err = trial_mode5_err;
+                best_err = trial_opt_results5.m_error;
 
                 opt_results = trial_opt_results5;
                 opt_results.m_rotation_index_sel = rotation;
@@ -3886,6 +3891,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             {
                 best_err = mode2_err;
 
+                opt_results.m_error = best_err;
                 opt_results.m_mode = 2;
                 opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = best_partition2;
@@ -3945,15 +3951,14 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
             }
 
             bc7_optimization_results trial_opt_results4;
+            trial_opt_results4.m_error = best_err;
+            handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_opt_results4, tables);
 
-            uint32_t trial_mode4_err = best_err;
-
-            handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_opt_results4, &trial_mode4_err, tables);
-
-            if (trial_mode4_err < best_err)
+            if (trial_opt_results4.m_error < best_err)
             {
-                best_err = trial_mode4_err;
+                best_err = trial_opt_results4.m_error;
 
+                opt_results.m_error = best_err;
                 opt_results.m_mode = 4;
                 opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
                 opt_results.m_partition = 0;
@@ -3992,7 +3997,8 @@ static uint4 handle_opaque_block_mode6(const thread color_quad_i* pPixels, const
     color_cell_compressor_results results6;
     results6.m_pSelectors = opt_results.m_selectors;
     best_err = color_cell_compression(6, pParams, &results6, pComp_params, 16, pPixels, true, tables);
-                        
+                      
+    opt_results.m_error = best_err;
     opt_results.m_mode = 6;
     opt_results.m_rotation_index_sel = 0;
     opt_results.m_partition = 0;
