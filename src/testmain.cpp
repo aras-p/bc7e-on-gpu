@@ -71,17 +71,39 @@ struct endpoint_err // note: should match shader code struct
     uint8_t m_hi;
 };
 
-struct OptimalEndpointTables // note: should match shader code struct
+struct LookupTables // note: should match shader code struct
 {
+    // optimal endpoint tables
     endpoint_err mode_1[256][2]; // [c][pbit]
     endpoint_err mode_7[256][2][2]; // [c][pbit][hp][lp]
     endpoint_err mode_6[256][2][2]; // [c][hp][lp]
     uint32_t mode_4_3[256]; // [c]
     uint32_t mode_4_2[256]; // [c]
     endpoint_err mode_0[256][2][2]; // [c][hp][lp]
+    
+    // what was g_bc7_weights2, g_bc7_weights3, g_bc7_weights4 in ISPC
+    uint32_t g_bc7_weights[4+8+16] =
+    {
+        0, 21, 43, 64,
+        0, 9, 18, 27, 37, 46, 55, 64,
+        0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64,
+    };
+    // what was g_bc7_weights2x, g_bc7_weights3x, g_bc7_weights4x in ISPC
+    float g_bc7_weightsx[(4+8+16)*4] =
+    {
+        // 2x
+        0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.107666f, 0.220459f, 0.451416f, 0.328125f, 0.451416f, 0.220459f, 0.107666f, 0.671875f, 1.000000f, 0.000000f, 0.000000f, 1.000000f,
+        // 3x
+        0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.019775f, 0.120850f, 0.738525f, 0.140625f, 0.079102f, 0.202148f, 0.516602f, 0.281250f, 0.177979f, 0.243896f, 0.334229f, 0.421875f, 0.334229f, 0.243896f, 0.177979f, 0.578125f, 0.516602f, 0.202148f,
+        0.079102f, 0.718750f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 1.000000f, 0.000000f, 0.000000f, 1.000000f,
+        // 4x
+        0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.003906f, 0.058594f, 0.878906f, 0.062500f, 0.019775f, 0.120850f, 0.738525f, 0.140625f, 0.041260f, 0.161865f, 0.635010f, 0.203125f, 0.070557f, 0.195068f, 0.539307f, 0.265625f, 0.107666f, 0.220459f,
+        0.451416f, 0.328125f, 0.165039f, 0.241211f, 0.352539f, 0.406250f, 0.219727f, 0.249023f, 0.282227f, 0.468750f, 0.282227f, 0.249023f, 0.219727f, 0.531250f, 0.352539f, 0.241211f, 0.165039f, 0.593750f, 0.451416f, 0.220459f, 0.107666f, 0.671875f, 0.539307f, 0.195068f, 0.070557f, 0.734375f,
+        0.635010f, 0.161865f, 0.041260f, 0.796875f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 0.878906f, 0.058594f, 0.003906f, 0.937500f, 1.000000f, 0.000000f, 0.000000f, 1.000000f
+    };
 };
 
-static OptimalEndpointTables s_Tables;
+static LookupTables s_Tables;
 
 // initialization code ported from bc7e.ispc
 static const uint32_t g_bc7_weights2[4] = { 0, 21, 43, 64 };

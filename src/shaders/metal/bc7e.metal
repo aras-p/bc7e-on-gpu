@@ -96,17 +96,6 @@ static inline vec4F vec4F_normalize(vec4F v)
     return v;
 }
 
-static const constant uint32_t g_bc7_weights2[4] = { 0, 21, 43, 64 };
-static const constant uint32_t g_bc7_weights3[8] = { 0, 9, 18, 27, 37, 46, 55, 64 };
-static const constant uint32_t g_bc7_weights4[16] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
-
-// Precomputed weight constants used during least fit determination. For each entry in g_bc7_weights[]: w * w, (1.0f - w) * w, (1.0f - w) * (1.0f - w), w
-static const constant float g_bc7_weights2x[4 * 4] = { 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.107666f, 0.220459f, 0.451416f, 0.328125f, 0.451416f, 0.220459f, 0.107666f, 0.671875f, 1.000000f, 0.000000f, 0.000000f, 1.000000f };
-static const constant float g_bc7_weights3x[8 * 4] = { 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.019775f, 0.120850f, 0.738525f, 0.140625f, 0.079102f, 0.202148f, 0.516602f, 0.281250f, 0.177979f, 0.243896f, 0.334229f, 0.421875f, 0.334229f, 0.243896f, 0.177979f, 0.578125f, 0.516602f, 0.202148f,
-    0.079102f, 0.718750f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 1.000000f, 0.000000f, 0.000000f, 1.000000f };
-static const constant float g_bc7_weights4x[16 * 4] = { 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.003906f, 0.058594f, 0.878906f, 0.062500f, 0.019775f, 0.120850f, 0.738525f, 0.140625f, 0.041260f, 0.161865f, 0.635010f, 0.203125f, 0.070557f, 0.195068f, 0.539307f, 0.265625f, 0.107666f, 0.220459f,
-    0.451416f, 0.328125f, 0.165039f, 0.241211f, 0.352539f, 0.406250f, 0.219727f, 0.249023f, 0.282227f, 0.468750f, 0.282227f, 0.249023f, 0.219727f, 0.531250f, 0.352539f, 0.241211f, 0.165039f, 0.593750f, 0.451416f, 0.220459f, 0.107666f, 0.671875f, 0.539307f, 0.195068f, 0.070557f, 0.734375f,
-    0.635010f, 0.161865f, 0.041260f, 0.796875f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 0.878906f, 0.058594f, 0.003906f, 0.937500f, 1.000000f, 0.000000f, 0.000000f, 1.000000f };
 
 static const constant int g_bc7_partition1[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 
@@ -168,6 +157,10 @@ struct endpoint_err // note: should match C++ code struct
     uint8_t m_hi;
 };
 
+#define kBC7Weights2Index 0
+#define kBC7Weights3Index 4
+#define kBC7Weights4Index 12
+
 struct LookupTables // note: should match C++ code struct
 {
     // optimal endpoint tables
@@ -177,6 +170,12 @@ struct LookupTables // note: should match C++ code struct
     uint32_t mode_4_3[256]; // [c]
     uint32_t mode_4_2[256]; // [c]
     endpoint_err mode_0[256][2][2]; // [c][hp][lp]
+
+    // weights (what was g_bc7_weights2, g_bc7_weights3, g_bc7_weights4 in ISPC)
+    uint32_t g_bc7_weights[4+8+16];
+    // Precomputed weight constants used during least fit determination. For each entry in g_bc7_weights[]: w * w, (1.0f - w) * w, (1.0f - w) * (1.0f - w), w
+    // (what was g_bc7_weights2x, g_bc7_weights3x, g_bc7_weights4x in ISPC)
+    float4 g_bc7_weightsx[4+8+16];
 };
 
 const constant uint32_t BC7E_MODE_1_OPTIMAL_INDEX = 2;
@@ -192,7 +191,7 @@ const constant uint32_t BC7E_MODE_0_OPTIMAL_INDEX = 2;
 
 
 
-static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* pSelectors, const constant vec4F* pSelector_weights, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors)
+static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -201,12 +200,11 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* p
     for (uint32_t i = 0; i < N; i++)
     {
         const uint32_t sel = pSelectors[i];
-
-        z00 += pSelector_weights[sel].r;
-        z10 += pSelector_weights[sel].g;
-        z11 += pSelector_weights[sel].b;
-
-        float w = pSelector_weights[sel].a;
+        float4 wt = tables->g_bc7_weightsx[weights_index+sel];
+        z00 += wt.r;
+        z10 += wt.g;
+        z11 += wt.b;
+        float w = wt.a;
         q00 += w * float4(pColors[i]); t += float4(pColors[i]);
     }
 
@@ -227,7 +225,7 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const thread int* p
     *pXl = iz00 * q00 + iz01 * q10; *pXh = iz10 * q00 + iz11 * q10;
 }
 
-static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pSelectors, const constant vec4F* pSelector_weights, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors)
+static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -236,12 +234,11 @@ static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pS
     for (uint32_t i = 0; i < N; i++)
     {
         const uint32_t sel = pSelectors[i];
-
-        z00 += pSelector_weights[sel].r;
-        z10 += pSelector_weights[sel].g;
-        z11 += pSelector_weights[sel].b;
-        float w = pSelector_weights[sel].a;
-
+        float4 wt = tables->g_bc7_weightsx[weights_index+sel];
+        z00 += wt.r;
+        z10 += wt.g;
+        z11 += wt.b;
+        float w = wt.a;
         q00 += w * float3(pColors[i].rgb); t += float3(pColors[i].rgb);
     }
 
@@ -262,7 +259,7 @@ static void compute_least_squares_endpoints_rgb(uint32_t N, const thread int* pS
     pXl->rgb = iz00 * q00 + iz01 * q10; pXh->rgb = iz10 * q00 + iz11 * q10;
 }
 
-static void compute_least_squares_endpoints_a(uint32_t N, const thread int* pSelectors, const constant vec4F* pSelector_weights, thread float* pXl, thread float* pXh, const thread color_quad_i* pColors)
+static void compute_least_squares_endpoints_a(uint32_t N, const thread int* pSelectors, uint weights_index, thread float* pXl, thread float* pXh, const thread color_quad_i* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -271,11 +268,11 @@ static void compute_least_squares_endpoints_a(uint32_t N, const thread int* pSel
     for (uint32_t i = 0; i < N; i++)
     {
         const uint32_t sel = pSelectors[i];
-
-        z00 += pSelector_weights[sel].r;
-        z10 += pSelector_weights[sel].g;
-        z11 += pSelector_weights[sel].b;
-        float w = pSelector_weights[sel].a;
+        float4 wt = tables->g_bc7_weightsx[weights_index+sel];
+        z00 += wt.r;
+        z10 += wt.g;
+        z11 += wt.b;
+        float w = wt.a;
 
         q00_a += w * pColors[i].a; t_a += pColors[i].a;
     }
@@ -300,8 +297,7 @@ static void compute_least_squares_endpoints_a(uint32_t N, const thread int* pSel
 struct color_cell_compressor_params
 {
     uint32_t m_num_selector_weights;
-    const constant uint32_t* m_pSelector_weights;
-    const constant vec4F* m_pSelector_weightsx;
+    uint32_t m_weights_index;
     uint32_t m_comp_bits;
     uint4 m_weights;
     bool m_has_alpha;
@@ -313,8 +309,7 @@ struct color_cell_compressor_params
 static inline void color_cell_compressor_params_clear(thread color_cell_compressor_params* p)
 {
     p->m_num_selector_weights = 0;
-    p->m_pSelector_weights = nullptr;
-    p->m_pSelector_weightsx = nullptr;
+    p->m_weights_index = 0;
     p->m_comp_bits = 0;
     p->m_perceptual = false;
     p->m_weights = 1;
@@ -450,7 +445,7 @@ static ModePackResult pack_mode1_to_one_color(const thread color_cell_compressor
         uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | pResults->m_pbits[0]) << 1);
         high |= (high >> 7);
 
-        p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX] + 32) >> 6);
+        p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_1_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_1_OPTIMAL_INDEX] + 32) >> 6);
     }
     p.a = 255;
 
@@ -497,9 +492,9 @@ static ModePackResult pack_mode24_to_one_color(const thread color_cell_compresso
         high |= (high >> 5);
 
         if (pParams->m_num_selector_weights == 8)
-            p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3]) + high * g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3] + 32) >> 6);
+            p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_4_OPTIMAL_INDEX3]) + high * tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_4_OPTIMAL_INDEX3] + 32) >> 6);
         else
-            p.rgb = int3((low * (64 - g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2]) + high * g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2] + 32) >> 6);
+            p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_4_OPTIMAL_INDEX2]) + high * tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_4_OPTIMAL_INDEX2] + 32) >> 6);
     }
     p.a = 255;
 
@@ -551,7 +546,7 @@ static ModePackResult pack_mode0_to_one_color(const thread color_cell_compressor
         uint3 high = uint3(((pResults->m_high_endpoint.rgb << 1) | pResults->m_pbits[1]) << 3);
         high |= (high >> 5);
 
-        p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX] + 32) >> 6);
+        p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_0_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_0_OPTIMAL_INDEX] + 32) >> 6);
     }    
     p.a = 255;
 
@@ -606,7 +601,7 @@ static ModePackResult pack_mode6_to_one_color(const thread color_cell_compressor
         uint4 low = uint4((pResults->m_low_endpoint << 1) | pResults->m_pbits[0]);
         uint4 high = uint4((pResults->m_high_endpoint << 1) | pResults->m_pbits[1]);
         
-        p = int4((low * (64 - g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX]) + high * g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6);
+        p = int4((low * (64 - tables->g_bc7_weights[kBC7Weights4Index+BC7E_MODE_6_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights4Index+BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6);
     }
 
     uint32_t total_err = 0;
@@ -660,7 +655,7 @@ static ModePackResult pack_mode7_to_one_color(const thread color_cell_compressor
         uint4 low = uint4((pResults->m_low_endpoint << 1) | pResults->m_pbits[0]);
         uint4 high = uint4((pResults->m_high_endpoint << 1) | pResults->m_pbits[1]);
         
-        p = int4((low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6);
+        p = int4((low * (64 - tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_7_OPTIMAL_INDEX]) + high * tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6);
     }
 
     uint32_t total_err = 0;
@@ -695,7 +690,7 @@ static ModePackResult pack_mode_to_one_color(
 }
 
 static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread color_quad_i* pHigh, const thread uint32_t* pbits,
-    const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uint32_t num_pixels, const thread color_quad_i* pPixels)
+    const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uint32_t num_pixels, const thread color_quad_i* pPixels, const constant LookupTables* tables)
 {
     color_quad_i quantMinColor = *pLow;
     color_quad_i quantMaxColor = *pHigh;
@@ -734,8 +729,13 @@ static uint32_t evaluate_solution(const thread color_quad_i* pLow, const thread 
     weightedColors[N-1] = float4(actualMaxColor);
         
     for (uint32_t i = 1; i < (N - 1); i++)
+    {
         for (uint32_t j = 0; j < nc; j++)
-            weightedColors[i][j] = floor((weightedColors[0][j] * (64.0f - pParams->m_pSelector_weights[i]) + weightedColors[N - 1][j] * pParams->m_pSelector_weights[i] + 32) * (1.0f / 64.0f));
+        {
+            float w = tables->g_bc7_weights[pParams->m_weights_index+i];
+            weightedColors[i][j] = floor((weightedColors[0][j] * (64.0f - w) + weightedColors[N - 1][j] * w + 32) * (1.0f / 64.0f));
+        }
+    }
 
     if (!pParams->m_perceptual)
     {
@@ -1246,7 +1246,7 @@ static void fixDegenerateEndpoints(uint32_t mode, thread color_quad_i* pTrialMin
 }
 
 static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread vec4F* pXh, const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults,
-    bool pbit_search, uint32_t num_pixels, const thread color_quad_i* pPixels)
+    bool pbit_search, uint32_t num_pixels, const thread color_quad_i* pPixels, const constant LookupTables* tables)
 {
     vec4F xl = saturate(*pXl);
     vec4F xh = saturate(*pXh);
@@ -1430,7 +1430,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
 
             if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits[0] != pResults->m_pbits[0]) || (best_pbits[1] != pResults->m_pbits[1]))
             {
-                evaluate_solution(&bestMinColor, &bestMaxColor, best_pbits, pParams, pResults, num_pixels, pPixels);
+                evaluate_solution(&bestMinColor, &bestMaxColor, best_pbits, pParams, pResults, num_pixels, pPixels, tables);
             }
         }
     }
@@ -1450,7 +1450,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
             pbits[0] = 0;
             pbits[1] = 0;
 
-            evaluate_solution(&trialMinColor, &trialMaxColor, pbits, pParams, pResults, num_pixels, pPixels);
+            evaluate_solution(&trialMinColor, &trialMaxColor, pbits, pParams, pResults, num_pixels, pPixels, tables);
         }
     }
 
@@ -1629,7 +1629,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         maxColor = temp;
     }
 
-    if (!find_optimal_solution(mode, &minColor, &maxColor, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels))
+    if (!find_optimal_solution(mode, &minColor, &maxColor, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels, tables))
         return 0;
     
     if (!refinement)
@@ -1640,10 +1640,10 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
     {
         vec4F xl = 0.0f, xh = 0.0f;
         if (pParams->m_has_alpha)
-            compute_least_squares_endpoints_rgba(num_pixels, pResults->m_pSelectors, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+            compute_least_squares_endpoints_rgba(num_pixels, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
         else
         {
-            compute_least_squares_endpoints_rgb(num_pixels, pResults->m_pSelectors, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+            compute_least_squares_endpoints_rgb(num_pixels, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
             xl.a = 255.0f;
             xh.a = 255.0f;
         }
@@ -1651,7 +1651,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         xl = xl * (1.0f / 255.0f);
         xh = xh * (1.0f / 255.0f);
 
-        if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels))
+        if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels, tables))
             return 0;
     }
 
@@ -2043,7 +2043,7 @@ static uint32_t estimate_partition(uint32_t mode, const thread color_quad_i* pPi
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params);
 
-    params.m_pSelector_weights = (g_bc7_color_index_bitcount[mode] == 2) ? g_bc7_weights2 : g_bc7_weights3;
+    params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
     params.m_weights = pComp_params->m_weights;
@@ -2143,7 +2143,7 @@ static uint32_t estimate_partition_list(uint32_t mode, const thread color_quad_i
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params);
 
-    params.m_pSelector_weights = (g_bc7_color_index_bitcount[mode] == 2) ? g_bc7_weights2 : g_bc7_weights3;
+    params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
     params.m_weights = pComp_params->m_weights;
@@ -2558,14 +2558,12 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
 
         if (index_selector)
         {
-            pParams->m_pSelector_weights = g_bc7_weights3;
-            pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights3x[0];
+            pParams->m_weights_index = kBC7Weights3Index;
             pParams->m_num_selector_weights = 8;
         }
         else
         {
-            pParams->m_pSelector_weights = g_bc7_weights2;
-            pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
+            pParams->m_weights_index = kBC7Weights2Index;
             pParams->m_num_selector_weights = 4;
         }
                                 
@@ -2608,7 +2606,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
                 vals[7] = (ha << 2) | (ha >> 4);
 
                 for (uint32_t i = 1; i < 7; i++)
-                    vals[i] = (vals[0] * (64 - g_bc7_weights3[i]) + vals[7] * g_bc7_weights3[i] + 32) >> 6;
+                    vals[i] = (vals[0] * (64 - tables->g_bc7_weights[kBC7Weights3Index+i]) + vals[7] * tables->g_bc7_weights[kBC7Weights3Index+i] + 32) >> 6;
             }
             else
             {
@@ -2659,7 +2657,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
             if (pass == 0)
             {
                 float xl, xh;
-                compute_least_squares_endpoints_a(16, trial_alpha_selectors, index_selector ? (const constant vec4F*)&g_bc7_weights2x[0] : (const constant vec4F*)&g_bc7_weights3x[0], &xl, &xh, pPixels);
+                compute_least_squares_endpoints_a(16, trial_alpha_selectors, index_selector ? kBC7Weights2Index : kBC7Weights3Index, &xl, &xh, pPixels, tables);
                 if (xl > xh)
                     swapf(&xl, &xh);
                 la = clamp((int)floor(xl * (63.0f / 255.0f) + .5f), 0, 63);
@@ -2770,8 +2768,7 @@ static void handle_alpha_block_mode4(const thread color_quad_i* pPixels, const c
 static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
                                      thread bc7_optimization_results* pOpt_results5, thread uint32_t* pMode5_err, const constant LookupTables* tables)
 {
-    pParams->m_pSelector_weights = g_bc7_weights2;
-    pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
+    pParams->m_weights_index = kBC7Weights2Index;
     pParams->m_num_selector_weights = 4;
 
     pParams->m_comp_bits = 7;
@@ -2844,7 +2841,7 @@ static void handle_alpha_block_mode5(const thread color_quad_i* pPixels, const c
             if (!pass)
             {
                 float xl, xh;
-                compute_least_squares_endpoints_a(16, trial_alpha_selectors, (const constant vec4F*)&g_bc7_weights2x[0], &xl, &xh, pPixels);
+                compute_least_squares_endpoints_a(16, trial_alpha_selectors, kBC7Weights2Index, &xl, &xh, pPixels, tables);
 
                 uint32_t new_lo_a = clamp((int)floor(xl + .5f), 0, 255);
                 uint32_t new_hi_a = clamp((int)floor(xh + .5f), 0, 255);
@@ -3104,8 +3101,7 @@ static uint4 handle_alpha_block(const thread color_quad_i* pPixels, uint4 soluti
 
         color_cell_compressor_results results6;
         
-        params6.m_pSelector_weights = g_bc7_weights4;
-        params6.m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights4x[0];
+        params6.m_weights_index = kBC7Weights4Index;
         params6.m_num_selector_weights = 16;
 
         params6.m_comp_bits = 7;
@@ -3374,8 +3370,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
     // Mode 6
     if (pComp_params->m_opaque_settings.m_use_mode[6])
     {
-        pParams->m_pSelector_weights = g_bc7_weights4;
-        pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights4x[0];
+        pParams->m_weights_index = kBC7Weights4Index;
         pParams->m_num_selector_weights = 16;
 
         pParams->m_comp_bits = 7;
@@ -3410,8 +3405,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
     // Mode 1
     if (pComp_params->m_opaque_settings.m_use_mode[1])
     {
-        pParams->m_pSelector_weights = g_bc7_weights3;
-        pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights3x[0];
+        pParams->m_weights_index = kBC7Weights3Index;
         pParams->m_num_selector_weights = 8;
 
         pParams->m_comp_bits = 6;
@@ -3561,8 +3555,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.z, solutions3);
 
-        pParams->m_pSelector_weights = g_bc7_weights3;
-        pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights3x[0];
+        pParams->m_weights_index = kBC7Weights3Index;
         pParams->m_num_selector_weights = 8;
 
         pParams->m_comp_bits = 4;
@@ -3645,8 +3638,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
     // Mode 3
     if (pComp_params->m_opaque_settings.m_use_mode[3])
     {
-        pParams->m_pSelector_weights = g_bc7_weights2;
-        pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
+        pParams->m_weights_index = kBC7Weights2Index;
         pParams->m_num_selector_weights = 4;
 
         pParams->m_comp_bits = 7;
@@ -3853,8 +3845,7 @@ static uint4 handle_opaque_block(const thread color_quad_i* pPixels, uint4 solut
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.w, solutions3);
 
-        pParams->m_pSelector_weights = g_bc7_weights2;
-        pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights2x[0];
+        pParams->m_weights_index = kBC7Weights2Index;
         pParams->m_num_selector_weights = 4;
 
         pParams->m_comp_bits = 5;
@@ -4010,8 +4001,7 @@ static uint4 handle_opaque_block_mode6(const thread color_quad_i* pPixels, const
     uint32_t best_err = UINT_MAX;
 
     // Mode 6
-    pParams->m_pSelector_weights = g_bc7_weights4;
-    pParams->m_pSelector_weightsx = (const constant vec4F*)&g_bc7_weights4x[0];
+    pParams->m_weights_index = kBC7Weights4Index;
     pParams->m_num_selector_weights = 16;
 
     pParams->m_comp_bits = 7;
