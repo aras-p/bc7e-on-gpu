@@ -17,8 +17,8 @@
 #endif
 
 const bool kDoCapture = false;
-const int kQuality = 3;
-const int kRunCount = kDoCapture ? 1 : 8;
+const int kQuality = 0;
+const int kRunCount = kDoCapture ? 1 : 2;
 const bool kRequireExactResultsMatch = true;
 const float kAllowedPsnrDiff = 80;
 
@@ -679,7 +679,7 @@ static float eval_psnr(int width, int height, int channels, const unsigned char*
 }
 
 
-static bool TestOnFile(TestFile& tf)
+static bool TestOnFile(TestFile& tf, bool perceptual)
 {
     printf("  testing %s\n", tf.fileNameBase.c_str());
     const int kBC7BlockBytes = 16;
@@ -688,8 +688,6 @@ static bool TestOnFile(TestFile& tf)
     memset(tf.bc7exp.data(), 0x77, compressedSize);
     memset(tf.bc7got.data(), 0x77, compressedSize);
 
-    bool perceptual = true;
-    
     // compress with bc7e for expected/reference result
     ispc::bc7e_compress_block_params settings;
     switch(kQuality)
@@ -974,7 +972,7 @@ int main()
             printf("Run %i of %i...\n", ir+1, kRunCount);
             for (auto& tf : testFiles)
             {
-                if (!TestOnFile(tf))
+                if (!TestOnFile(tf, (ir & 1) == 0))
                     ++errorCount;
             }
         }
