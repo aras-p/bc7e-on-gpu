@@ -441,8 +441,17 @@ static void* ReadFile(const char* path, size_t* outSize)
     return buffer;
 }
 
-static SmolKernel* s_Bc7KernelEncode;
 static SmolKernel* s_Bc7KernelLists;
+static SmolKernel* s_Bc7KernelCompress0;
+static SmolKernel* s_Bc7KernelCompress1;
+static SmolKernel* s_Bc7KernelCompress2;
+static SmolKernel* s_Bc7KernelCompress3;
+static SmolKernel* s_Bc7KernelCompress4a;
+static SmolKernel* s_Bc7KernelCompress4o;
+static SmolKernel* s_Bc7KernelCompress5;
+static SmolKernel* s_Bc7KernelCompress6;
+static SmolKernel* s_Bc7KernelCompress7;
+static SmolKernel* s_Bc7KernelEncode;
 static SmolBuffer* s_Bc7TablesBuffer;
 static SmolBuffer* s_Bc7GlobBuffer;
 static SmolBuffer* s_Bc7InputBuffer;
@@ -492,17 +501,107 @@ static bool InitializeCompressorShaders()
 			printf("ERROR: failed to create lists compute shader\n");
 			return false;
 		}
-        printf("  (lists shader %.1fs)", stm_sec(stm_since(tComp0)));
+        printf(" (lists %.1fs)", stm_sec(stm_since(tComp0)));
 	}
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress0 = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode0", flags);
+        if (s_Bc7KernelCompress0 == nullptr)
+        {
+            printf("ERROR: failed to create mode0 compute shader\n");
+            return false;
+        }
+        printf(" (0 %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress1 = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode1", flags);
+        if (s_Bc7KernelCompress1 == nullptr)
+        {
+            printf("ERROR: failed to create mode1 compute shader\n");
+            return false;
+        }
+        printf(" (1 %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress2 = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode2", flags);
+        if (s_Bc7KernelCompress2 == nullptr)
+        {
+            printf("ERROR: failed to create mode2 compute shader\n");
+            return false;
+        }
+        printf(" (2 %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress3 = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode3", flags);
+        if (s_Bc7KernelCompress3 == nullptr)
+        {
+            printf("ERROR: failed to create mode3 compute shader\n");
+            return false;
+        }
+        printf(" (3 %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress4a = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode4_alpha", flags);
+        if (s_Bc7KernelCompress4a == nullptr)
+        {
+            printf("ERROR: failed to create mode4a compute shader\n");
+            return false;
+        }
+        printf(" (4a %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress4o = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode4_opaq", flags);
+        if (s_Bc7KernelCompress4o == nullptr)
+        {
+            printf("ERROR: failed to create mode4o compute shader\n");
+            return false;
+        }
+        printf(" (4o %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress5 = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode5", flags);
+        if (s_Bc7KernelCompress5 == nullptr)
+        {
+            printf("ERROR: failed to create mode5 compute shader\n");
+            return false;
+        }
+        printf(" (5 %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress6 = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode6", flags);
+        if (s_Bc7KernelCompress6 == nullptr)
+        {
+            printf("ERROR: failed to create mode6 compute shader\n");
+            return false;
+        }
+        printf(" (6 %.1fs)", stm_sec(stm_since(tComp0)));
+    }
+    {
+        uint64_t tComp0 = stm_now();
+        s_Bc7KernelCompress7 = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks_mode7", flags);
+        if (s_Bc7KernelCompress7 == nullptr)
+        {
+            printf("ERROR: failed to create mode7 compute shader\n");
+            return false;
+        }
+        printf(" (7 %.1fs)", stm_sec(stm_since(tComp0)));
+    }
 	{
         uint64_t tComp0 = stm_now();
-		s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_compress_blocks", flags);
+		s_Bc7KernelEncode = SmolKernelCreate(kernelSource, kernelSourceSize, "bc7e_encode_blocks", flags);
 		if (s_Bc7KernelEncode == nullptr)
 		{
 			printf("ERROR: failed to create encode compute shader\n");
 			return false;
 		}
-        printf("  (encode shader %.1fs)", stm_sec(stm_since(tComp0)));
+        printf(" (encode %.1fs)", stm_sec(stm_since(tComp0)));
 	}
 	free(kernelSource);
     return true;
@@ -534,8 +633,17 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
 
 static void CleanupCompressorResources()
 {
-    SmolKernelDelete(s_Bc7KernelEncode);
 	SmolKernelDelete(s_Bc7KernelLists);
+    SmolKernelDelete(s_Bc7KernelCompress0);
+    SmolKernelDelete(s_Bc7KernelCompress1);
+    SmolKernelDelete(s_Bc7KernelCompress2);
+    SmolKernelDelete(s_Bc7KernelCompress3);
+    SmolKernelDelete(s_Bc7KernelCompress4a);
+    SmolKernelDelete(s_Bc7KernelCompress4o);
+    SmolKernelDelete(s_Bc7KernelCompress5);
+    SmolKernelDelete(s_Bc7KernelCompress6);
+    SmolKernelDelete(s_Bc7KernelCompress7);
+    SmolKernelDelete(s_Bc7KernelEncode);
     SmolBufferDelete(s_Bc7TablesBuffer);
 	SmolBufferDelete(s_Bc7GlobBuffer);
 	SmolBufferDelete(s_Bc7InputBuffer);
@@ -620,6 +728,7 @@ static bool TestOnFile(TestFile& tf)
     
     // compress with compute shader
     {
+        const bool hasAlpha = tf.channels == 4;
         uint64_t t0 = stm_now();
         Globals glob = {tf.width, tf.height, tf.widthInBlocks, tf.heightInBlocks, settings};
 
@@ -632,13 +741,107 @@ static bool TestOnFile(TestFile& tf)
         SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
         SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
         SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
-        
+
+        // ISPC code does compression mode choices in this order:
+        // alpha: 4 6 5 7
+        // opaque: 6 1 0 3 5 2 4
+        // so we do the same, overall in this order: 4a 6 1 0 3 5 2 4o 7
+
+        if ((hasAlpha && settings.m_alpha_settings.m_use_mode4))
+        {
+            SmolKernelSet(s_Bc7KernelCompress4a);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (settings.m_opaque_settings.m_use_mode[6] || (hasAlpha && settings.m_alpha_settings.m_use_mode6))
+        {
+            SmolKernelSet(s_Bc7KernelCompress6);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (settings.m_opaque_settings.m_use_mode[0])
+        {
+            SmolKernelSet(s_Bc7KernelCompress0);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (settings.m_opaque_settings.m_use_mode[1])
+        {
+            SmolKernelSet(s_Bc7KernelCompress1);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (settings.m_opaque_settings.m_use_mode[3])
+        {
+            SmolKernelSet(s_Bc7KernelCompress3);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (settings.m_opaque_settings.m_use_mode[5] || (hasAlpha && settings.m_alpha_settings.m_use_mode5))
+        {
+            SmolKernelSet(s_Bc7KernelCompress5);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (settings.m_opaque_settings.m_use_mode[2])
+        {
+            SmolKernelSet(s_Bc7KernelCompress2);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (settings.m_opaque_settings.m_use_mode[4])
+        {
+            SmolKernelSet(s_Bc7KernelCompress4o);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+        if (hasAlpha && settings.m_alpha_settings.m_use_mode7)
+        {
+            SmolKernelSet(s_Bc7KernelCompress7);
+            SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
+            SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
+            SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
+            SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        }
+
         SmolKernelSet(s_Bc7KernelEncode);
         SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
-        SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
         SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
-        SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
-        SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Input);
+        SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Input);
         SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());

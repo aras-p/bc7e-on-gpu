@@ -4641,6 +4641,10 @@ export void bc7e_compress_blocks(uniform uint32_t num_blocks, uniform uint64_t *
 			int g = c.m_c[1];
 			int b = c.m_c[2];
 			int a = c.m_c[3];
+            //a |= 3;
+            #ifdef OPT_OPAQUE_ONLY
+            a = 255;
+            #endif
 												
 			temp_pixels[i].m_c[0] = r;
 			temp_pixels[i].m_c[1] = g;
