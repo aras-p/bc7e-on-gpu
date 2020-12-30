@@ -4,6 +4,7 @@ using namespace metal;
 //#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 //#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 //#define OPT_OPAQUE_ONLY // disables all transparency handling
+#define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
@@ -1755,6 +1756,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
                 return 0;
         }
 
+#       if !defined(OPT_UBER_LESS_THAN_2_ONLY)
         const uint32_t uber_err_thresh = (num_pixels * 56) >> 4;
         if ((pComp_params->m_uber_level >= 2) && (pResults->m_best_overall_err > uber_err_thresh))
         {
@@ -1788,6 +1790,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
                 }
             }
         }
+#       endif // #if !defined(OPT_UBER_LESS_THAN_2_ONLY)
     }
 #endif // #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
 
