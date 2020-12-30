@@ -1663,55 +1663,33 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         for (uint32_t i = 0; i < num_pixels; i++)
             selectors_temp0[i] = pResults->m_pSelectors[i];
 
-        const int max_selector = pParams->m_num_selector_weights - 1;
+        const uchar max_selector = pParams->m_num_selector_weights - 1;
 
-        uint32_t min_sel = 16;
-        uint32_t max_sel = 0;
+        uchar min_sel = 16;
+        uchar max_sel = 0;
         for (uint32_t i = 0; i < num_pixels; i++)
         {
-            uint32_t sel = selectors_temp0[i];
+            uchar sel = selectors_temp0[i];
             min_sel = min(min_sel, sel);
             max_sel = max(max_sel, sel);
         }
 
         vec4F xl = 0.0f, xh = 0.0f;
-
-        if (pComp_params->m_uber1_mask & 1)
+        for (uint uber_it = 0; uber_it < 3; ++uber_it)
         {
-            for (uint32_t i = 0; i < num_pixels; i++)
+            // note: m_uber1_mask is always 7, skip check
+            //uint uber_mask = 1 << uber_it;
+            //if (!(pComp_params->m_uber1_mask & uber_mask))
+            //    continue;
+            for (uint i = 0; i < num_pixels; i++)
             {
-                uint32_t sel = selectors_temp0[i];
-                if ((sel == min_sel) && (sel < (pParams->m_num_selector_weights - 1)))
+                uchar sel = selectors_temp0[i];
+                if ((sel == min_sel) && (sel < max_selector) && (uber_it == 0 || uber_it == 2))
                     sel++;
-                selectors_temp1[i] = sel;
-            }
-                        
-            if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
-            else
-            {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
-                xl.a = 255.0f;
-                xh.a = 255.0f;
-            }
-
-            xl *= 1.0f / 255.0f;
-            xh *= 1.0f / 255.0f;
-
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels, tables))
-                return 0;
-        }
-
-        if (pComp_params->m_uber1_mask & 2)
-        {
-            for (uint32_t i = 0; i < num_pixels; i++)
-            {
-                uint32_t sel = selectors_temp0[i];
-                if ((sel == max_sel) && (sel > 0))
+                else if ((sel == max_sel) && (sel > 0) && (uber_it == 1 || uber_it == 2))
                     sel--;
                 selectors_temp1[i] = sel;
             }
-
             if (pParams->m_has_alpha)
                 compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
             else
@@ -1720,38 +1698,8 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
                 xl.a = 255.0f;
                 xh.a = 255.0f;
             }
-
             xl *= 1.0f / 255.0f;
             xh *= 1.0f / 255.0f;
-
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels, tables))
-                return 0;
-        }
-
-        if (pComp_params->m_uber1_mask & 4)
-        {
-            for (uint32_t i = 0; i < num_pixels; i++)
-            {
-                uint32_t sel = selectors_temp0[i];
-                if ((sel == min_sel) && (sel < (pParams->m_num_selector_weights - 1)))
-                    sel++;
-                else if ((sel == max_sel) && (sel > 0))
-                    sel--;
-                selectors_temp1[i] = sel;
-            }
-
-            if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
-            else
-            {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
-                xl.a = 255.0f;
-                xh.a = 255.0f;
-            }
-
-            xl *= 1.0f / 255.0f;
-            xh *= 1.0f / 255.0f;
-
             if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, num_pixels, pPixels, tables))
                 return 0;
         }
