@@ -203,19 +203,20 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const thread uchar*
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
     float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    float4 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
+    float4 q00 = 0.0f, t = 0.0f;
     for (uint32_t i = 0; i < N; i++)
     {
-        const uint32_t sel = pSelectors[i];
+        auto sel = pSelectors[i];
         float4 wt = tables->g_bc7_weightsx[weights_index+sel];
         z00 += wt.r;
         z10 += wt.g;
         z11 += wt.b;
         float w = wt.a;
-        q00 += w * float4(pColors[i]); t += float4(pColors[i]);
+        float4 pc = float4(pColors[i]);
+        q00 += w * pc; t += pc;
     }
 
-    q10 = t - q00;
+    float4 q10 = t - q00;
 
     z01 = z10;
 
@@ -230,40 +231,6 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const thread uchar*
     iz11 = z00 * det;
 
     *pXl = iz00 * q00 + iz01 * q10; *pXh = iz10 * q00 + iz11 * q10;
-}
-
-static void compute_least_squares_endpoints_rgb(uint32_t N, const thread uchar* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread uchar4* pColors, const constant LookupTables* tables)
-{
-    // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
-    // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
-    float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    float3 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
-    for (uint32_t i = 0; i < N; i++)
-    {
-        const uint32_t sel = pSelectors[i];
-        float4 wt = tables->g_bc7_weightsx[weights_index+sel];
-        z00 += wt.r;
-        z10 += wt.g;
-        z11 += wt.b;
-        float w = wt.a;
-        q00 += w * float3(pColors[i].rgb); t += float3(pColors[i].rgb);
-    }
-
-    q10 = t - q00;
-
-    z01 = z10;
-
-    float det = z00 * z11 - z01 * z10;
-    if (det != 0.0f)
-        det = 1.0f / det;
-
-    float iz00, iz01, iz10, iz11;
-    iz00 = z11 * det;
-    iz01 = -z01 * det;
-    iz10 = -z10 * det;
-    iz11 = z00 * det;
-
-    pXl->rgb = iz00 * q00 + iz01 * q10; pXh->rgb = iz10 * q00 + iz11 * q10;
 }
 
 static void compute_least_squares_endpoints_a(uint32_t N, const thread uchar* pSelectors, uint weights_index, thread float* pXl, thread float* pXh, const thread uchar4* pColors, const constant LookupTables* tables)
@@ -1640,11 +1607,9 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
     //for (uint32_t i = 0; i < pComp_params->m_refinement_passes; i++)
     {
         vec4F xl = 0.0f, xh = 0.0f;
-        if (pParams->m_has_alpha)
-            compute_least_squares_endpoints_rgba(num_pixels, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
-        else
+        compute_least_squares_endpoints_rgba(num_pixels, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+        if (!pParams->m_has_alpha)
         {
-            compute_least_squares_endpoints_rgb(num_pixels, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
             xl.a = 255.0f;
             xh.a = 255.0f;
         }
@@ -1690,11 +1655,9 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
                     sel--;
                 selectors_temp1[i] = sel;
             }
-            if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
-            else
+            compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+            if (!pParams->m_has_alpha)
             {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
                 xl.a = 255.0f;
                 xh.a = 255.0f;
             }
@@ -1721,11 +1684,9 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
 
                     xl = 0.0f;
                     xh = 0.0f;
-                    if (pParams->m_has_alpha)
-                        compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
-                    else
+                    compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+                    if (!pParams->m_has_alpha)
                     {
-                        compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
                         xl.a = 255.0f;
                         xh.a = 255.0f;
                     }

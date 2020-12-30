@@ -16,8 +16,9 @@
 #include <sys/stat.h>
 #endif
 
-const int kQuality = 0;
-const int kRunCount = 8;
+const bool kDoCapture = false;
+const int kQuality = 3;
+const int kRunCount = kDoCapture ? 1 : 8;
 const bool kRequireExactResultsMatch = true;
 const float kAllowedPsnrDiff = 80;
 
@@ -959,7 +960,8 @@ int main()
     }
     
     // Create compression shaders & buffers
-	//SmolCaptureStart();
+    if (kDoCapture)
+        SmolCaptureStart();
     if (!InitializeCompressorResources(maxRgbaSize, maxBc7Size))
     {
         ++errorCount;
@@ -976,7 +978,8 @@ int main()
                     ++errorCount;
             }
         }
-        //SmolCaptureFinish();
+        if (kDoCapture)
+            SmolCaptureFinish();
         
         printf("Timing results, Mpix/sec CPU vs GPU:\n");
         double mpixsRefSum = 0, mpixsGotSum = 0;
