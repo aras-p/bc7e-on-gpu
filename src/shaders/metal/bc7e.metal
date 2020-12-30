@@ -2547,7 +2547,7 @@ static inline uint4 encode_bc7_block_mode6(thread bc7_optimization_results* pRes
 }
 
 static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
-                                     thread bc7_optimization_results* pOpt_results4, const constant LookupTables* tables)
+                                     thread bc7_optimization_results& res, const constant LookupTables* tables, int rotation)
 {
     pParams->m_has_alpha = false;
     pParams->m_comp_bits = 5;
@@ -2742,24 +2742,24 @@ static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constan
 
         trial_err += best_alpha_err;
 
-        if (trial_err < pOpt_results4->m_error)
+        if (trial_err < res.m_error)
         {
-            pOpt_results4->m_error = trial_err;
+            res.m_error = trial_err;
 
-            pOpt_results4->m_mode = 4;
-            pOpt_results4->m_rotation_index_sel = index_selector << 4;
-            pOpt_results4->m_partition = 0;
+            res.m_mode = 4;
+            res.m_rotation_index_sel = (index_selector << 4) | rotation;
+            res.m_partition = 0;
 
-            pOpt_results4->m_low[0] = results.m_low_endpoint;
-            pOpt_results4->m_high[0] = results.m_high_endpoint;
-            pOpt_results4->m_low[0].a = best_la;
-            pOpt_results4->m_high[0].a = best_ha;
-
-            for (uint32_t i = 0; i < 16; i++)
-                pOpt_results4->m_selectors[i] = selectors[i];
+            res.m_low[0] = results.m_low_endpoint;
+            res.m_high[0] = results.m_high_endpoint;
+            res.m_low[0].a = best_la;
+            res.m_high[0].a = best_ha;
 
             for (uint32_t i = 0; i < 16; i++)
-                pOpt_results4->m_alpha_selectors[i] = best_alpha_selectors[i];
+                res.m_selectors[i] = selectors[i];
+
+            for (uint32_t i = 0; i < 16; i++)
+                res.m_alpha_selectors[i] = best_alpha_selectors[i];
         }
 
     } // index_selector
@@ -3058,24 +3058,7 @@ static void handle_block_mode4(
 
             pTrial_pixels = rot_pixels;
         }
-
-        bc7_optimization_results trial_res;
-        trial_res.m_error = res.m_error;
-        handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_res, tables);
-
-        if (trial_res.m_error < res.m_error)
-        {
-            res.m_error = trial_res.m_error;
-            res.m_mode = 4;
-            res.m_rotation_index_sel = rotation | trial_res.m_rotation_index_sel;
-            res.m_partition = 0;
-            res.m_low[0] = trial_res.m_low[0];
-            res.m_high[0] = trial_res.m_high[0];
-            for (uint32_t i = 0; i < 16; i++)
-                res.m_selectors[i] = trial_res.m_selectors[i];
-            for (uint32_t i = 0; i < 16; i++)
-                res.m_alpha_selectors[i] = trial_res.m_alpha_selectors[i];
-        }
+        handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, res, tables, rotation);
     } // rotation
 }
 
