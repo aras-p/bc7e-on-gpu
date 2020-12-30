@@ -280,13 +280,13 @@ struct color_cell_compressor_params
     bool m_perceptual;
 };
 
-static inline void color_cell_compressor_params_clear(thread color_cell_compressor_params* p)
+static inline void color_cell_compressor_params_clear(thread color_cell_compressor_params* p, const constant bc7e_compress_block_params* pComp_params)
 {
     p->m_num_selector_weights = 0;
     p->m_weights_index = 0;
     p->m_comp_bits = 0;
-    p->m_perceptual = false;
-    p->m_weights = 1;
+    p->m_perceptual = pComp_params->m_perceptual;
+    p->m_weights = pComp_params->m_weights;
     p->m_has_alpha = false;
     p->m_has_pbits = false;
     p->m_endpoints_share_pbit = false;
@@ -1951,16 +1951,12 @@ static uint32_t estimate_partition(uint32_t mode, const uchar4 pixels[16], const
     uint32_t best_partition = 0;
 
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
+    color_cell_compressor_params_clear(&params, pComp_params);
 
     params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
-    params.m_weights = pComp_params->m_weights;
-
     // Note: m_mode67_error_weight_mul was always 1, removed
-
-    params.m_perceptual = pComp_params->m_perceptual;
 
     for (uint32_t partition = 0; partition < total_partitions; partition++)
     {
@@ -2051,16 +2047,12 @@ static uint32_t estimate_partition_list(uint32_t mode, const thread uchar4* pixe
     }
                         
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
+    color_cell_compressor_params_clear(&params, pComp_params);
 
     params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
-    params.m_weights = pComp_params->m_weights;
-
     // Note: m_mode67_error_weight_mul was always 1, removed
-
-    params.m_perceptual = pComp_params->m_perceptual;
 
     int32_t num_solutions = 0;
 
@@ -2465,7 +2457,6 @@ static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constan
     pParams->m_comp_bits = 5;
     pParams->m_has_pbits = false;
     pParams->m_endpoints_share_pbit = false;
-    pParams->m_perceptual = pComp_params->m_perceptual;
 
     for (uint32_t index_selector = 0; index_selector < 2; index_selector++)
     {
@@ -2688,8 +2679,6 @@ static void handle_alpha_block_mode5(const thread uchar4* pPixels, const constan
     pParams->m_has_pbits = false;
     pParams->m_endpoints_share_pbit = false;
     
-    pParams->m_perceptual = pComp_params->m_perceptual;
-        
     color_cell_compressor_results results5;
     results5.m_pSelectors = pOpt_results5->m_selectors;
 
@@ -2935,7 +2924,6 @@ static void handle_block_mode4(
                                int num_rotations,
                                const constant LookupTables* tables)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     color_cell_compressor_params params4 = *pParams;
 
     for (int rotation = 0; rotation < num_rotations; rotation++)
@@ -2983,7 +2971,6 @@ static void handle_alpha_block_mode5(
                                      int hi_a,
                                      const constant LookupTables* tables)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     color_cell_compressor_params params5 = *pParams;
     const uint num_rotations = (pComp_params->m_perceptual || (!pComp_params->m_alpha_settings.m_use_mode5_rotation)) ? 1 : 4;
     for (uint rotation = 0; rotation < num_rotations; rotation++)
@@ -3041,7 +3028,6 @@ static void handle_alpha_block_mode7(
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.x, solutions);
 
@@ -3211,7 +3197,6 @@ static void handle_block_mode6(
     pParams->m_has_pbits = true;
     pParams->m_endpoints_share_pbit = false;
     pParams->m_has_alpha = has_alpha;
-    pParams->m_perceptual = pComp_params->m_perceptual;
     // Note: m_mode67_error_weight_mul was always 1, removed
 
     uchar selectors[16];
@@ -3241,7 +3226,6 @@ static void handle_opaque_block_mode1(
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
     const bool disable_faster_part_selection = false;
@@ -3398,7 +3382,6 @@ static void handle_opaque_block_mode0(
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.z, solutions);
     
@@ -3409,8 +3392,6 @@ static void handle_opaque_block_mode0(
     pParams->m_has_pbits = true;
     pParams->m_endpoints_share_pbit = false;
 
-    pParams->m_perceptual = pComp_params->m_perceptual;
-            
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
         const uint32_t best_partition0 = solutions[solution_index].m_index;
@@ -3489,7 +3470,6 @@ static void handle_opaque_block_mode3(
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
     const bool disable_faster_part_selection = false;
@@ -3499,8 +3479,6 @@ static void handle_opaque_block_mode3(
     pParams->m_comp_bits = 7;
     pParams->m_has_pbits = true;
     pParams->m_endpoints_share_pbit = false;
-
-    pParams->m_perceptual = pComp_params->m_perceptual;
 
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
@@ -3647,7 +3625,6 @@ static void handle_opaque_block_mode5(
                                      thread color_cell_compressor_params* pParams,
                                      const constant LookupTables* tables)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     color_cell_compressor_params params5 = *pParams;
 
     for (uint32_t rotation = 0; rotation < 4; rotation++)
@@ -3703,7 +3680,6 @@ static void handle_opaque_block_mode2(
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
-    pParams->m_perceptual = pComp_params->m_perceptual;
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.w, solutions);
 
@@ -3713,8 +3689,6 @@ static void handle_opaque_block_mode2(
     pParams->m_comp_bits = 5;
     pParams->m_has_pbits = false;
     pParams->m_endpoints_share_pbit = false;
-
-    pParams->m_perceptual = pComp_params->m_perceptual;
 
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
@@ -3835,9 +3809,7 @@ kernel void bc7e_estimate_partition_lists(
         return;
     
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
     
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -3878,8 +3850,7 @@ kernel void bc7e_compress_blocks_mode4_alpha(
         return;
     
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
     
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -3919,8 +3890,7 @@ kernel void bc7e_compress_blocks_mode4_opaq(
         return;
     
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
     
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -3963,8 +3933,7 @@ kernel void bc7e_compress_blocks_mode6(
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -4003,8 +3972,7 @@ kernel void bc7e_compress_blocks_mode5(
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -4045,8 +4013,7 @@ kernel void bc7e_compress_blocks_mode2(
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -4086,8 +4053,7 @@ kernel void bc7e_compress_blocks_mode1(
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -4127,8 +4093,7 @@ kernel void bc7e_compress_blocks_mode0(
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -4168,8 +4133,7 @@ kernel void bc7e_compress_blocks_mode3(
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -4209,8 +4173,7 @@ kernel void bc7e_compress_blocks_mode7(
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params);
-    params.m_weights = glob.params.m_weights;
+    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
