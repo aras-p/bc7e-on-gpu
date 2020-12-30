@@ -2,7 +2,7 @@
 using namespace metal;
 
 //#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
-#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
+//#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 //#define OPT_OPAQUE_ONLY // disables all transparency handling
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
@@ -3013,19 +3013,19 @@ static uint4 get_lists_opaque(const uchar4 pixels[16], const constant bc7e_compr
     return lists;
 }
 
-static void handle_alpha_block_mode4(
-                                     thread bc7_optimization_results& res,
-                                     const uchar4 pixels[16],
-                                     const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
-                                     int lo_a,
-                                     int hi_a,
-                                     const constant LookupTables* tables)
+static void handle_block_mode4(
+                               thread bc7_optimization_results& res,
+                               const uchar4 pixels[16],
+                               const constant bc7e_compress_block_params* pComp_params,
+                               thread color_cell_compressor_params* pParams,
+                               int lo_a,
+                               int hi_a,
+                               int num_rotations,
+                               const constant LookupTables* tables)
 {
     pParams->m_perceptual = pComp_params->m_perceptual;
     color_cell_compressor_params params4 = *pParams;
 
-    const int num_rotations = (pComp_params->m_perceptual || (!pComp_params->m_alpha_settings.m_use_mode4_rotation)) ? 1 : 4;
     for (int rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((pComp_params->m_mode4_rotation_mask & (1 << rotation)) == 0)
@@ -3069,13 +3069,10 @@ static void handle_alpha_block_mode4(
             res.m_mode = 4;
             res.m_rotation_index_sel = rotation | trial_res.m_rotation_index_sel;
             res.m_partition = 0;
-
             res.m_low[0] = trial_res.m_low[0];
             res.m_high[0] = trial_res.m_high[0];
-
             for (uint32_t i = 0; i < 16; i++)
                 res.m_selectors[i] = trial_res.m_selectors[i];
-            
             for (uint32_t i = 0; i < 16; i++)
                 res.m_alpha_selectors[i] = trial_res.m_alpha_selectors[i];
         }
@@ -3348,70 +3345,6 @@ static void handle_alpha_block_mode7(
             }
         }
     }
-}
-
-
-static void handle_opaque_block_mode4(
-                                     thread bc7_optimization_results& res,
-                                     const uchar4 pixels[16],
-                                     const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
-                                     const constant LookupTables* tables)
-{
-    pParams->m_perceptual = pComp_params->m_perceptual;
-    color_cell_compressor_params params4 = *pParams;
-
-    for (uint32_t rotation = 0; rotation < 4; rotation++)
-    {
-        if ((pComp_params->m_mode4_rotation_mask & (1 << rotation)) == 0)
-            continue;
-
-        params4.m_weights = pParams->m_weights;
-        if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
-        if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
-        if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
-                        
-        uchar4 rot_pixels[16];
-        const thread uchar4* pTrial_pixels = pixels;
-        uchar trial_lo_a = 255, trial_hi_a = 255;
-        if (rotation)
-        {
-            trial_lo_a = 255;
-            trial_hi_a = 0;
-
-            for (uint32_t i = 0; i < 16; i++)
-            {
-                auto c = pixels[i];
-                if (rotation == 1) c = c.agbr;
-                if (rotation == 2) c = c.rabg;
-                if (rotation == 3) c = c.rgab;
-                rot_pixels[i] = c;
-
-                trial_lo_a = min(trial_lo_a, c.a);
-                trial_hi_a = max(trial_hi_a, c.a);
-            }
-
-            pTrial_pixels = rot_pixels;
-        }
-
-        bc7_optimization_results trial_res;
-        trial_res.m_error = res.m_error;
-        handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, &trial_res, tables);
-
-        if (trial_res.m_error < res.m_error)
-        {
-            res.m_error = trial_res.m_error;
-            res.m_mode = 4;
-            res.m_rotation_index_sel = rotation | trial_res.m_rotation_index_sel;
-            res.m_partition = 0;
-            res.m_low[0] = trial_res.m_low[0];
-            res.m_high[0] = trial_res.m_high[0];
-            for (uint32_t i = 0; i < 16; i++)
-                res.m_selectors[i] = trial_res.m_selectors[i];
-            for (uint32_t i = 0; i < 16; i++)
-                res.m_alpha_selectors[i] = trial_res.m_alpha_selectors[i];
-        }
-    } // rotation
 }
 
 static void handle_opaque_block_mode6(
@@ -4083,20 +4016,7 @@ kernel void bc7e_estimate_partition_lists(
     }
 
     uint block_index = id.y * glob.widthInBlocks + id.x;
-    
-    bc7_optimization_results res;
-    res.m_error = UINT_MAX;
-    res.m_mode = 0;
-    res.m_partition = 0;
-    res.m_pbits = 0;
-    for (int i = 0; i < 16; ++i)
-        res.m_selectors[i] = 0;
-    for (int i = 0; i < 16; ++i)
-        res.m_alpha_selectors[i] = 0;
-    res.m_low[0] = res.m_low[1] = res.m_low[2] = 0;
-    res.m_high[0] = res.m_high[1] = res.m_high[2] = 0;
-    res.m_rotation_index_sel = 0;
-    bufTemp[block_index] = res;
+    bufTemp[block_index].m_error = UINT_MAX;
     bufLists[block_index] = lists;
 }
 
@@ -4129,7 +4049,8 @@ kernel void bc7e_compress_blocks_mode4_alpha(
     {
         if (!glob.params.m_alpha_settings.m_use_mode4)
             return;
-        handle_alpha_block_mode4(res, pixels, &glob.params, &params, lo_a, hi_a, tables);
+        const int num_rotations = (glob.params.m_perceptual || (!glob.params.m_alpha_settings.m_use_mode4_rotation)) ? 1 : 4;
+        handle_block_mode4(res, pixels, &glob.params, &params, lo_a, hi_a, num_rotations, tables);
     }
     else
 #endif
@@ -4178,7 +4099,7 @@ kernel void bc7e_compress_blocks_mode4_opaq(
         if (glob.params.m_mode6_only || glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[4])
             return;
         else
-            handle_opaque_block_mode4(res, pixels, &glob.params, &params, tables);
+            handle_block_mode4(res, pixels, &glob.params, &params, 255, 255, 4, tables);
 #endif
     }
     if (res.m_error < prev_error)
