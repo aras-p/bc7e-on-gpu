@@ -1,9 +1,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
-//#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
-//#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
-//#define OPT_OPAQUE_ONLY // disables all transparency handling
+#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
+#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 #define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
@@ -3778,9 +3777,6 @@ void load_pixel_block(uchar4 pixels[16], thread uchar& out_lo_a, thread uchar& o
         uchar b = (craw >> 16) & 0xFF;
         uchar a = (craw >> 24);
         //a |= 3;
-        #ifdef OPT_OPAQUE_ONLY
-        a = 255;
-        #endif
 
         pixels[i] = uchar4(r, g, b, a);
 
@@ -3818,11 +3814,9 @@ kernel void bc7e_estimate_partition_lists(
 
     uint4 lists = 0;
     
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
         lists = get_lists_alpha(pixels, &glob.params);
     else
-#endif
     {
 #ifdef OPT_ULTRAFAST_ONLY
         ;
@@ -3862,7 +3856,6 @@ kernel void bc7e_compress_blocks_mode4_alpha(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         if (!glob.params.m_alpha_settings.m_use_mode4)
@@ -3871,7 +3864,6 @@ kernel void bc7e_compress_blocks_mode4_alpha(
         handle_block_mode4(res, pixels, &glob.params, &params, lo_a, hi_a, num_rotations, tables);
     }
     else
-#endif
     {
         return;
     }
@@ -3902,13 +3894,11 @@ kernel void bc7e_compress_blocks_mode4_opaq(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         return;
     }
     else
-#endif
     {
 #ifdef OPT_ULTRAFAST_ONLY
         return;
@@ -3945,14 +3935,12 @@ kernel void bc7e_compress_blocks_mode6(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         if (!glob.params.m_alpha_settings.m_use_mode6)
             return;
     }
     else
-#endif
     {
         if (!glob.params.m_opaque_settings.m_use_mode[6])
             return;
@@ -3984,7 +3972,6 @@ kernel void bc7e_compress_blocks_mode5(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         if (!glob.params.m_alpha_settings.m_use_mode5)
@@ -3992,7 +3979,6 @@ kernel void bc7e_compress_blocks_mode5(
         handle_alpha_block_mode5(res, pixels, &glob.params, &params, lo_a, hi_a, tables);
     }
     else
-#endif
     {
         if (glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[5])
             return;
@@ -4025,13 +4011,11 @@ kernel void bc7e_compress_blocks_mode2(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         return;
     }
     else
-#endif
     {
         if (!glob.params.m_opaque_settings.m_use_mode[2])
             return;
@@ -4065,13 +4049,11 @@ kernel void bc7e_compress_blocks_mode1(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         return;
     }
     else
-#endif
     {
         if (!glob.params.m_opaque_settings.m_use_mode[1])
             return;
@@ -4105,13 +4087,11 @@ kernel void bc7e_compress_blocks_mode0(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         return;
     }
     else
-#endif
     {
         if (!glob.params.m_opaque_settings.m_use_mode[0])
             return;
@@ -4145,13 +4125,11 @@ kernel void bc7e_compress_blocks_mode3(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         return;
     }
     else
-#endif
     {
         if (!glob.params.m_opaque_settings.m_use_mode[3])
             return;
@@ -4185,7 +4163,6 @@ kernel void bc7e_compress_blocks_mode7(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         #if defined(OPT_ULTRAFAST_ONLY)
@@ -4198,7 +4175,6 @@ kernel void bc7e_compress_blocks_mode7(
         #endif
     }
     else
-#endif
     {
         return;
     }

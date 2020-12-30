@@ -3,8 +3,6 @@
 // Typically compiled as: ispc -g -O2 "%(Filename).ispc" -o "$(TargetDir)%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --target=sse2,sse4,avx,avx2 --opt=fast-math --opt=disable-assertions
 // --opt=fast-math is optional (doesn't make much if any measurable difference). 
 
-//#define OPT_OPAQUE_ONLY
-
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
 #define BC7E_MAX_PARTITIONS0 (16)
@@ -4642,9 +4640,6 @@ export void bc7e_compress_blocks(uniform uint32_t num_blocks, uniform uint64_t *
 			int b = c.m_c[2];
 			int a = c.m_c[3];
             //a |= 3;
-            #ifdef OPT_OPAQUE_ONLY
-            a = 255;
-            #endif
 												
 			temp_pixels[i].m_c[0] = r;
 			temp_pixels[i].m_c[1] = g;
@@ -4662,11 +4657,9 @@ export void bc7e_compress_blocks(uniform uint32_t num_blocks, uniform uint64_t *
 		const bool has_alpha = (lo_a < 255);
 				
 		// TODO: alpha block mode 6 only
-		#ifndef OPT_OPAQUE_ONLY
 		cif (has_alpha)
 			handle_alpha_block(pBlock, temp_pixels, pComp_params, &params, (int)lo_a, (int)hi_a);
 		else
-		#endif
 		{
 			if (pComp_params->m_mode6_only)
 				handle_opaque_block_mode6(pBlock, temp_pixels, pComp_params, &params);
