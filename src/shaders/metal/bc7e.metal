@@ -2862,7 +2862,7 @@ static uint4 get_lists_opaque(const uchar4 pixels[16], const constant bc7e_compr
     // w = mode 2 lists
     uint4 lists = 0;
     
-    if (pComp_params->m_opaque_settings.m_use_mode[1] || pComp_params->m_opaque_settings.m_use_mode[3])
+    if ((pComp_params->m_opaque_settings.m_use_mode[1] || pComp_params->m_opaque_settings.m_use_mode[3]) && !pComp_params->m_mode6_only)
     {
         solution sol13[4];
         uint num_sol13 = 0;
@@ -2878,7 +2878,7 @@ static uint4 get_lists_opaque(const uchar4 pixels[16], const constant bc7e_compr
         lists.y = encode_solutions(sol13, num_sol13);
     }
     
-    if (pComp_params->m_opaque_settings.m_use_mode[0])
+    if ((pComp_params->m_opaque_settings.m_use_mode[0]) && !pComp_params->m_mode6_only)
     {
         solution sol0[4];
         uint num_sol0 = 0;
@@ -2894,7 +2894,7 @@ static uint4 get_lists_opaque(const uchar4 pixels[16], const constant bc7e_compr
         lists.z = encode_solutions(sol0, num_sol0);
     }
     
-    if (pComp_params->m_opaque_settings.m_use_mode[2])
+    if ((pComp_params->m_opaque_settings.m_use_mode[2]) && !pComp_params->m_mode6_only)
     {
         solution sol2[4];
         uint num_sol2 = 0;
@@ -3980,7 +3980,7 @@ kernel void bc7e_compress_blocks_mode5(
     }
     else
     {
-        if (glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[5])
+        if (glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[5] || glob.params.m_mode6_only)
             return;
         handle_opaque_block_mode5(res, pixels, &glob.params, &params, tables);
     }
@@ -4017,7 +4017,7 @@ kernel void bc7e_compress_blocks_mode2(
     }
     else
     {
-        if (!glob.params.m_opaque_settings.m_use_mode[2])
+        if (!glob.params.m_opaque_settings.m_use_mode[2] || glob.params.m_mode6_only)
             return;
         uint4 lists = bufLists[block_index];
         handle_opaque_block_mode2(res, pixels, &glob.params, &params, tables, lists);
@@ -4055,7 +4055,7 @@ kernel void bc7e_compress_blocks_mode1(
     }
     else
     {
-        if (!glob.params.m_opaque_settings.m_use_mode[1])
+        if (!glob.params.m_opaque_settings.m_use_mode[1] || glob.params.m_mode6_only)
             return;
         uint4 lists = bufLists[block_index];
         handle_opaque_block_mode1(res, pixels, &glob.params, &params, tables, lists);
@@ -4093,7 +4093,7 @@ kernel void bc7e_compress_blocks_mode0(
     }
     else
     {
-        if (!glob.params.m_opaque_settings.m_use_mode[0])
+        if (!glob.params.m_opaque_settings.m_use_mode[0] || glob.params.m_mode6_only)
             return;
         uint4 lists = bufLists[block_index];
         handle_opaque_block_mode0(res, pixels, &glob.params, &params, tables, lists);
@@ -4131,7 +4131,7 @@ kernel void bc7e_compress_blocks_mode3(
     }
     else
     {
-        if (!glob.params.m_opaque_settings.m_use_mode[3])
+        if (!glob.params.m_opaque_settings.m_use_mode[3] || glob.params.m_mode6_only)
             return;
         uint4 lists = bufLists[block_index];
         handle_opaque_block_mode3(res, pixels, &glob.params, &params, tables, lists);
