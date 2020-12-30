@@ -3062,51 +3062,6 @@ static void handle_block_mode4(
     } // rotation
 }
 
-static void handle_alpha_block_mode6(
-                                     thread bc7_optimization_results& res,
-                                     const uchar4 pixels[16],
-                                     const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
-                                     int lo_a,
-                                     int hi_a,
-                                     const constant LookupTables* tables)
-{
-    pParams->m_perceptual = pComp_params->m_perceptual;
-    
-    color_cell_compressor_params params6 = *pParams;
-
-    // Note: m_mode67_error_weight_mul was always 1, removed
-
-    color_cell_compressor_results res6;
-    
-    params6.m_weights_index = kBC7Weights4Index;
-    params6.m_num_selector_weights = 16;
-
-    params6.m_comp_bits = 7;
-    params6.m_has_pbits = true;
-    params6.m_endpoints_share_pbit = false;
-    params6.m_has_alpha = true;
-            
-    uchar selectors[16];
-    res6.m_pSelectors = selectors;
-
-    uint32_t err = color_cell_compression(6, &params6, &res6, pComp_params, 16, pixels, true, tables);
-    assert(err == res6.m_best_overall_err);
-    
-    if (err < res.m_error)
-    {
-        res.m_error = err;
-        res.m_mode = 6;
-        res.m_rotation_index_sel = 0;
-        res.m_partition = 0;
-        res.m_low[0] = res6.m_low_endpoint;
-        res.m_high[0] = res6.m_high_endpoint;
-        res.m_pbits = (res.m_pbits & ~3) | res6.m_pbits;
-        for (int i = 0; i < 16; i++)
-            res.m_selectors[i] = selectors[i];
-    }
-}
-
 static void handle_alpha_block_mode5(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
@@ -3330,42 +3285,39 @@ static void handle_alpha_block_mode7(
     }
 }
 
-static void handle_opaque_block_mode6(
-                                     thread bc7_optimization_results& res,
-                                     const uchar4 pixels[16],
-                                     const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
-                                     const constant LookupTables* tables)
+static void handle_block_mode6(
+                               thread bc7_optimization_results& res,
+                               const uchar4 pixels[16],
+                               const constant bc7e_compress_block_params* pComp_params,
+                               thread color_cell_compressor_params* pParams,
+                               const constant LookupTables* tables,
+                               bool has_alpha)
 {
     pParams->m_weights_index = kBC7Weights4Index;
     pParams->m_num_selector_weights = 16;
-
     pParams->m_comp_bits = 7;
     pParams->m_has_pbits = true;
     pParams->m_endpoints_share_pbit = false;
-
+    pParams->m_has_alpha = has_alpha;
     pParams->m_perceptual = pComp_params->m_perceptual;
+    // Note: m_mode67_error_weight_mul was always 1, removed
 
-    color_cell_compressor_results results6;
-    results6.m_best_overall_err = res.m_error;
     uchar selectors[16];
-    results6.m_pSelectors = selectors;
+    color_cell_compressor_results cres;
+    cres.m_pSelectors = selectors;
 
-    uint err = color_cell_compression(6, pParams, &results6, pComp_params, 16, pixels, true, tables);
+    uint err = color_cell_compression(6, pParams, &cres, pComp_params, 16, pixels, true, tables);
     if (err < res.m_error)
     {
-        for (int i = 0; i < 16; ++i)
-            res.m_selectors[i] = selectors[i];
-
         res.m_error = err;
         res.m_mode = 6;
         res.m_rotation_index_sel = 0;
         res.m_partition = 0;
-
-        res.m_low[0] = results6.m_low_endpoint;
-        res.m_high[0] = results6.m_high_endpoint;
-
-        res.m_pbits = results6.m_pbits;
+        res.m_low[0] = cres.m_low_endpoint;
+        res.m_high[0] = cres.m_high_endpoint;
+        res.m_pbits = cres.m_pbits;
+        for (int i = 0; i < 16; ++i)
+            res.m_selectors[i] = selectors[i];
     }
 }
 
@@ -4117,15 +4069,14 @@ kernel void bc7e_compress_blocks_mode6(
     {
         if (!glob.params.m_alpha_settings.m_use_mode6)
             return;
-        handle_alpha_block_mode6(res, pixels, &glob.params, &params, lo_a, hi_a, tables);
     }
     else
 #endif
     {
         if (!glob.params.m_opaque_settings.m_use_mode[6])
             return;
-        handle_opaque_block_mode6(res, pixels, &glob.params, &params, tables);
     }
+    handle_block_mode6(res, pixels, &glob.params, &params, tables, has_alpha);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 }
