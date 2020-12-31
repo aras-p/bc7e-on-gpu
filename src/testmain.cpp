@@ -25,7 +25,7 @@ const float kAllowedPsnrDiff = 80;
 
 static const char* kTestFileNames[] =
 {
-	"textures/20x20.png",
+	"textures/28x20.png",
     "textures/2dSignsCrop.png",
     "textures/AoCrop-gray.png",
     "textures/DecalRust.png",
