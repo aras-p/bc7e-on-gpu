@@ -1,8 +1,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
-#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
-#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
+//#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
+//#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 #define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
@@ -102,36 +102,31 @@ static inline vec4F vec4F_normalize(vec4F v)
     return v;
 }
 
-
-static const constant int g_bc7_partition1[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-
-static const constant int g_bc7_partition2[64 * 16] =
-{
-    0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,        0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,        0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,        0,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,        0,0,0,0,0,0,0,1,0,0,0,1,0,0,1,1,        0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,1,        0,0,0,1,0,0,1,1,0,1,1,1,1,1,1,1,        0,0,0,0,0,0,0,1,0,0,1,1,0,1,1,1,
-    0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,        0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,        0,0,0,0,0,0,0,1,0,1,1,1,1,1,1,1,        0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,        0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,        0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,        0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,        0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,
-    0,0,0,0,1,0,0,0,1,1,1,0,1,1,1,1,        0,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,        0,0,0,0,0,0,0,0,1,0,0,0,1,1,1,0,        0,1,1,1,0,0,1,1,0,0,0,1,0,0,0,0,        0,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,        0,0,0,0,1,0,0,0,1,1,0,0,1,1,1,0,        0,0,0,0,0,0,0,0,1,0,0,0,1,1,0,0,        0,1,1,1,0,0,1,1,0,0,1,1,0,0,0,1,
-    0,0,1,1,0,0,0,1,0,0,0,1,0,0,0,0,        0,0,0,0,1,0,0,0,1,0,0,0,1,1,0,0,        0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,        0,0,1,1,0,1,1,0,0,1,1,0,1,1,0,0,        0,0,0,1,0,1,1,1,1,1,1,0,1,0,0,0,        0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,        0,1,1,1,0,0,0,1,1,0,0,0,1,1,1,0,        0,0,1,1,1,0,0,1,1,0,0,1,1,1,0,0,
-    0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,        0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,        0,1,0,1,1,0,1,0,0,1,0,1,1,0,1,0,        0,0,1,1,0,0,1,1,1,1,0,0,1,1,0,0,        0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,        0,1,0,1,0,1,0,1,1,0,1,0,1,0,1,0,        0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,        0,1,0,1,1,0,1,0,1,0,1,0,0,1,0,1,
-    0,1,1,1,0,0,1,1,1,1,0,0,1,1,1,0,        0,0,0,1,0,0,1,1,1,1,0,0,1,0,0,0,        0,0,1,1,0,0,1,0,0,1,0,0,1,1,0,0,        0,0,1,1,1,0,1,1,1,1,0,1,1,1,0,0,        0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,        0,0,1,1,1,1,0,0,1,1,0,0,0,0,1,1,        0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,1,        0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,
-    0,1,0,0,1,1,1,0,0,1,0,0,0,0,0,0,        0,0,1,0,0,1,1,1,0,0,1,0,0,0,0,0,        0,0,0,0,0,0,1,0,0,1,1,1,0,0,1,0,        0,0,0,0,0,1,0,0,1,1,1,0,0,1,0,0,        0,1,1,0,1,1,0,0,1,0,0,1,0,0,1,1,        0,0,1,1,0,1,1,0,1,1,0,0,1,0,0,1,        0,1,1,0,0,0,1,1,1,0,0,1,1,1,0,0,        0,0,1,1,1,0,0,1,1,1,0,0,0,1,1,0,
-    0,1,1,0,1,1,0,0,1,1,0,0,1,0,0,1,        0,1,1,0,0,0,1,1,0,0,1,1,1,0,0,1,        0,1,1,1,1,1,1,0,1,0,0,0,0,0,0,1,        0,0,0,1,1,0,0,0,1,1,1,0,0,1,1,1,        0,0,0,0,1,1,1,1,0,0,1,1,0,0,1,1,        0,0,1,1,0,0,1,1,1,1,1,1,0,0,0,0,        0,0,1,0,0,0,1,0,1,1,1,0,1,1,1,0,        0,1,0,0,0,1,0,0,0,1,1,1,0,1,1,1
+// each partition layout encoded in 32 bits: two bits per pixel
+static const constant uint g_bc7_partition2[64] = {
+    0x50505050, 0x40404040, 0x54545454, 0x54505040, 0x50404000, 0x55545450, 0x55545040, 0x54504000,
+    0x50400000, 0x55555450, 0x55544000, 0x54400000, 0x55555440, 0x55550000, 0x55555500, 0x55000000,
+    0x55150100, 0x00004054, 0x15010000, 0x00405054, 0x00004050, 0x15050100, 0x05010000, 0x40505054,
+    0x00404050, 0x05010100, 0x14141414, 0x05141450, 0x01155440, 0x00555500, 0x15014054, 0x05414150,
+    0x44444444, 0x55005500, 0x11441144, 0x05055050, 0x05500550, 0x11114444, 0x41144114, 0x44111144,
+    0x15055054, 0x01055040, 0x05041050, 0x05455150, 0x14414114, 0x50050550, 0x41411414, 0x00141400,
+    0x00041504, 0x00105410, 0x10541000, 0x04150400, 0x50410514, 0x41051450, 0x05415014, 0x14054150,
+    0x41050514, 0x41505014, 0x40011554, 0x54150140, 0x50505500, 0x00555050, 0x15151010, 0x54540404,
+};
+static const constant uint g_bc7_partition3[64] = {
+    0xaa685050, 0x6a5a5040, 0x5a5a4200, 0x5450a0a8, 0xa5a50000, 0xa0a05050, 0x5555a0a0, 0x5a5a5050,
+    0xaa550000, 0xaa555500, 0xaaaa5500, 0x90909090, 0x94949494, 0xa4a4a4a4, 0xa9a59450, 0x2a0a4250,
+    0xa5945040, 0x0a425054, 0xa5a5a500, 0x55a0a0a0, 0xa8a85454, 0x6a6a4040, 0xa4a45000, 0x1a1a0500,
+    0x0050a4a4, 0xaaa59090, 0x14696914, 0x69691400, 0xa08585a0, 0xaa821414, 0x50a4a450, 0x6a5a0200,
+    0xa9a58000, 0x5090a0a8, 0xa8a09050, 0x24242424, 0x00aa5500, 0x24924924, 0x24499224, 0x50a50a50,
+    0x500aa550, 0xaaaa4444, 0x66660000, 0xa5a0a5a0, 0x50a050a0, 0x69286928, 0x44aaaa44, 0x66666600,
+    0xaa444444, 0x54a854a8, 0x95809580, 0x96969600, 0xa85454a8, 0x80959580, 0xaa141414, 0x96960000,
+    0xaaaa1414, 0xa05050a0, 0xa0a5a5a0, 0x96000000, 0x40804080, 0xa9a8a9a8, 0xaaaaaa44, 0x2a4a5254
 };
 
 static const constant int g_bc7_table_anchor_index_second_subset[64] =
 {
     15,15,15,15,15,15,15,15,        15,15,15,15,15,15,15,15,        15, 2, 8, 2, 2, 8, 8,15,        2, 8, 2, 2, 8, 8, 2, 2,        15,15, 6, 8, 2, 8,15,15,        2, 8, 2, 2, 2,15,15, 6,        6, 2, 6, 8,15,15, 2, 2,        15,15,15,15,15, 2, 2,15
-};
-
-static const constant int g_bc7_partition3[64 * 16] =
-{
-    0,0,1,1,0,0,1,1,0,2,2,1,2,2,2,2,        0,0,0,1,0,0,1,1,2,2,1,1,2,2,2,1,        0,0,0,0,2,0,0,1,2,2,1,1,2,2,1,1,        0,2,2,2,0,0,2,2,0,0,1,1,0,1,1,1,        0,0,0,0,0,0,0,0,1,1,2,2,1,1,2,2,        0,0,1,1,0,0,1,1,0,0,2,2,0,0,2,2,        0,0,2,2,0,0,2,2,1,1,1,1,1,1,1,1,        0,0,1,1,0,0,1,1,2,2,1,1,2,2,1,1,
-    0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,        0,0,0,0,1,1,1,1,1,1,1,1,2,2,2,2,        0,0,0,0,1,1,1,1,2,2,2,2,2,2,2,2,        0,0,1,2,0,0,1,2,0,0,1,2,0,0,1,2,        0,1,1,2,0,1,1,2,0,1,1,2,0,1,1,2,        0,1,2,2,0,1,2,2,0,1,2,2,0,1,2,2,        0,0,1,1,0,1,1,2,1,1,2,2,1,2,2,2,        0,0,1,1,2,0,0,1,2,2,0,0,2,2,2,0,
-    0,0,0,1,0,0,1,1,0,1,1,2,1,1,2,2,        0,1,1,1,0,0,1,1,2,0,0,1,2,2,0,0,        0,0,0,0,1,1,2,2,1,1,2,2,1,1,2,2,        0,0,2,2,0,0,2,2,0,0,2,2,1,1,1,1,        0,1,1,1,0,1,1,1,0,2,2,2,0,2,2,2,        0,0,0,1,0,0,0,1,2,2,2,1,2,2,2,1,        0,0,0,0,0,0,1,1,0,1,2,2,0,1,2,2,        0,0,0,0,1,1,0,0,2,2,1,0,2,2,1,0,
-    0,1,2,2,0,1,2,2,0,0,1,1,0,0,0,0,        0,0,1,2,0,0,1,2,1,1,2,2,2,2,2,2,        0,1,1,0,1,2,2,1,1,2,2,1,0,1,1,0,        0,0,0,0,0,1,1,0,1,2,2,1,1,2,2,1,        0,0,2,2,1,1,0,2,1,1,0,2,0,0,2,2,        0,1,1,0,0,1,1,0,2,0,0,2,2,2,2,2,        0,0,1,1,0,1,2,2,0,1,2,2,0,0,1,1,        0,0,0,0,2,0,0,0,2,2,1,1,2,2,2,1,
-    0,0,0,0,0,0,0,2,1,1,2,2,1,2,2,2,        0,2,2,2,0,0,2,2,0,0,1,2,0,0,1,1,        0,0,1,1,0,0,1,2,0,0,2,2,0,2,2,2,        0,1,2,0,0,1,2,0,0,1,2,0,0,1,2,0,        0,0,0,0,1,1,1,1,2,2,2,2,0,0,0,0,        0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,        0,1,2,0,2,0,1,2,1,2,0,1,0,1,2,0,        0,0,1,1,2,2,0,0,1,1,2,2,0,0,1,1,
-    0,0,1,1,1,1,2,2,2,2,0,0,0,0,1,1,        0,1,0,1,0,1,0,1,2,2,2,2,2,2,2,2,        0,0,0,0,0,0,0,0,2,1,2,1,2,1,2,1,        0,0,2,2,1,1,2,2,0,0,2,2,1,1,2,2,        0,0,2,2,0,0,1,1,0,0,2,2,0,0,1,1,        0,2,2,0,1,2,2,1,0,2,2,0,1,2,2,1,        0,1,0,1,2,2,2,2,2,2,2,2,0,1,0,1,        0,0,0,0,2,1,2,1,2,1,2,1,2,1,2,1,
-    0,1,0,1,0,1,0,1,0,1,0,1,2,2,2,2,        0,2,2,2,0,1,1,1,0,2,2,2,0,1,1,1,        0,0,0,2,1,1,1,2,0,0,0,2,1,1,1,2,        0,0,0,0,2,1,1,2,2,1,1,2,2,1,1,2,        0,2,2,2,0,1,1,1,0,1,1,1,0,2,2,2,        0,0,0,2,1,1,1,2,1,1,1,2,0,0,0,2,        0,1,1,0,0,1,1,0,0,1,1,0,2,2,2,2,        0,0,0,0,0,0,0,0,2,1,1,2,2,1,1,2,
-    0,1,1,0,0,1,1,0,2,2,2,2,2,2,2,2,        0,0,2,2,0,0,1,1,0,0,1,1,0,0,2,2,        0,0,2,2,1,1,2,2,1,1,2,2,0,0,2,2,        0,0,0,0,0,0,0,0,0,0,0,0,2,1,1,2,        0,0,0,2,0,0,0,1,0,0,0,2,0,0,0,1,        0,2,2,2,1,2,2,2,0,2,2,2,1,2,2,2,        0,1,0,1,2,2,2,2,2,2,2,2,2,2,2,2,        0,1,1,1,2,0,1,1,2,2,0,1,2,2,2,0,
 };
 
 static const constant int g_bc7_table_anchor_index_third_subset_1[64] =
@@ -1959,7 +1954,7 @@ static uint32_t estimate_partition(uint32_t mode, const uchar4 pixels[16], const
 
     for (uint32_t partition = 0; partition < total_partitions; partition++)
     {
-        const constant int* pPartition = (total_subsets == 3) ? &g_bc7_partition3[partition * 16] : &g_bc7_partition2[partition * 16];
+        uint part_mask = (total_subsets == 3) ? g_bc7_partition3[partition] : g_bc7_partition2[partition];
 
         uchar4 subset_colors[3][16];
         uint32_t subset_total_colors[3];
@@ -1969,7 +1964,8 @@ static uint32_t estimate_partition(uint32_t mode, const uchar4 pixels[16], const
         
         for (uint32_t index = 0; index < 16; index++)
         {
-            const uint32_t p = pPartition[index];
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors[p]] = pixels[index];
             subset_total_colors[p]++;
@@ -2057,7 +2053,7 @@ static uint32_t estimate_partition_list(uint32_t mode, const thread uchar4* pixe
 
     for (uint32_t partition = 0; partition < total_partitions; partition++)
     {
-        const constant int* pPartition = (total_subsets == 3) ? &g_bc7_partition3[partition * 16] : &g_bc7_partition2[partition * 16];
+        uint part_mask = (total_subsets == 3) ? g_bc7_partition3[partition] : g_bc7_partition2[partition];
 
         uchar4 subset_colors[3][16];
         uint32_t subset_total_colors[3];
@@ -2067,7 +2063,8 @@ static uint32_t estimate_partition_list(uint32_t mode, const thread uchar4* pixe
 
         for (uint32_t index = 0; index < 16; index++)
         {
-            const uint32_t p = pPartition[index];
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors[p]] = pixels[index];
             subset_total_colors[p]++;
@@ -2186,13 +2183,13 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 
     const uint32_t total_partitions = 1 << g_bc7_partition_bits[best_mode];
 
-    const constant int *pPartition;
+    uint part_mask;
     if (total_subsets == 1)
-        pPartition = &g_bc7_partition1[0];
+        part_mask = 0;
     else if (total_subsets == 2)
-        pPartition = &g_bc7_partition2[pResults->m_partition * 16];
+        part_mask = g_bc7_partition2[pResults->m_partition];
     else
-        pPartition = &g_bc7_partition3[pResults->m_partition * 16];
+        part_mask = g_bc7_partition3[pResults->m_partition];
 
     uchar color_selectors[16];
     for (int i = 0; i < 16; i++)
@@ -2254,10 +2251,12 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 
         if (color_selectors[anchor_index] & (num_color_indices >> 1))
         {
+            uint pm = part_mask;
             for (uint32_t i = 0; i < 16; i++)
             {
-                if (pPartition[i] == k)
+                if ((pm & 3) == k)
                     color_selectors[i] = (num_color_indices - 1) - color_selectors[i];
+                pm >>= 2;
             }
 
             if (get_bc7_mode_has_seperate_alpha_selectors(best_mode))
@@ -2288,10 +2287,12 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 
             if (alpha_selectors[anchor_index] & (num_alpha_indices >> 1))
             {
+                uint pm = part_mask;
                 for (uint32_t i = 0; i < 16; i++)
                 {
-                    if (pPartition[i] == k)
+                    if ((pm & 3) == k)
                         alpha_selectors[i] = (num_alpha_indices - 1) - alpha_selectors[i];
+                    pm >>= 2;
                 }
 
                 int t = low[k].a;
@@ -3050,7 +3051,7 @@ static void handle_alpha_block_mode7(
         const uint32_t trial_partition = solutions[solution_index].m_index;
         assert(trial_partition < 64);
 
-        const constant int *pPartition = &g_bc7_partition2[trial_partition * 16];
+        uint part_mask = g_bc7_partition2[trial_partition];
 
         uchar4 subset_colors[2][16];
 
@@ -3064,8 +3065,8 @@ static void handle_alpha_block_mode7(
 
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
-            assert(p < 2);
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors7[p]] = pixels[idx];
             subset_pixel_index7[p][subset_total_colors7[p]] = idx;
@@ -3120,7 +3121,7 @@ static void handle_alpha_block_mode7(
         const uint32_t trial_partition = res.m_partition;
         assert(trial_partition < 64);
 
-        const constant int *pPartition = &g_bc7_partition2[trial_partition * 16];
+        uint part_mask = g_bc7_partition2[trial_partition];
 
         uchar4 subset_colors[2][16];
 
@@ -3134,8 +3135,8 @@ static void handle_alpha_block_mode7(
 
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
-            assert(p < 2);
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors7[p]] = pixels[idx];
             subset_pixel_index7[p][subset_total_colors7[p]] = idx;
@@ -3241,7 +3242,7 @@ static void handle_opaque_block_mode1(
         const uint32_t trial_partition = solutions[solution_index].m_index;
         assert(trial_partition < 64);
 
-        const constant int *pPartition = &g_bc7_partition2[trial_partition * 16];
+        uint part_mask = g_bc7_partition2[trial_partition];
                     
         uchar4 subset_colors[2][16];
 
@@ -3255,8 +3256,8 @@ static void handle_opaque_block_mode1(
 
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
-            assert(p < 2);
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors1[p]] = pixels[idx];
             subset_pixel_index1[p][subset_total_colors1[p]] = idx;
@@ -3311,7 +3312,7 @@ static void handle_opaque_block_mode1(
         const uint32_t trial_partition = res.m_partition;
         assert(trial_partition < 64);
 
-        const constant int *pPartition = &g_bc7_partition2[trial_partition * 16];
+        uint part_mask = g_bc7_partition2[trial_partition];
                     
         uchar4 subset_colors[2][16];
 
@@ -3325,8 +3326,8 @@ static void handle_opaque_block_mode1(
 
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
-            assert(p < 2);
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors1[p]] = pixels[idx];
             subset_pixel_index1[p][subset_total_colors1[p]] = idx;
@@ -3395,7 +3396,7 @@ static void handle_opaque_block_mode0(
     {
         const uint32_t best_partition0 = solutions[solution_index].m_index;
 
-        const constant int *pPartition = &g_bc7_partition3[best_partition0 * 16];
+        uint part_mask = g_bc7_partition3[best_partition0];
 
         uchar4 subset_colors[3][16];
                     
@@ -3408,7 +3409,8 @@ static void handle_opaque_block_mode0(
                     
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors0[p]] = pixels[idx];
             subset_pixel_index0[p][subset_total_colors0[p]] = idx;
@@ -3484,7 +3486,7 @@ static void handle_opaque_block_mode3(
         const uint32_t trial_partition = solutions[solution_index].m_index;
         assert(trial_partition < 64);
 
-        const constant int *pPartition = &g_bc7_partition2[trial_partition * 16];
+        uint part_mask = g_bc7_partition2[trial_partition];
 
         uchar4 subset_colors[2][16];
 
@@ -3498,8 +3500,8 @@ static void handle_opaque_block_mode3(
 
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
-            assert(p < 2);
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors3[p]] = pixels[idx];
             subset_pixel_index3[p][subset_total_colors3[p]] = idx;
@@ -3553,7 +3555,7 @@ static void handle_opaque_block_mode3(
         const uint32_t trial_partition = res.m_partition;
         assert(trial_partition < 64);
 
-        const constant int *pPartition = &g_bc7_partition2[trial_partition * 16];
+        uint part_mask = g_bc7_partition2[trial_partition];
 
         uchar4 subset_colors[2][16];
 
@@ -3567,8 +3569,8 @@ static void handle_opaque_block_mode3(
 
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
-            assert(p < 2);
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors3[p]] = pixels[idx];
 
@@ -3700,13 +3702,14 @@ static void handle_opaque_block_mode2(
 
         uchar subset_pixel_index2[3][16];
                         
-        const constant int *pPartition = &g_bc7_partition3[best_partition2 * 16];
+        uint part_mask = g_bc7_partition3[best_partition2];
 
         uchar4 subset_colors[3][16];
 
         for (uint32_t idx = 0; idx < 16; idx++)
         {
-            const uint32_t p = pPartition[idx];
+            uint p = part_mask & 3;
+            part_mask >>= 2;
 
             subset_colors[p][subset_total_colors2[p]] = pixels[idx];
 
