@@ -754,7 +754,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
-                    selectors[i] = (int)select(best_sel0, best_sel, min_err == err0);
+                    selectors[i] = (int)select(best_sel, best_sel0, min_err == err0);
                 }
             }
             else if (N == 8)
@@ -791,9 +791,9 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                         best_err = min(min(min(err0, err1), err2), err3);
                                     
-                        best_sel = select(1, 0, best_err == err1);
-                        best_sel = select(2, best_sel, best_err == err2);
-                        best_sel = select(3, best_sel, best_err == err3);
+                        best_sel = select(0, 1, best_err == err1);
+                        best_sel = select(best_sel, 2, best_err == err2);
+                        best_sel = select(best_sel, 3, best_err == err3);
                     }
 
                     {
@@ -819,10 +819,10 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
 
-                        best_sel = select(4, best_sel, best_err == err0);
-                        best_sel = select(5, best_sel, best_err == err1);
-                        best_sel = select(6, best_sel, best_err == err2);
-                        best_sel = select(7, best_sel, best_err == err3);
+                        best_sel = select(best_sel, 4, best_err == err0);
+                        best_sel = select(best_sel, 5, best_err == err1);
+                        best_sel = select(best_sel, 6, best_err == err2);
+                        best_sel = select(best_sel, 7, best_err == err3);
                     }
                 
                     total_errf += best_err;
@@ -860,9 +860,9 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                     float best_err = min(min(min(err0, err1), err2), err3);
 
-                    int best_sel = select(1, 0, best_err == err1);
-                    best_sel = select(2, best_sel, best_err == err2);
-                    best_sel = select(3, best_sel, best_err == err3);
+                    int best_sel = select(0, 1, best_err == err1);
+                    best_sel = select(best_sel, 2, best_err == err2);
+                    best_sel = select(best_sel, 3, best_err == err3);
                                 
                     total_errf += best_err;
 
@@ -920,7 +920,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
-                    selectors[i] = (int)select(best_sel0, best_sel, min_err == err0);
+                    selectors[i] = (int)select(best_sel, best_sel0, min_err == err0);
                 }
             }
             else if (N == 8)
@@ -962,9 +962,9 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                         best_err = min(min(min(err0, err1), err2), err3);
                                     
-                        best_sel = select(1, 0, best_err == err1);
-                        best_sel = select(2, best_sel, best_err == err2);
-                        best_sel = select(3, best_sel, best_err == err3);
+                        best_sel = select(0, 1, best_err == err1);
+                        best_sel = select(best_sel, 2, best_err == err2);
+                        best_sel = select(best_sel, 3, best_err == err3);
                     }
 
                     {
@@ -994,10 +994,10 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
 
-                        best_sel = select(4, best_sel, best_err == err0);
-                        best_sel = select(5, best_sel, best_err == err1);
-                        best_sel = select(6, best_sel, best_err == err2);
-                        best_sel = select(7, best_sel, best_err == err3);
+                        best_sel = select(best_sel, 4, best_err == err0);
+                        best_sel = select(best_sel, 5, best_err == err1);
+                        best_sel = select(best_sel, 6, best_err == err2);
+                        best_sel = select(best_sel, 7, best_err == err3);
                     }
                 
                     total_errf += best_err;
@@ -1040,9 +1040,9 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                     float best_err = min(min(min(err0, err1), err2), err3);
 
-                    int best_sel = select(1, 0, best_err == err1);
-                    best_sel = select(2, best_sel, best_err == err2);
-                    best_sel = select(3, best_sel, best_err == err3);
+                    int best_sel = select(0, 1, best_err == err1);
+                    best_sel = select(best_sel, 2, best_err == err2);
+                    best_sel = select(best_sel, 3, best_err == err3);
                                 
                     total_errf += best_err;
 
