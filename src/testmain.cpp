@@ -17,14 +17,17 @@
 #endif
 
 const bool kDoCapture = false;
-const int kQuality = 0;
-const int kRunCount = kDoCapture ? 1 : 2;
+const int kQuality = 3;
+const int kRunCount = kDoCapture ? 1 : 8;
 const bool kRequireExactResultsMatch = true;
 const float kAllowedPsnrDiff = 80;
 
 
 static const char* kTestFileNames[] =
 {
+#if 0
+    "textures/4x4.png",
+#else
 	"textures/28x20.png",
     "textures/2dSignsCrop.png",
     "textures/AoCrop-gray.png",
@@ -37,6 +40,7 @@ static const char* kTestFileNames[] =
     "textures/normal-b-crop-nm.png",
     "textures/RgbColCrop.png",
     "textures/train-nm.png",
+#endif
 };
 
 typedef std::vector<unsigned char> ByteVector;
