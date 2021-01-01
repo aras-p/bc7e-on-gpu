@@ -2878,14 +2878,14 @@ static uint4 get_lists_alpha(const uchar4 pixels[16], const constant bc7e_compre
     uint4 lists = 0;
 
     // Mode 7
-    #ifndef OPT_ULTRAFAST_ONLY
+    #if !defined(OPT_ULTRAFAST_ONLY)
     if (pComp_params->m_alpha_settings.m_use_mode7)
     {
         solution solutions[4];
         uint32_t num_solutions = estimate_partition_list(7, pixels, pComp_params, solutions, pComp_params->m_alpha_settings.m_max_mode7_partitions_to_try);
         lists.x = encode_solutions(solutions, num_solutions);
     }
-    #endif // #ifndef OPT_ULTRAFAST_ONLY
+    #endif // #if !defined(OPT_ULTRAFAST_ONLY)
     return lists;
 }
 
@@ -3664,31 +3664,26 @@ kernel void bc7e_compress_blocks_mode4_alpha(
 {
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-    
+        
     uchar4 pixels[16];
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (!has_alpha)
+        return;
+    if (!glob.params.m_alpha_settings.m_use_mode4)
+        return;
+
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, &glob.params);
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    if (has_alpha)
-    {
-        if (!glob.params.m_alpha_settings.m_use_mode4)
-            return;
-        const int num_rotations = (glob.params.m_perceptual || (!glob.params.m_alpha_settings.m_use_mode4_rotation)) ? 1 : 4;
-        handle_block_mode4(res, pixels, &glob.params, &params, lo_a, hi_a, num_rotations, tables);
-    }
-    else
-    {
-        return;
-    }
+    const int num_rotations = (glob.params.m_perceptual || (!glob.params.m_alpha_settings.m_use_mode4_rotation)) ? 1 : 4;
+    handle_block_mode4(res, pixels, &glob.params, &params, lo_a, hi_a, num_rotations, tables);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 }
@@ -3700,39 +3695,30 @@ kernel void bc7e_compress_blocks_mode4_opaq(
     const constant LookupTables* tables [[buffer(4)]],
     uint3 id [[thread_position_in_grid]])
 {
+#if !defined(OPT_ULTRAFAST_ONLY)
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-    
+        
     uchar4 pixels[16];
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (has_alpha)
+        return;
+    if (glob.params.m_mode6_only || glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[4])
+        return;
+
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, &glob.params);
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
-
-    if (has_alpha)
-    {
-        return;
-    }
-    else
-    {
-#ifdef OPT_ULTRAFAST_ONLY
-        return;
-#else
-        if (glob.params.m_mode6_only || glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[4])
-            return;
-        else
-            handle_block_mode4(res, pixels, &glob.params, &params, 255, 255, 4, tables);
-#endif
-    }
+    handle_block_mode4(res, pixels, &glob.params, &params, 255, 255, 4, tables);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
+#endif // #if !defined(OPT_ULTRAFAST_ONLY)
 }
 
 kernel void bc7e_compress_blocks_mode6(
@@ -3744,29 +3730,24 @@ kernel void bc7e_compress_blocks_mode6(
 {
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (has_alpha && !glob.params.m_alpha_settings.m_use_mode6)
+        return;
+    if (!has_alpha && !glob.params.m_opaque_settings.m_use_mode[6])
+        return;
+
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, &glob.params);
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    if (has_alpha)
-    {
-        if (!glob.params.m_alpha_settings.m_use_mode6)
-            return;
-    }
-    else
-    {
-        if (!glob.params.m_opaque_settings.m_use_mode[6])
-            return;
-    }
     handle_block_mode6(res, pixels, &glob.params, &params, tables, has_alpha);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
@@ -3818,34 +3799,33 @@ kernel void bc7e_compress_blocks_mode2(
     const constant LookupTables* tables [[buffer(4)]],
     uint3 id [[thread_position_in_grid]])
 {
+#if !defined(OPT_ULTRAFAST_ONLY)
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (has_alpha)
+        return;
+    if (!glob.params.m_opaque_settings.m_use_mode[2] || glob.params.m_mode6_only)
+        return;
+
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, &glob.params);
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    if (has_alpha)
-    {
-        return;
-    }
-    else
-    {
-        if (!glob.params.m_opaque_settings.m_use_mode[2] || glob.params.m_mode6_only)
-            return;
-        uint4 lists = bufLists[block_index];
-        handle_opaque_block_mode2(res, pixels, &glob.params, &params, tables, lists);
-    }
+    uint4 lists = bufLists[block_index];
+    handle_opaque_block_mode2(res, pixels, &glob.params, &params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
+#endif // #if !defined(OPT_ULTRAFAST_ONLY)
+
 }
 
 kernel void bc7e_compress_blocks_mode1(
@@ -3856,34 +3836,32 @@ kernel void bc7e_compress_blocks_mode1(
     const constant LookupTables* tables [[buffer(4)]],
     uint3 id [[thread_position_in_grid]])
 {
+#if !defined(OPT_ULTRAFAST_ONLY)
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (has_alpha)
+        return;
+    if (!glob.params.m_opaque_settings.m_use_mode[1] || glob.params.m_mode6_only)
+        return;
+
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, &glob.params);
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    if (has_alpha)
-    {
-        return;
-    }
-    else
-    {
-        if (!glob.params.m_opaque_settings.m_use_mode[1] || glob.params.m_mode6_only)
-            return;
-        uint4 lists = bufLists[block_index];
-        handle_opaque_block_mode1(res, pixels, &glob.params, &params, tables, lists);
-    }
+    uint4 lists = bufLists[block_index];
+    handle_opaque_block_mode1(res, pixels, &glob.params, &params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
+#endif // #if !defined(OPT_ULTRAFAST_ONLY)
 }
 
 kernel void bc7e_compress_blocks_mode0(
@@ -3894,34 +3872,32 @@ kernel void bc7e_compress_blocks_mode0(
     const constant LookupTables* tables [[buffer(4)]],
     uint3 id [[thread_position_in_grid]])
 {
+#if !defined(OPT_ULTRAFAST_ONLY)
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (has_alpha)
+        return;
+    if (!glob.params.m_opaque_settings.m_use_mode[0] || glob.params.m_mode6_only)
+        return;
+
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, &glob.params);
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    if (has_alpha)
-    {
-        return;
-    }
-    else
-    {
-        if (!glob.params.m_opaque_settings.m_use_mode[0] || glob.params.m_mode6_only)
-            return;
-        uint4 lists = bufLists[block_index];
-        handle_opaque_block_mode0(res, pixels, &glob.params, &params, tables, lists);
-    }
+    uint4 lists = bufLists[block_index];
+    handle_opaque_block_mode0(res, pixels, &glob.params, &params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
+#endif // #if !defined(OPT_ULTRAFAST_ONLY)
 }
 
 kernel void bc7e_compress_blocks_mode3(
@@ -3932,34 +3908,32 @@ kernel void bc7e_compress_blocks_mode3(
     const constant LookupTables* tables [[buffer(4)]],
     uint3 id [[thread_position_in_grid]])
 {
+#if !defined(OPT_ULTRAFAST_ONLY)
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (has_alpha)
+        return;
+    if (!glob.params.m_opaque_settings.m_use_mode[3] || glob.params.m_mode6_only)
+        return;
+
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, &glob.params);
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    if (has_alpha)
-    {
-        return;
-    }
-    else
-    {
-        if (!glob.params.m_opaque_settings.m_use_mode[3] || glob.params.m_mode6_only)
-            return;
-        uint4 lists = bufLists[block_index];
-        handle_opaque_block_mode3(res, pixels, &glob.params, &params, tables, lists);
-    }
+    uint4 lists = bufLists[block_index];
+    handle_opaque_block_mode3(res, pixels, &glob.params, &params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
+#endif // #if !defined(OPT_ULTRAFAST_ONLY)
 }
 
 kernel void bc7e_compress_blocks_mode7(
@@ -3970,6 +3944,7 @@ kernel void bc7e_compress_blocks_mode7(
     const constant LookupTables* tables [[buffer(4)]],
     uint3 id [[thread_position_in_grid]])
 {
+#if !defined(OPT_ULTRAFAST_ONLY)
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
     color_cell_compressor_params params;
@@ -3979,29 +3954,21 @@ kernel void bc7e_compress_blocks_mode7(
     uchar lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, bufInput, glob.width);
     const bool has_alpha = (lo_a < 255);
-    
+    if (!has_alpha)
+        return;
+    if (!glob.params.m_alpha_settings.m_use_mode7)
+        return;
+
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    if (has_alpha)
-    {
-        #if defined(OPT_ULTRAFAST_ONLY)
-        return;
-        #else
-        if (!glob.params.m_alpha_settings.m_use_mode7)
-            return;
-        uint4 lists = bufLists[block_index];
-        handle_alpha_block_mode7(res, pixels, &glob.params, &params, lo_a, hi_a, tables, lists);
-        #endif
-    }
-    else
-    {
-        return;
-    }
+    uint4 lists = bufLists[block_index];
+    handle_alpha_block_mode7(res, pixels, &glob.params, &params, lo_a, hi_a, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
+#endif // #if !defined(OPT_ULTRAFAST_ONLY)
 }
 
 kernel void bc7e_encode_blocks(
