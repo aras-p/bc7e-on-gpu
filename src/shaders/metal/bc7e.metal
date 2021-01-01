@@ -3,7 +3,9 @@ using namespace metal;
 
 //#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 //#define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
+
 #define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
+#define OPT_MAX_PARTITION_TRIES_LESS_THAN_3_ONLY // disables "slowest" mode
 
 //#define DEBUG_FORCE_NO_SHADER_CACHE 3
 
@@ -3027,6 +3029,7 @@ static void handle_alpha_block_mode7(
 
     } // solution_index
 
+#if !defined(OPT_MAX_PARTITION_TRIES_LESS_THAN_3_ONLY)
     if ((num_solutions > 2) && (res.m_mode == 7) && (!disable_faster_part_selection))
     {
         const uint32_t trial_partition = res.m_partition;
@@ -3065,6 +3068,7 @@ static void handle_alpha_block_mode7(
             }
         }
     }
+#endif // #if !defined(OPT_MAX_PARTITION_TRIES_LESS_THAN_3_ONLY)
 }
 
 static void handle_block_mode6(
@@ -3164,6 +3168,7 @@ static void handle_opaque_block_mode1(
         }
     }
 
+#if !defined(OPT_MAX_PARTITION_TRIES_LESS_THAN_3_ONLY)
     if ((num_solutions > 2) && (res.m_mode == 1) && (!disable_faster_part_selection))
     {
         const uint32_t trial_partition = res.m_partition;
@@ -3203,6 +3208,7 @@ static void handle_opaque_block_mode1(
             }
         }
     }
+#endif // #if !defined(OPT_MAX_PARTITION_TRIES_LESS_THAN_3_ONLY)
 }
 
 static void handle_opaque_block_mode0(
@@ -3324,6 +3330,7 @@ static void handle_opaque_block_mode3(
 
     } // solution_index
 
+#if !defined(OPT_MAX_PARTITION_TRIES_LESS_THAN_3_ONLY)
     if ((num_solutions > 2) && (res.m_mode == 3) && (!disable_faster_part_selection))
     {
         const uint32_t trial_partition = res.m_partition;
@@ -3362,6 +3369,7 @@ static void handle_opaque_block_mode3(
             }
         }
     }
+#endif // #if !defined(OPT_MAX_PARTITION_TRIES_LESS_THAN_3_ONLY)
 }
 
 static void handle_opaque_block_mode2(
@@ -3661,7 +3669,6 @@ kernel void bc7e_compress_blocks_mode2(
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 #endif // #if !defined(OPT_ULTRAFAST_ONLY)
-
 }
 
 kernel void bc7e_compress_blocks_mode1(
