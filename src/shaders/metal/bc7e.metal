@@ -3111,15 +3111,12 @@ static void handle_alpha_block_mode7(
             res.m_partition = trial_partition;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
+            res.m_pbits = 0;
             for (uint32_t subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-
-                uint pbits = res.m_pbits;
-                pbits &= ~(3<<subset*2);
-                pbits |= sub_res[subset].m_pbits << subset*2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << subset*2;
             }
         }
 
@@ -3154,15 +3151,12 @@ static void handle_alpha_block_mode7(
             res.m_error = trial_err;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
+            res.m_pbits = 0;
             for (uint32_t subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-
-                uint pbits = res.m_pbits;
-                pbits &= ~(3<<subset*2);
-                pbits |= sub_res[subset].m_pbits << subset*2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << subset*2;
             }
         }
     }
@@ -3255,15 +3249,12 @@ static void handle_opaque_block_mode1(
             res.m_partition = trial_partition;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
+            res.m_pbits = 0;
             for (uint32_t subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-
-                uint pbits = res.m_pbits;
-                pbits &= ~(3<<subset*2);
-                pbits |= sub_res[subset].m_pbits << subset*2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << subset*2;
             }
         }
     }
@@ -3298,15 +3289,12 @@ static void handle_opaque_block_mode1(
             res.m_error = trial_err;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
+            res.m_pbits = 0;
             for (uint32_t subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-
-                uint pbits = res.m_pbits;
-                pbits &= ~(3<<subset*2);
-                pbits |= sub_res[subset].m_pbits << subset*2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << subset*2;
             }
         }
     }
@@ -3361,16 +3349,12 @@ static void handle_opaque_block_mode0(
             res.m_partition = best_partition;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
-
+            res.m_pbits = 0;
             for (uint32_t subset = 0; subset < 3; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-
-                uint pbits = res.m_pbits;
-                pbits &= ~(3<<subset*2);
-                pbits |= sub_res[subset].m_pbits << subset*2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << subset*2;
             }
         }
     }
@@ -3425,16 +3409,12 @@ static void handle_opaque_block_mode3(
             res.m_partition = trial_partition;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
-
+            res.m_pbits = 0;
             for (uint32_t subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-
-                uint pbits = res.m_pbits;
-                pbits &= ~(3<<subset*2);
-                pbits |= sub_res[subset].m_pbits << subset*2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << subset*2;
             }
         }
 
@@ -3469,16 +3449,12 @@ static void handle_opaque_block_mode3(
             res.m_error = trial_err;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
-                                    
+            res.m_pbits = 0;
             for (uint32_t subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-
-                uint pbits = res.m_pbits;
-                pbits &= ~(3<<subset*2);
-                pbits |= sub_res[subset].m_pbits << subset*2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << subset*2;
             }
         }
     }
