@@ -74,19 +74,11 @@ static inline float square(float s) { return s * s; }
 typedef int4 color_quad_i;
 typedef float4 color_quad_f;
 
-static inline bool color_quad_i_equals(color_quad_i a, color_quad_i b)
-{
-    return all(a == b);
-}
 static inline bool color_quad_i_equals(uchar4 a, uchar4 b)
 {
     return all(a == b);
 }
 
-static inline bool color_quad_i_notequals(color_quad_i a, color_quad_i b)
-{
-    return !color_quad_i_equals(a, b);
-}
 static inline bool color_quad_i_notequals(uchar4 a, uchar4 b)
 {
     return !color_quad_i_equals(a, b);
@@ -2407,91 +2399,9 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
     return uint4(block[0], block[1], block[2], block[3]);
 }
 
-static inline uint4 encode_bc7_block_mode6(thread bc7_optimization_results* pResults)
-{
-    uchar4 low, high;
-    uchar pbits[2];
-        
-    uint32_t invert_selectors = 0;
-    uint32_t invert_maskz = 0;
-    uint32_t invert_maskw = 0;
-    if (pResults->m_selectors[0] & 8)
-    {
-        invert_selectors = 15;
-        invert_maskz = 0xFFFFFFF0;
-        invert_maskw = 0xFFFFFFFF;
-
-        low = pResults->m_high[0];
-        high = pResults->m_low[0];
-
-        pbits[0] = (pResults->m_pbits & 2) ? 1 : 0;
-        pbits[1] = (pResults->m_pbits & 1) ? 1 : 0;
-    }
-    else
-    {
-        low = pResults->m_low[0];
-        high = pResults->m_high[0];
-
-        pbits[0] = (pResults->m_pbits & 1) ? 1 : 0;
-        pbits[1] = (pResults->m_pbits & 2) ? 1 : 0;
-    }
-
-    uint4 r = 0;
-
-    r.x = 1 << 6;
-
-    r.x |= (low.r << 7);
-    r.x |= (high.r << 14);
-
-    r.x |= (low.g << 21);
-    r.x |= (high.g << 28); // 4 bits
-    r.y |= (high.g >> 4); // 3 bits
-
-    r.y |= (low.b << 3);
-    r.y |= (high.b << 10);
-
-    r.y |= (low.a << 17);
-    r.y |= (high.a << 24);
-
-    r.y |= (pbits[0] << 31);
-        
-    r.z = pbits[1];
-    
-    r.z |= ((invert_selectors ^ pResults->m_selectors[0]) << 1);
-
-    r.z |= pResults->m_selectors[1] << 4;
-    r.z |= pResults->m_selectors[2] << 8;
-    r.z |= pResults->m_selectors[3] << 12;
-    r.z |= pResults->m_selectors[4] << 16;
-    
-    r.z |= pResults->m_selectors[5] << 20;
-    r.z |= pResults->m_selectors[6] << 24;
-    r.z |= pResults->m_selectors[7] << 28;
-    r.w |= pResults->m_selectors[8] << 0;
-
-    r.w |= pResults->m_selectors[9] << 4;
-    r.w |= pResults->m_selectors[10] << 8;
-    r.w |= pResults->m_selectors[11] << 12;
-    r.w |= pResults->m_selectors[12] << 16;
-
-    r.w |= pResults->m_selectors[13] << 20;
-    r.w |= pResults->m_selectors[14] << 24;
-    r.w |= pResults->m_selectors[15] << 28;
-    
-    r.z ^= invert_maskz;
-    r.w ^= invert_maskw;
-
-    return r;
-}
-
 static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
                                      thread bc7_optimization_results& res, const constant LookupTables* tables, int rotation)
 {
-    pParams->m_has_alpha = false;
-    pParams->m_comp_bits = 5;
-    pParams->m_has_pbits = false;
-    pParams->m_endpoints_share_pbit = false;
-
     for (uint32_t index_selector = 0; index_selector < 2; index_selector++)
     {
         if ((pComp_params->m_mode4_index_mask & (1 << index_selector)) == 0)
@@ -2702,17 +2612,9 @@ static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constan
     } // index_selector
 }
 
-static void handle_alpha_block_mode5(const thread uchar4* pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
+static void handle_alpha_block_mode5(const thread uchar4* pPixels, const constant bc7e_compress_block_params* pComp_params, thread const color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
                                      thread bc7_optimization_results* pOpt_results5, const constant LookupTables* tables)
 {
-    pParams->m_weights_index = kBC7Weights2Index;
-    pParams->m_num_selector_weights = 4;
-
-    pParams->m_comp_bits = 7;
-    pParams->m_has_alpha = false;
-    pParams->m_has_pbits = false;
-    pParams->m_endpoints_share_pbit = false;
-    
     color_cell_compressor_results results5;
     results5.m_pSelectors = pOpt_results5->m_selectors;
 
@@ -2952,23 +2854,27 @@ static void handle_block_mode4(
                                thread bc7_optimization_results& res,
                                const uchar4 pixels[16],
                                const constant bc7e_compress_block_params* pComp_params,
-                               thread color_cell_compressor_params* pParams,
                                int lo_a,
                                int hi_a,
                                int num_rotations,
                                const constant LookupTables* tables)
 {
-    color_cell_compressor_params params4 = *pParams;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_has_alpha = false;
+    params.m_comp_bits = 5;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
 
     for (int rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((pComp_params->m_mode4_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params4.m_weights = pParams->m_weights;
-        if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
-        if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
-        if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
+        params.m_weights = pComp_params->m_weights;
+        if (rotation == 1) params.m_weights = params.m_weights.agbr;
+        if (rotation == 2) params.m_weights = params.m_weights.rabg;
+        if (rotation == 3) params.m_weights = params.m_weights.rgab;
                         
         uchar4 rot_pixels[16];
         const thread uchar4* pTrial_pixels = pixels;
@@ -2992,7 +2898,7 @@ static void handle_block_mode4(
 
             pTrial_pixels = rot_pixels;
         }
-        handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params4, trial_lo_a, trial_hi_a, res, tables, rotation);
+        handle_alpha_block_mode4(pTrial_pixels, pComp_params, &params, trial_lo_a, trial_hi_a, res, tables, rotation);
     } // rotation
 }
 
@@ -3000,22 +2906,29 @@ static void handle_alpha_block_mode5(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
                                      const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
                                      int lo_a,
                                      int hi_a,
                                      const constant LookupTables* tables)
 {
-    color_cell_compressor_params params5 = *pParams;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 7;
+    params.m_has_alpha = false;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
+
     const uint num_rotations = (pComp_params->m_perceptual || (!pComp_params->m_alpha_settings.m_use_mode5_rotation)) ? 1 : 4;
     for (uint rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((pComp_params->m_mode5_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params5.m_weights = pParams->m_weights;
-        if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
-        if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
-        if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
+        params.m_weights = pComp_params->m_weights;
+        if (rotation == 1) params.m_weights = params.m_weights.agbr;
+        if (rotation == 2) params.m_weights = params.m_weights.rabg;
+        if (rotation == 3) params.m_weights = params.m_weights.rgab;
 
         uchar4 rot_pixels[16];
         const thread uchar4* pTrial_pixels = pixels;
@@ -3042,7 +2955,7 @@ static void handle_alpha_block_mode5(
 
         bc7_optimization_results trial_res;
         trial_res.m_error = 0;
-        handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_res, tables);
+        handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params, trial_lo_a, trial_hi_a, &trial_res, tables);
 
         if (trial_res.m_error < res.m_error)
         {
@@ -3056,30 +2969,21 @@ static void handle_alpha_block_mode7(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
                                      const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
-                                     int lo_a,
-                                     int hi_a,
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
-    solution solutions[4];
-    uint num_solutions = decode_solutions(solution_lists.x, solutions);
-
-    color_cell_compressor_params params7 = *pParams;
-    
-    // Note: m_mode67_error_weight_mul was always 1, removed
-    
-    params7.m_weights_index = kBC7Weights2Index;
-    params7.m_num_selector_weights = 4;
-
-    params7.m_comp_bits = 5;
-    params7.m_has_pbits = true;
-    params7.m_endpoints_share_pbit = false;
-            
-    params7.m_has_alpha = true;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 5;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
+    params.m_has_alpha = true;
 
     const bool disable_faster_part_selection = false;
-
+    solution solutions[4];
+    uint num_solutions = decode_solutions(solution_lists.x, solutions);
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
         const uint32_t trial_partition = solutions[solution_index].m_index;
@@ -3096,7 +3000,7 @@ static void handle_alpha_block_mode7(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
+            uint32_t err = color_cell_compression(7, &params, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3139,7 +3043,7 @@ static void handle_alpha_block_mode7(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(7, &params, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3167,23 +3071,24 @@ static void handle_block_mode6(
                                thread bc7_optimization_results& res,
                                const uchar4 pixels[16],
                                const constant bc7e_compress_block_params* pComp_params,
-                               thread color_cell_compressor_params* pParams,
                                const constant LookupTables* tables,
                                bool has_alpha)
 {
-    pParams->m_weights_index = kBC7Weights4Index;
-    pParams->m_num_selector_weights = 16;
-    pParams->m_comp_bits = 7;
-    pParams->m_has_pbits = true;
-    pParams->m_endpoints_share_pbit = false;
-    pParams->m_has_alpha = has_alpha;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights4Index;
+    params.m_num_selector_weights = 16;
+    params.m_comp_bits = 7;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
+    params.m_has_alpha = has_alpha;
     // Note: m_mode67_error_weight_mul was always 1, removed
 
     uchar selectors[16];
     color_cell_compressor_results cres;
     cres.m_pSelectors = selectors;
 
-    uint err = color_cell_compression(6, pParams, &cres, pComp_params, 0, 0, pixels, true, tables);
+    uint err = color_cell_compression(6, &params, &cres, pComp_params, 0, 0, pixels, true, tables);
     if (err < res.m_error)
     {
         res.m_error = err;
@@ -3202,21 +3107,20 @@ static void handle_opaque_block_mode1(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
                                      const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights3Index;
+    params.m_num_selector_weights = 8;
+    params.m_comp_bits = 6;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = true;
+
+    const bool disable_faster_part_selection = false;
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
-    const bool disable_faster_part_selection = false;
-
-    pParams->m_weights_index = kBC7Weights3Index;
-    pParams->m_num_selector_weights = 8;
-
-    pParams->m_comp_bits = 6;
-    pParams->m_has_pbits = true;
-    pParams->m_endpoints_share_pbit = true;
-
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
         const uint32_t trial_partition = solutions[solution_index].m_index;
@@ -3233,7 +3137,7 @@ static void handle_opaque_block_mode1(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
+            uint32_t err = color_cell_compression(1, &params, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3276,7 +3180,7 @@ static void handle_opaque_block_mode1(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(1, &params, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3305,20 +3209,19 @@ static void handle_opaque_block_mode0(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
                                      const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights3Index;
+    params.m_num_selector_weights = 8;
+    params.m_comp_bits = 4;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
+
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.z, solutions);
-    
-    pParams->m_weights_index = kBC7Weights3Index;
-    pParams->m_num_selector_weights = 8;
-
-    pParams->m_comp_bits = 4;
-    pParams->m_has_pbits = true;
-    pParams->m_endpoints_share_pbit = false;
-
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
         const uint32_t best_partition = solutions[solution_index].m_index;
@@ -3334,7 +3237,7 @@ static void handle_opaque_block_mode0(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(0, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(0, &params, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             mode_err += err;
@@ -3365,20 +3268,20 @@ static void handle_opaque_block_mode3(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
                                      const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 7;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
+
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
     const bool disable_faster_part_selection = false;
-    pParams->m_weights_index = kBC7Weights2Index;
-    pParams->m_num_selector_weights = 4;
-
-    pParams->m_comp_bits = 7;
-    pParams->m_has_pbits = true;
-    pParams->m_endpoints_share_pbit = false;
-
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
         const uint32_t trial_partition = solutions[solution_index].m_index;
@@ -3394,7 +3297,7 @@ static void handle_opaque_block_mode3(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
+            uint32_t err = color_cell_compression(3, &params, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3437,7 +3340,7 @@ static void handle_opaque_block_mode3(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(3, &params, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3465,20 +3368,26 @@ static void handle_opaque_block_mode5(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
                                      const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
                                      const constant LookupTables* tables)
 {
-    color_cell_compressor_params params5 = *pParams;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 7;
+    params.m_has_alpha = false;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
 
     for (uint32_t rotation = 0; rotation < 4; rotation++)
     {
         if ((pComp_params->m_mode5_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params5.m_weights = pParams->m_weights;
-        if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
-        if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
-        if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
+        params.m_weights = pComp_params->m_weights;
+        if (rotation == 1) params.m_weights = params.m_weights.agbr;
+        if (rotation == 2) params.m_weights = params.m_weights.rabg;
+        if (rotation == 3) params.m_weights = params.m_weights.rgab;
 
         uchar4 rot_pixels[16];
         const thread uchar4* pTrial_pixels = pixels;
@@ -3505,7 +3414,7 @@ static void handle_opaque_block_mode5(
 
         bc7_optimization_results trial_opt_results5;
         trial_opt_results5.m_error = 0;
-        handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params5, trial_lo_a, trial_hi_a, &trial_opt_results5, tables);
+        handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params, trial_lo_a, trial_hi_a, &trial_opt_results5, tables);
 
         if (trial_opt_results5.m_error < res.m_error)
         {
@@ -3519,20 +3428,19 @@ static void handle_opaque_block_mode2(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
                                      const constant bc7e_compress_block_params* pComp_params,
-                                     thread color_cell_compressor_params* pParams,
                                      const constant LookupTables* tables,
                                      uint4 solution_lists)
 {
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(&params, pComp_params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 5;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
+
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.w, solutions);
-
-    pParams->m_weights_index = kBC7Weights2Index;
-    pParams->m_num_selector_weights = 4;
-
-    pParams->m_comp_bits = 5;
-    pParams->m_has_pbits = false;
-    pParams->m_endpoints_share_pbit = false;
-
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
         const int32_t best_partition = solutions[solution_index].m_index;
@@ -3548,7 +3456,7 @@ static void handle_opaque_block_mode2(
             thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression(2, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(2, &params, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             mode_err += err;
@@ -3674,16 +3582,13 @@ kernel void bc7e_compress_blocks_mode4_alpha(
     if (!glob.params.m_alpha_settings.m_use_mode4)
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
     const int num_rotations = (glob.params.m_perceptual || (!glob.params.m_alpha_settings.m_use_mode4_rotation)) ? 1 : 4;
-    handle_block_mode4(res, pixels, &glob.params, &params, lo_a, hi_a, num_rotations, tables);
+    handle_block_mode4(res, pixels, &glob.params, lo_a, hi_a, num_rotations, tables);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 }
@@ -3708,14 +3613,11 @@ kernel void bc7e_compress_blocks_mode4_opaq(
     if (glob.params.m_mode6_only || glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[4])
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
-    handle_block_mode4(res, pixels, &glob.params, &params, 255, 255, 4, tables);
+    handle_block_mode4(res, pixels, &glob.params, 255, 255, 4, tables);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 #endif // #if !defined(OPT_ULTRAFAST_ONLY)
@@ -3740,15 +3642,12 @@ kernel void bc7e_compress_blocks_mode6(
     if (!has_alpha && !glob.params.m_opaque_settings.m_use_mode[6])
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
-    handle_block_mode6(res, pixels, &glob.params, &params, tables, has_alpha);
+    handle_block_mode6(res, pixels, &glob.params, tables, has_alpha);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 }
@@ -3762,8 +3661,6 @@ kernel void bc7e_compress_blocks_mode5(
 {
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -3779,13 +3676,13 @@ kernel void bc7e_compress_blocks_mode5(
     {
         if (!glob.params.m_alpha_settings.m_use_mode5)
             return;
-        handle_alpha_block_mode5(res, pixels, &glob.params, &params, lo_a, hi_a, tables);
+        handle_alpha_block_mode5(res, pixels, &glob.params, lo_a, hi_a, tables);
     }
     else
     {
         if (glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[5] || glob.params.m_mode6_only)
             return;
-        handle_opaque_block_mode5(res, pixels, &glob.params, &params, tables);
+        handle_opaque_block_mode5(res, pixels, &glob.params, tables);
     }
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
@@ -3812,16 +3709,13 @@ kernel void bc7e_compress_blocks_mode2(
     if (!glob.params.m_opaque_settings.m_use_mode[2] || glob.params.m_mode6_only)
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
     uint4 lists = bufLists[block_index];
-    handle_opaque_block_mode2(res, pixels, &glob.params, &params, tables, lists);
+    handle_opaque_block_mode2(res, pixels, &glob.params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 #endif // #if !defined(OPT_ULTRAFAST_ONLY)
@@ -3849,16 +3743,13 @@ kernel void bc7e_compress_blocks_mode1(
     if (!glob.params.m_opaque_settings.m_use_mode[1] || glob.params.m_mode6_only)
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
     uint4 lists = bufLists[block_index];
-    handle_opaque_block_mode1(res, pixels, &glob.params, &params, tables, lists);
+    handle_opaque_block_mode1(res, pixels, &glob.params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 #endif // #if !defined(OPT_ULTRAFAST_ONLY)
@@ -3885,16 +3776,13 @@ kernel void bc7e_compress_blocks_mode0(
     if (!glob.params.m_opaque_settings.m_use_mode[0] || glob.params.m_mode6_only)
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
     uint4 lists = bufLists[block_index];
-    handle_opaque_block_mode0(res, pixels, &glob.params, &params, tables, lists);
+    handle_opaque_block_mode0(res, pixels, &glob.params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 #endif // #if !defined(OPT_ULTRAFAST_ONLY)
@@ -3921,16 +3809,13 @@ kernel void bc7e_compress_blocks_mode3(
     if (!glob.params.m_opaque_settings.m_use_mode[3] || glob.params.m_mode6_only)
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
-
     uint block_index = id.y * glob.widthInBlocks + id.x;
     uint prev_error = bufTemp[block_index].m_error;
     bc7_optimization_results res;
     res.m_error = prev_error;
 
     uint4 lists = bufLists[block_index];
-    handle_opaque_block_mode3(res, pixels, &glob.params, &params, tables, lists);
+    handle_opaque_block_mode3(res, pixels, &glob.params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 #endif // #if !defined(OPT_ULTRAFAST_ONLY)
@@ -3947,8 +3832,6 @@ kernel void bc7e_compress_blocks_mode7(
 #if !defined(OPT_ULTRAFAST_ONLY)
     if (id.x >= glob.widthInBlocks || id.y >= glob.heightInBlocks)
         return;
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, &glob.params);
 
     uchar4 pixels[16];
     uchar lo_a, hi_a;
@@ -3965,7 +3848,7 @@ kernel void bc7e_compress_blocks_mode7(
     res.m_error = prev_error;
 
     uint4 lists = bufLists[block_index];
-    handle_alpha_block_mode7(res, pixels, &glob.params, &params, lo_a, hi_a, tables, lists);
+    handle_alpha_block_mode7(res, pixels, &glob.params, tables, lists);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 #endif // #if !defined(OPT_ULTRAFAST_ONLY)

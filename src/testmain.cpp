@@ -883,8 +883,8 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
         float psnr = eval_psnr(tf.width, tf.height, tf.channels, s_Bc7DecompressExpected, s_Bc7DecompressGot);
         if (psnr < kAllowedPsnrDiff || kRequireExactResultsMatch)
         {
-            int maxDiffX = maxDiffIdx / 4 % tf.width;
-			int maxDiffY = maxDiffIdx / 4 / tf.width;
+            int maxDiffX = (int)(maxDiffIdx / 4 % tf.width);
+			int maxDiffY = (int)(maxDiffIdx / 4 / tf.width);
             int maxDiffCh = maxDiffIdx % 4;
             printf("    ERROR: did not match reference (PSNR diff %.2f; max pixel diff %i at pixel %i,%i ch %i block %i,%i)\n", psnr, maxDiff, maxDiffX, maxDiffY, maxDiffCh, maxDiffX/4, maxDiffY/4);
             tf.errors = true;
