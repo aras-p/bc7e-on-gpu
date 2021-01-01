@@ -2902,13 +2902,14 @@ static void handle_block_mode4(
     } // rotation
 }
 
-static void handle_alpha_block_mode5(
-                                     thread bc7_optimization_results& res,
-                                     const uchar4 pixels[16],
-                                     const constant bc7e_compress_block_params* pComp_params,
-                                     int lo_a,
-                                     int hi_a,
-                                     const constant LookupTables* tables)
+static void handle_block_mode5(
+                               thread bc7_optimization_results& res,
+                               const uchar4 pixels[16],
+                               const constant bc7e_compress_block_params* pComp_params,
+                               int lo_a,
+                               int hi_a,
+                               uint num_rotations,
+                               const constant LookupTables* tables)
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
@@ -2919,7 +2920,6 @@ static void handle_alpha_block_mode5(
     params.m_has_pbits = false;
     params.m_endpoints_share_pbit = false;
 
-    const uint num_rotations = (pComp_params->m_perceptual || (!pComp_params->m_alpha_settings.m_use_mode5_rotation)) ? 1 : 4;
     for (uint rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((pComp_params->m_mode5_rotation_mask & (1 << rotation)) == 0)
@@ -3364,66 +3364,6 @@ static void handle_opaque_block_mode3(
     }
 }
 
-static void handle_opaque_block_mode5(
-                                     thread bc7_optimization_results& res,
-                                     const uchar4 pixels[16],
-                                     const constant bc7e_compress_block_params* pComp_params,
-                                     const constant LookupTables* tables)
-{
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights2Index;
-    params.m_num_selector_weights = 4;
-    params.m_comp_bits = 7;
-    params.m_has_alpha = false;
-    params.m_has_pbits = false;
-    params.m_endpoints_share_pbit = false;
-
-    for (uint32_t rotation = 0; rotation < 4; rotation++)
-    {
-        if ((pComp_params->m_mode5_rotation_mask & (1 << rotation)) == 0)
-            continue;
-
-        params.m_weights = pComp_params->m_weights;
-        if (rotation == 1) params.m_weights = params.m_weights.agbr;
-        if (rotation == 2) params.m_weights = params.m_weights.rabg;
-        if (rotation == 3) params.m_weights = params.m_weights.rgab;
-
-        uchar4 rot_pixels[16];
-        const thread uchar4* pTrial_pixels = pixels;
-        uchar trial_lo_a = 255, trial_hi_a = 255;
-        if (rotation)
-        {
-            trial_lo_a = 255;
-            trial_hi_a = 0;
-
-            for (uint32_t i = 0; i < 16; i++)
-            {
-                auto c = pixels[i];
-                if (rotation == 1) c = c.agbr;
-                if (rotation == 2) c = c.rabg;
-                if (rotation == 3) c = c.rgab;
-                rot_pixels[i] = c;
-
-                trial_lo_a = min(trial_lo_a, c.a);
-                trial_hi_a = max(trial_hi_a, c.a);
-            }
-
-            pTrial_pixels = rot_pixels;
-        }
-
-        bc7_optimization_results trial_opt_results5;
-        trial_opt_results5.m_error = 0;
-        handle_alpha_block_mode5(pTrial_pixels, pComp_params, &params, trial_lo_a, trial_hi_a, &trial_opt_results5, tables);
-
-        if (trial_opt_results5.m_error < res.m_error)
-        {
-            res = trial_opt_results5;
-            res.m_rotation_index_sel = rotation;
-        }
-    } // rotation
-}
-
 static void handle_opaque_block_mode2(
                                      thread bc7_optimization_results& res,
                                      const uchar4 pixels[16],
@@ -3672,18 +3612,20 @@ kernel void bc7e_compress_blocks_mode5(
     bc7_optimization_results res;
     res.m_error = prev_error;
 
+    uint num_rotations = 4;
     if (has_alpha)
     {
         if (!glob.params.m_alpha_settings.m_use_mode5)
             return;
-        handle_alpha_block_mode5(res, pixels, &glob.params, lo_a, hi_a, tables);
+        if (glob.params.m_perceptual || !glob.params.m_alpha_settings.m_use_mode5_rotation)
+            num_rotations = 1;
     }
     else
     {
         if (glob.params.m_perceptual || !glob.params.m_opaque_settings.m_use_mode[5] || glob.params.m_mode6_only)
             return;
-        handle_opaque_block_mode5(res, pixels, &glob.params, tables);
     }
+    handle_block_mode5(res, pixels, &glob.params, lo_a, hi_a, num_rotations, tables);
     if (res.m_error < prev_error)
         bufTemp[block_index] = res;
 }
