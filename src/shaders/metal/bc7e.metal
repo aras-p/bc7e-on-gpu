@@ -193,7 +193,6 @@ const constant uint32_t BC7E_MODE_4_OPTIMAL_INDEX2 = 1;
 const constant uint32_t BC7E_MODE_0_OPTIMAL_INDEX = 2;
 
 
-template<bool use_partition>
 static void compute_least_squares_endpoints_rgba(const uint part_mask, const uint partition, const thread uchar* pSelectors, uint weights_index, thread vec4F* pXl, thread vec4F* pXh, const thread uchar4* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
@@ -202,7 +201,7 @@ static void compute_least_squares_endpoints_rgba(const uint part_mask, const uin
     float4 q00 = 0.0f, t = 0.0f;
     for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
     {
-        if (use_partition && ((pm & 3) != partition))
+        if ((pm & 3) != partition)
             continue;
         auto sel = pSelectors[i];
         float4 wt = tables->g_bc7_weightsx[weights_index+sel];
@@ -231,7 +230,6 @@ static void compute_least_squares_endpoints_rgba(const uint part_mask, const uin
     *pXl = iz00 * q00 + iz01 * q10; *pXh = iz10 * q00 + iz11 * q10;
 }
 
-template<bool use_partition>
 static void compute_least_squares_endpoints_a(const uint part_mask, const uint partition, const thread uchar* pSelectors, uint weights_index, thread float* pXl, thread float* pXh, const thread uchar4* pColors, const constant LookupTables* tables)
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
@@ -240,7 +238,7 @@ static void compute_least_squares_endpoints_a(const uint part_mask, const uint p
     float q00_a = 0.0f, q10_a = 0.0f, t_a = 0.0f;
     for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
     {
-        if (use_partition && ((pm & 3) != partition))
+        if ((pm & 3) != partition)
             continue;
         const uint32_t sel = pSelectors[i];
         float4 wt = tables->g_bc7_weightsx[weights_index+sel];
@@ -600,7 +598,6 @@ struct ModePackResult
     color_quad_i p;
 };
 
-template<bool use_partition>
 static ModePackResult pack_mode_to_one_color(
     int mode,
     const thread color_cell_compressor_params* pParams,
@@ -625,22 +622,9 @@ static ModePackResult pack_mode_to_one_color(
 
     bool rgba = mode == 6 || mode == 7;
     uint err = 0;
-    if (use_partition)
+    for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
     {
-        for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
-        {
-            if ((pm & 3) == partition)
-            {
-                if (rgba)
-                    err += compute_color_distance_rgba(&sel.col, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
-                else
-                    err += compute_color_distance_rgb(&sel.col, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
-            }
-        }
-    }
-    else
-    {
-        for (uint i = 0; i < 16; ++i)
+        if ((pm & 3) == partition)
         {
             if (rgba)
                 err += compute_color_distance_rgba(&sel.col, &pPixels[i], pParams->m_perceptual, pParams->m_weights);
@@ -655,7 +639,6 @@ static ModePackResult pack_mode_to_one_color(
     return res;
 }
 
-template<bool use_partition>
 static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const thread uint32_t* pbits,
     const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, const uint part_mask, const uint partition, const thread uchar4* pPixels, const constant LookupTables* tables)
 {
@@ -728,7 +711,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
-                    if (use_partition && ((pm & 3) != partition))
+                    if ((pm & 3) != partition)
                         continue;
                     auto c = pPixels[i];
                     float r = c.r;
@@ -765,7 +748,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             {
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
-                    if (use_partition && ((pm & 3) != partition))
+                    if ((pm & 3) != partition)
                         continue;
                     float pr = (float)pPixels[i][0];
                     float pg = (float)pPixels[i][1];
@@ -840,7 +823,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             {
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
-                    if (use_partition && ((pm & 3) != partition))
+                    if ((pm & 3) != partition)
                         continue;
                     float pr = (float)pPixels[i][0];
                     float pg = (float)pPixels[i][1];
@@ -902,7 +885,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
-                    if (use_partition && ((pm & 3) != partition))
+                    if ((pm & 3) != partition)
                         continue;
                     auto c = pPixels[i];
                     float r = c.r;
@@ -937,7 +920,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             {
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
-                    if (use_partition && ((pm & 3) != partition))
+                    if ((pm & 3) != partition)
                         continue;
                     float pr = (float)pPixels[i][0];
                     float pg = (float)pPixels[i][1];
@@ -1021,7 +1004,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             {
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
-                    if (use_partition && ((pm & 3) != partition))
+                    if ((pm & 3) != partition)
                         continue;
                     float pr = (float)pPixels[i][0];
                     float pg = (float)pPixels[i][1];
@@ -1089,7 +1072,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
         {
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
             {
-                if (use_partition && ((pm & 3) != partition))
+                if ((pm & 3) != partition)
                     continue;
                 float r = pPixels[i][0];
                 float g = pPixels[i][1];
@@ -1127,7 +1110,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
         {
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
             {
-                if (use_partition && ((pm & 3) != partition))
+                if ((pm & 3) != partition)
                     continue;
                 float r = pPixels[i][0];
                 float g = pPixels[i][1];
@@ -1174,7 +1157,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
         for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
         {
-            if (use_partition && ((pm & 3) != partition))
+            if ((pm & 3) != partition)
                 continue;
             pResults->m_pSelectors[i] = selectors[i];
         }
@@ -1233,7 +1216,6 @@ static void fixDegenerateEndpoints(uint32_t mode, thread uchar4& pTrialMinColor,
     }
 }
 
-template<bool use_partition>
 static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread vec4F* pXh, const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults,
     bool pbit_search, const uint part_mask, const uint partition, const thread uchar4* pPixels, const constant LookupTables* tables)
 {
@@ -1420,7 +1402,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
             uint best_pbits_mask = best_pbits[0] | (best_pbits[1] << 1);
             if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits_mask != pResults->m_pbits))
             {
-                evaluate_solution<use_partition>(bestMinColor, bestMaxColor, best_pbits, pParams, pResults, part_mask, partition, pPixels, tables);
+                evaluate_solution(bestMinColor, bestMaxColor, best_pbits, pParams, pResults, part_mask, partition, pPixels, tables);
             }
         }
     }
@@ -1440,7 +1422,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
             pbits[0] = 0;
             pbits[1] = 0;
 
-            evaluate_solution<use_partition>(trialMinColor, trialMaxColor, pbits, pParams, pResults, part_mask, partition, pPixels, tables);
+            evaluate_solution(trialMinColor, trialMaxColor, pbits, pParams, pResults, part_mask, partition, pPixels, tables);
         }
     }
 
@@ -1448,7 +1430,6 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
 }
 
 // Note: In mode 6, m_has_alpha will only be true for transparent blocks.
-template<bool use_partition>
 static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults,
     const constant bc7e_compress_block_params* pComp_params, const uint part_mask, const uint partition, const thread uchar4* pPixels, bool refinement, const constant LookupTables* tables)
 {
@@ -1463,60 +1444,39 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
     {
         bool allSame = true;
         uchar4 c;
-        if (use_partition)
+        // find first color
+        uint pm = part_mask;
+        uint pi = 0;
+        while (pi < 16)
         {
-            uint pm = part_mask;
-            uint pi = 0;
-            while (pi < 16)
+            if ((pm & 3) == partition)
             {
-                if ((pm & 3) == partition)
-                {
-                    c = pPixels[pi];
-                    break;
-                }
-                ++pi;
-                pm >>= 2;
+                c = pPixels[pi];
+                break;
             }
-            while (pi < 16)
-            {
-                if ((pm & 3) == partition)
-                {
-                    if (!all(c == pPixels[pi]))
-                    {
-                        allSame = false;
-                        break;
-                    }
-                }
-                ++pi;
-                pm >>= 2;
-            }
+            ++pi;
+            pm >>= 2;
         }
-        else
+        // check if all other colors are the same
+        while (pi < 16)
         {
-            c = pPixels[0];
-            for (uint32_t i = 1; i < 16; i++)
+            if ((pm & 3) == partition)
             {
-                if (!all(c == pPixels[i]))
+                if (!all(c == pPixels[pi]))
                 {
                     allSame = false;
                     break;
                 }
             }
+            ++pi;
+            pm >>= 2;
         }
         if (allSame)
         {
-            ModePackResult res = pack_mode_to_one_color<use_partition>(mode, pParams, pResults, c, part_mask, partition, pPixels, tables);
-            if (use_partition)
+            ModePackResult res = pack_mode_to_one_color(mode, pParams, pResults, c, part_mask, partition, pPixels, tables);
+            for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
             {
-                for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
-                {
-                    if ((pm & 3) == partition)
-                        pResults->m_pSelectors[i] = res.bestSelector;
-                }
-            }
-            else
-            {
-                for (uint i = 0; i < 16; ++i)
+                if ((pm & 3) == partition)
                     pResults->m_pSelectors[i] = res.bestSelector;
             }
             return res.err;
@@ -1524,24 +1484,14 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
     }
 
     vec4F meanColor = 0.0f;
-    uint pixel_count;
-    if (use_partition)
+    uint pixel_count = 0;
+    for (uint i = 0, pm = part_mask; i < 16; i++, pm >>= 2)
     {
-        pixel_count = 0;
-        for (uint i = 0, pm = part_mask; i < 16; i++, pm >>= 2)
+        if ((pm & 3) == partition)
         {
-            if ((pm & 3) == partition)
-            {
-                meanColor += float4(pPixels[i]);
-                ++pixel_count;
-            }
-        }
-    }
-    else
-    {
-        pixel_count = 16;
-        for (uint i = 0; i < 16; i++)
             meanColor += float4(pPixels[i]);
+            ++pixel_count;
+        }
     }
     vec4F meanColorScaled = meanColor * (1.0f / pixel_count);
     meanColor = saturate(meanColor * (1.0f / (pixel_count * 255.0f)));
@@ -1553,7 +1503,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         bool first = true;
         for (uint i = 0, pm = part_mask; i < 16; i++, pm >>= 2)
         {
-            if (use_partition && ((pm & 3) != partition))
+            if ((pm & 3) != partition)
                 continue;
             vec4F color = float4(pPixels[i]) - meanColorScaled;
 
@@ -1582,7 +1532,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
 
         for (uint i = 0, pm = part_mask; i < 16; i++, pm >>= 2)
         {
-            if (use_partition && ((pm & 3) != partition))
+            if ((pm & 3) != partition)
                 continue;
             float3 p = float3(pPixels[i].rgb);
 
@@ -1659,7 +1609,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
 
     for (uint i = 0, pm = part_mask; i < 16; i++, pm >>= 2)
     {
-        if (use_partition && ((pm & 3) != partition))
+        if ((pm & 3) != partition)
             continue;
         vec4F q = float4(pPixels[i]) - meanColorScaled;
         float d = dot(q, axis);
@@ -1686,7 +1636,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         maxColor = temp;
     }
 
-    if (!find_optimal_solution<use_partition>(mode, &minColor, &maxColor, pParams, pResults, pComp_params->m_pbit_search, part_mask, partition, pPixels, tables))
+    if (!find_optimal_solution(mode, &minColor, &maxColor, pParams, pResults, pComp_params->m_pbit_search, part_mask, partition, pPixels, tables))
         return 0;
     
     if (!refinement)
@@ -1696,7 +1646,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
     //for (uint32_t i = 0; i < pComp_params->m_refinement_passes; i++)
     {
         vec4F xl = 0.0f, xh = 0.0f;
-        compute_least_squares_endpoints_rgba<use_partition>(part_mask, partition, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+        compute_least_squares_endpoints_rgba(part_mask, partition, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
         if (!pParams->m_has_alpha)
         {
             xl.a = 255.0f;
@@ -1706,7 +1656,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         xl = xl * (1.0f / 255.0f);
         xh = xh * (1.0f / 255.0f);
 
-        if (!find_optimal_solution<use_partition>(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, part_mask, partition, pPixels, tables))
+        if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, part_mask, partition, pPixels, tables))
             return 0;
     }
 
@@ -1723,7 +1673,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         uchar max_sel = 0;
         for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
         {
-            if (use_partition && ((pm & 3) != partition))
+            if ((pm & 3) != partition)
                 continue;
             uchar sel = selectors_temp0[i];
             min_sel = min(min_sel, sel);
@@ -1739,7 +1689,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
             //    continue;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
             {
-                if (use_partition && ((pm & 3) != partition))
+                if ((pm & 3) != partition)
                     continue;
                 uchar sel = selectors_temp0[i];
                 if ((sel == min_sel) && (sel < max_selector) && (uber_it == 0 || uber_it == 2))
@@ -1748,7 +1698,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
                     sel--;
                 selectors_temp1[i] = sel;
             }
-            compute_least_squares_endpoints_rgba<use_partition>(part_mask, partition, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+            compute_least_squares_endpoints_rgba(part_mask, partition, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
             if (!pParams->m_has_alpha)
             {
                 xl.a = 255.0f;
@@ -1756,7 +1706,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
             }
             xl *= 1.0f / 255.0f;
             xh *= 1.0f / 255.0f;
-            if (!find_optimal_solution<use_partition>(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, part_mask, partition, pPixels, tables))
+            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search, part_mask, partition, pPixels, tables))
                 return 0;
         }
 
@@ -1777,7 +1727,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
 
                     xl = 0.0f;
                     xh = 0.0f;
-                    compute_least_squares_endpoints_rgba<use_partition>(part_mask, partition, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+                    compute_least_squares_endpoints_rgba(part_mask, partition, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
                     if (!pParams->m_has_alpha)
                     {
                         xl.a = 255.0f;
@@ -1787,7 +1737,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
                     xl *= 1.0f / 255.0f;
                     xh *= 1.0f / 255.0f;
 
-                    if (!find_optimal_solution<use_partition>(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search && (pComp_params->m_uber_level >= 2), part_mask, partition, pPixels, tables))
+                    if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, pComp_params->m_pbit_search && (pComp_params->m_uber_level >= 2), part_mask, partition, pPixels, tables))
                         return 0;
                 }
             }
@@ -1805,7 +1755,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         
         uchar4 avg_c = uchar4(.5f + meanColor * 255.0f);
 
-        ModePackResult avg_res = pack_mode_to_one_color<use_partition>(mode, pParams, &avg_results, avg_c, part_mask, partition, pPixels, tables);
+        ModePackResult avg_res = pack_mode_to_one_color(mode, pParams, &avg_results, avg_c, part_mask, partition, pPixels, tables);
 
         if (avg_res.err < pResults->m_best_overall_err)
         {
@@ -1816,7 +1766,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
 
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
             {
-                if (use_partition && ((pm & 3) != partition))
+                if ((pm & 3) != partition)
                     continue;
                 pResults->m_pSelectors[i] = avg_res.bestSelector;
             }
@@ -2562,7 +2512,7 @@ static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constan
         uchar selectors[16];
         results.m_pSelectors = selectors;
 
-        uint32_t trial_err = color_cell_compression<false>(4, pParams, &results, pComp_params, 0, 0, pPixels, true, tables);
+        uint32_t trial_err = color_cell_compression(4, pParams, &results, pComp_params, 0, 0, pPixels, true, tables);
         assert(trial_err == results.m_best_overall_err);
 
         uint32_t la = min((lo_a + 2) >> 2, 63u);
@@ -2644,7 +2594,7 @@ static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constan
             if (pass == 0)
             {
                 float xl, xh;
-                compute_least_squares_endpoints_a<false>(0, 0, trial_alpha_selectors, index_selector ? kBC7Weights2Index : kBC7Weights3Index, &xl, &xh, pPixels, tables);
+                compute_least_squares_endpoints_a(0, 0, trial_alpha_selectors, index_selector ? kBC7Weights2Index : kBC7Weights3Index, &xl, &xh, pPixels, tables);
                 if (xl > xh)
                     swapf(&xl, &xh);
                 la = clamp((int)floor(xl * (63.0f / 255.0f) + .5f), 0, 63);
@@ -2765,7 +2715,7 @@ static void handle_alpha_block_mode5(const thread uchar4* pPixels, const constan
     color_cell_compressor_results results5;
     results5.m_pSelectors = pOpt_results5->m_selectors;
 
-    pOpt_results5->m_error = color_cell_compression<false>(5, pParams, &results5, pComp_params, 0, 0, pPixels, true, tables);
+    pOpt_results5->m_error = color_cell_compression(5, pParams, &results5, pComp_params, 0, 0, pPixels, true, tables);
     assert(pOpt_results5->m_error == results5.m_best_overall_err);
 
     pOpt_results5->m_low[0] = results5.m_low_endpoint;
@@ -2822,7 +2772,7 @@ static void handle_alpha_block_mode5(const thread uchar4* pPixels, const constan
             if (!pass)
             {
                 float xl, xh;
-                compute_least_squares_endpoints_a<false>(0, 0, trial_alpha_selectors, kBC7Weights2Index, &xl, &xh, pPixels, tables);
+                compute_least_squares_endpoints_a(0, 0, trial_alpha_selectors, kBC7Weights2Index, &xl, &xh, pPixels, tables);
 
                 uint32_t new_lo_a = clamp((int)floor(xl + .5f), 0, 255);
                 uint32_t new_hi_a = clamp((int)floor(xh + .5f), 0, 255);
@@ -3145,7 +3095,7 @@ static void handle_alpha_block_mode7(
             thread color_cell_compressor_results* pResults = &subset_results7[subset];
             pResults->m_pSelectors = subset_selectors7;
 
-            uint32_t err = color_cell_compression<true>(7, &params7, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
+            uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3191,7 +3141,7 @@ static void handle_alpha_block_mode7(
             thread color_cell_compressor_results* pResults = &subset_results7[subset];
             pResults->m_pSelectors = subset_selectors7;
 
-            uint32_t err = color_cell_compression<true>(7, &params7, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3238,7 +3188,7 @@ static void handle_block_mode6(
     color_cell_compressor_results cres;
     cres.m_pSelectors = selectors;
 
-    uint err = color_cell_compression<false>(6, pParams, &cres, pComp_params, 0, 0, pixels, true, tables);
+    uint err = color_cell_compression(6, pParams, &cres, pComp_params, 0, 0, pixels, true, tables);
     if (err < res.m_error)
     {
         res.m_error = err;
@@ -3288,7 +3238,7 @@ static void handle_opaque_block_mode1(
             thread color_cell_compressor_results* pResults = &subset_results1[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression<true>(1, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
+            uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3334,7 +3284,7 @@ static void handle_opaque_block_mode1(
             thread color_cell_compressor_results* pResults = &subset_results1[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression<true>(1, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3395,7 +3345,7 @@ static void handle_opaque_block_mode0(
             thread color_cell_compressor_results* pResults = &subset_results0[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression<true>(0, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(0, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             mode0_err += err;
@@ -3459,7 +3409,7 @@ static void handle_opaque_block_mode3(
             thread color_cell_compressor_results* pResults = &subset_results3[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression<true>(3, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
+            uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3506,7 +3456,7 @@ static void handle_opaque_block_mode3(
             thread color_cell_compressor_results* pResults = &subset_results3[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression<true>(3, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             trial_err += err;
@@ -3621,7 +3571,7 @@ static void handle_opaque_block_mode2(
             thread color_cell_compressor_results* pResults = &subset_results2[subset];
             pResults->m_pSelectors = selectors;
 
-            uint32_t err = color_cell_compression<true>(2, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
+            uint32_t err = color_cell_compression(2, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
             mode2_err += err;
