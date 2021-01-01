@@ -3086,14 +3086,14 @@ static void handle_alpha_block_mode7(
 
         const uint part_mask = g_bc7_partition2[trial_partition];
 
-        uchar subset_selectors7[16];
-        color_cell_compressor_results subset_results7[2];
+        uchar selectors[16];
+        color_cell_compressor_results sub_res[2];
 
         uint32_t trial_err = 0;
         for (uint32_t subset = 0; subset < 2; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results7[subset];
-            pResults->m_pSelectors = subset_selectors7;
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
+            pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
             assert(err == pResults->m_best_overall_err);
@@ -3110,15 +3110,15 @@ static void handle_alpha_block_mode7(
             res.m_rotation_index_sel = 0;
             res.m_partition = trial_partition;
             for (uint i = 0; i < 16; ++i)
-                res.m_selectors[i] = subset_selectors7[i];
+                res.m_selectors[i] = selectors[i];
             for (uint32_t subset = 0; subset < 2; subset++)
             {
-                res.m_low[subset] = subset_results7[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results7[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
 
                 uint pbits = res.m_pbits;
                 pbits &= ~(3<<subset*2);
-                pbits |= subset_results7[subset].m_pbits << subset*2;
+                pbits |= sub_res[subset].m_pbits << subset*2;
                 res.m_pbits = pbits;
             }
         }
@@ -3132,14 +3132,14 @@ static void handle_alpha_block_mode7(
 
         const uint part_mask = g_bc7_partition2[trial_partition];
 
-        uchar subset_selectors7[16];
-        color_cell_compressor_results subset_results7[2];
+        uchar selectors[16];
+        color_cell_compressor_results sub_res[2];
 
         uint32_t trial_err = 0;
         for (uint32_t subset = 0; subset < 2; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results7[subset];
-            pResults->m_pSelectors = subset_selectors7;
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
+            pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(7, &params7, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
@@ -3153,15 +3153,15 @@ static void handle_alpha_block_mode7(
         {
             res.m_error = trial_err;
             for (uint i = 0; i < 16; ++i)
-                res.m_selectors[i] = subset_selectors7[i];
+                res.m_selectors[i] = selectors[i];
             for (uint32_t subset = 0; subset < 2; subset++)
             {
-                res.m_low[subset] = subset_results7[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results7[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
 
                 uint pbits = res.m_pbits;
                 pbits &= ~(3<<subset*2);
-                pbits |= subset_results7[subset].m_pbits << subset*2;
+                pbits |= sub_res[subset].m_pbits << subset*2;
                 res.m_pbits = pbits;
             }
         }
@@ -3230,12 +3230,12 @@ static void handle_opaque_block_mode1(
         const uint part_mask = g_bc7_partition2[trial_partition];
                     
         uchar selectors[16];
-        color_cell_compressor_results subset_results1[2];
+        color_cell_compressor_results sub_res[2];
 
         uint32_t trial_err = 0;
         for (uint32_t subset = 0; subset < 2; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results1[subset];
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
@@ -3257,12 +3257,12 @@ static void handle_opaque_block_mode1(
                 res.m_selectors[i] = selectors[i];
             for (uint32_t subset = 0; subset < 2; subset++)
             {
-                res.m_low[subset] = subset_results1[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results1[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
 
                 uint pbits = res.m_pbits;
                 pbits &= ~(3<<subset*2);
-                pbits |= subset_results1[subset].m_pbits << subset*2;
+                pbits |= sub_res[subset].m_pbits << subset*2;
                 res.m_pbits = pbits;
             }
         }
@@ -3276,12 +3276,12 @@ static void handle_opaque_block_mode1(
         const uint part_mask = g_bc7_partition2[trial_partition];
                     
         uchar selectors[16];
-        color_cell_compressor_results subset_results1[2];
+        color_cell_compressor_results sub_res[2];
 
         uint32_t trial_err = 0;
         for (uint32_t subset = 0; subset < 2; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results1[subset];
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(1, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
@@ -3300,12 +3300,12 @@ static void handle_opaque_block_mode1(
                 res.m_selectors[i] = selectors[i];
             for (uint32_t subset = 0; subset < 2; subset++)
             {
-                res.m_low[subset] = subset_results1[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results1[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
 
                 uint pbits = res.m_pbits;
                 pbits &= ~(3<<subset*2);
-                pbits |= subset_results1[subset].m_pbits << subset*2;
+                pbits |= sub_res[subset].m_pbits << subset*2;
                 res.m_pbits = pbits;
             }
         }
@@ -3332,44 +3332,44 @@ static void handle_opaque_block_mode0(
 
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
-        const uint32_t best_partition0 = solutions[solution_index].m_index;
+        const uint32_t best_partition = solutions[solution_index].m_index;
 
-        const uint part_mask = g_bc7_partition3[best_partition0];
+        const uint part_mask = g_bc7_partition3[best_partition];
 
-        color_cell_compressor_results subset_results0[3];
+        color_cell_compressor_results sub_res[3];
         uchar selectors[16];
 
-        uint32_t mode0_err = 0;
+        uint32_t mode_err = 0;
         for (uint32_t subset = 0; subset < 3; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results0[subset];
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(0, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
-            mode0_err += err;
-            if (mode0_err > res.m_error)
+            mode_err += err;
+            if (mode_err > res.m_error)
                 break;
         } // subset
 
-        if (mode0_err < res.m_error)
+        if (mode_err < res.m_error)
         {
-            res.m_error = mode0_err;
+            res.m_error = mode_err;
             res.m_mode = 0;
             res.m_rotation_index_sel = 0;
-            res.m_partition = best_partition0;
+            res.m_partition = best_partition;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
 
             for (uint32_t subset = 0; subset < 3; subset++)
             {
-                res.m_low[subset] = subset_results0[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results0[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
 
                 uint pbits = res.m_pbits;
                 pbits &= ~(3<<subset*2);
-                pbits |= subset_results0[subset].m_pbits << subset*2;
+                pbits |= sub_res[subset].m_pbits << subset*2;
                 res.m_pbits = pbits;
             }
         }
@@ -3401,12 +3401,12 @@ static void handle_opaque_block_mode3(
 
         const uint part_mask = g_bc7_partition2[trial_partition];
         uchar selectors[16];
-        color_cell_compressor_results subset_results3[2];
+        color_cell_compressor_results sub_res[2];
 
         uint32_t trial_err = 0;
         for (uint32_t subset = 0; subset < 2; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results3[subset];
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection, tables);
@@ -3428,12 +3428,12 @@ static void handle_opaque_block_mode3(
 
             for (uint32_t subset = 0; subset < 2; subset++)
             {
-                res.m_low[subset] = subset_results3[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results3[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
 
                 uint pbits = res.m_pbits;
                 pbits &= ~(3<<subset*2);
-                pbits |= subset_results3[subset].m_pbits << subset*2;
+                pbits |= sub_res[subset].m_pbits << subset*2;
                 res.m_pbits = pbits;
             }
         }
@@ -3448,12 +3448,12 @@ static void handle_opaque_block_mode3(
         const uint part_mask = g_bc7_partition2[trial_partition];
 
         uchar selectors[16];
-        color_cell_compressor_results subset_results3[2];
+        color_cell_compressor_results sub_res[2];
 
         uint32_t trial_err = 0;
         for (uint32_t subset = 0; subset < 2; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results3[subset];
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(3, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
@@ -3472,12 +3472,12 @@ static void handle_opaque_block_mode3(
                                     
             for (uint32_t subset = 0; subset < 2; subset++)
             {
-                res.m_low[subset] = subset_results3[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results3[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
 
                 uint pbits = res.m_pbits;
                 pbits &= ~(3<<subset*2);
-                pbits |= subset_results3[subset].m_pbits << subset*2;
+                pbits |= sub_res[subset].m_pbits << subset*2;
                 res.m_pbits = pbits;
             }
         }
@@ -3558,40 +3558,40 @@ static void handle_opaque_block_mode2(
 
     for (uint32_t solution_index = 0; solution_index < num_solutions; solution_index++)
     {
-        const int32_t best_partition2 = solutions[solution_index].m_index;
+        const int32_t best_partition = solutions[solution_index].m_index;
                     
-        const uint part_mask = g_bc7_partition3[best_partition2];
+        const uint part_mask = g_bc7_partition3[best_partition];
 
         uchar selectors[16];
-        color_cell_compressor_results subset_results2[3];
+        color_cell_compressor_results sub_res[3];
                     
-        uint32_t mode2_err = 0;
+        uint32_t mode_err = 0;
         for (uint32_t subset = 0; subset < 3; subset++)
         {
-            thread color_cell_compressor_results* pResults = &subset_results2[subset];
+            thread color_cell_compressor_results* pResults = &sub_res[subset];
             pResults->m_pSelectors = selectors;
 
             uint32_t err = color_cell_compression(2, pParams, pResults, pComp_params, part_mask, subset, pixels, true, tables);
             assert(err == pResults->m_best_overall_err);
 
-            mode2_err += err;
-            if (mode2_err > res.m_error)
+            mode_err += err;
+            if (mode_err > res.m_error)
                 break;
         } // subset
 
-        if (mode2_err < res.m_error)
+        if (mode_err < res.m_error)
         {
-            res.m_error = mode2_err;
+            res.m_error = mode_err;
             res.m_mode = 2;
             res.m_rotation_index_sel = 0;
-            res.m_partition = best_partition2;
+            res.m_partition = best_partition;
             for (uint i = 0; i < 16; ++i)
                 res.m_selectors[i] = selectors[i];
 
             for (uint32_t subset = 0; subset < 3; subset++)
             {
-                res.m_low[subset] = subset_results2[subset].m_low_endpoint;
-                res.m_high[subset] = subset_results2[subset].m_high_endpoint;
+                res.m_low[subset] = sub_res[subset].m_low_endpoint;
+                res.m_high[subset] = sub_res[subset].m_high_endpoint;
             }
         }
     }
