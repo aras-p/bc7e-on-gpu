@@ -62,12 +62,19 @@ struct TestFile
     bool errors = false;
 };
 
+
+static_assert(sizeof(ispc::bc7e_compress_block_params) == 124, "unexpected bc7e_compress_block_params struct size");
+static_assert(sizeof(ispc::$anon36) == 20, "unexpected bc7e_compress_block_params::opaq struct size");
+static_assert(sizeof(ispc::$anon37) == 28, "unexpected bc7e_compress_block_params::alpha struct size");
 struct Globals // note: should match shader code struct
 {
     int width, height;
     int widthInBlocks, heightInBlocks;
     ispc::bc7e_compress_block_params params;
+    int padding; // on Metal bc7e_compress_block_params is 4 bytes smaller
 };
+static_assert(sizeof(Globals) == 144, "unexpected Globals struct size");
+
 
 struct endpoint_err // note: should match shader code struct
 {

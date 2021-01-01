@@ -64,6 +64,7 @@ struct bc7e_compress_block_params // note: should match C++ code struct
         bool m_unused3;
     } m_alpha_settings;
 };
+static_assert(sizeof(bc7e_compress_block_params) == 128, "unexpected bc7e_compress_block_params struct size");
 
 static inline void swapu(thread uint32_t* a, thread uint32_t* b) { uint32_t t = *a; *a = *b; *b = t; }
 static inline void swapf(thread float* a, thread float* b) { float t = *a; *a = *b; *b = t; }
@@ -3579,6 +3580,7 @@ struct Globals // note: should match C++ code struct
     uint widthInBlocks, heightInBlocks;
     bc7e_compress_block_params params;
 };
+static_assert(sizeof(Globals) == 144, "unexpected Globals struct size");
 
 void load_pixel_block(uchar4 pixels[16], thread uchar& out_lo_a, thread uchar& out_hi_a, uint3 id, const device uint* bufInput, uint width)
 {
