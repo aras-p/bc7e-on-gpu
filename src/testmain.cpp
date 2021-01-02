@@ -776,12 +776,14 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
         SmolBufferSetData(s_Bc7GlobBuffer, &glob, sizeof(glob));
         SmolBufferSetData(s_Bc7InputBuffer, tf.rgba.data(), tf.rgba.size());
         
+        const int kGroupSize = 64;
+        
         SmolKernelSet(s_Bc7KernelLists);
         SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
         SmolKernelSetBuffer(s_Bc7InputBuffer, 1, SmolBufferBinding::Input);
         SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
         SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
-        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
 
         // ISPC code does compression mode choices in this order:
         // alpha: 4 6 5 7
@@ -796,7 +798,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if (settings.m_opaque_settings.m_use_mode[6] || (hasAlpha && settings.m_alpha_settings.m_use_mode6))
         {
@@ -806,7 +808,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if (settings.m_opaque_settings.m_use_mode[1] && !settings.m_mode6_only)
         {
@@ -816,7 +818,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if (settings.m_opaque_settings.m_use_mode[0] && !settings.m_mode6_only)
         {
@@ -826,7 +828,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if (settings.m_opaque_settings.m_use_mode[3] && !settings.m_mode6_only)
         {
@@ -836,7 +838,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if ((settings.m_opaque_settings.m_use_mode[5] && !settings.m_mode6_only) || (hasAlpha && settings.m_alpha_settings.m_use_mode5))
         {
@@ -846,7 +848,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if (settings.m_opaque_settings.m_use_mode[2] && !settings.m_mode6_only)
         {
@@ -856,7 +858,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if (settings.m_opaque_settings.m_use_mode[4] && !settings.m_mode6_only)
         {
@@ -866,7 +868,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
         if (hasAlpha && settings.m_alpha_settings.m_use_mode7)
         {
@@ -876,14 +878,14 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
         }
 
         SmolKernelSet(s_Bc7KernelEncode);
         SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
         SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Output);
         SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Input);
-        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
+        SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
 
         SmolBufferGetData(s_Bc7OutputBuffer, tf.bc7got.data(), tf.bc7got.size());
         float sec = (float)stm_sec(stm_since(t0));
