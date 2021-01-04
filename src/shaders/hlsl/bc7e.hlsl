@@ -109,25 +109,6 @@ static inline vec4F vec4F_normalize(vec4F v)
     return v;
 }
 
-static const uint g_bc7_weights2[16] = { 0, 21, 43, 64, 0,0,0,0,0,0,0,0,0,0,0,0 }; // 4 used
-static const uint g_bc7_weights3[16] = { 0, 9, 18, 27, 37, 46, 55, 64, 0,0,0,0,0,0,0,0 }; // 8 used
-static const uint g_bc7_weights4[16] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
-
-// Precomputed weight constants used during least fit determination. For each entry in g_bc7_weights[]: w * w, (1.0f - w) * w, (1.0f - w) * (1.0f - w), w
-static const float4 g_bc7_weights2x[16] = {
-    float4(0.000000f, 0.000000f, 1.000000f, 0.000000f), float4(0.107666f, 0.220459f, 0.451416f, 0.328125f), float4(0.451416f, 0.220459f, 0.107666f, 0.671875f), float4(1.000000f, 0.000000f, 0.000000f, 1.000000f),
-    float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0)
-};
-static const float4 g_bc7_weights3x[16] = {
-    float4(0.000000f, 0.000000f, 1.000000f, 0.000000f), float4(0.019775f, 0.120850f, 0.738525f, 0.140625f), float4(0.079102f, 0.202148f, 0.516602f, 0.281250f), float4(0.177979f, 0.243896f, 0.334229f, 0.421875f),
-    float4(0.334229f, 0.243896f, 0.177979f, 0.578125f), float4(0.516602f, 0.202148f, 0.079102f, 0.718750f), float4(0.738525f, 0.120850f, 0.019775f, 0.859375f), float4(1.000000f, 0.000000f, 0.000000f, 1.000000f),
-    float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0),float4(0,0,0,0)};
-static const float4 g_bc7_weights4x[16] = {
-    float4(0.000000f, 0.000000f, 1.000000f, 0.000000f), float4(0.003906f, 0.058594f, 0.878906f, 0.062500f), float4(0.019775f, 0.120850f, 0.738525f, 0.140625f), float4(0.041260f, 0.161865f, 0.635010f, 0.203125f),
-    float4(0.070557f, 0.195068f, 0.539307f, 0.265625f), float4(0.107666f, 0.220459f, 0.451416f, 0.328125f), float4(0.165039f, 0.241211f, 0.352539f, 0.406250f), float4(0.219727f, 0.249023f, 0.282227f, 0.468750f),
-    float4(0.282227f, 0.249023f, 0.219727f, 0.531250f), float4(0.352539f, 0.241211f, 0.165039f, 0.593750f), float4(0.451416f, 0.220459f, 0.107666f, 0.671875f), float4(0.539307f, 0.195068f, 0.070557f, 0.734375f),
-    float4(0.635010f, 0.161865f, 0.041260f, 0.796875f), float4(0.738525f, 0.120850f, 0.019775f, 0.859375f), float4(0.878906f, 0.058594f, 0.003906f, 0.937500f), float4(1.000000f, 0.000000f, 0.000000f, 1.000000f) };
-
 static const int g_bc7_partition1[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 
 static const int g_bc7_partition2[64][16] =
@@ -196,17 +177,27 @@ uint endpoint_get_hi(uint data)
     return data >> 24;
 }
 
+#define kBC7Weights2Index 0
+#define kBC7Weights3Index 4
+#define kBC7Weights4Index 12
+
 /*
-// This table is 16BK in size, CS 5.0 only supports structured buffer elements up to 2KB size.
-// So do the indexing manually.
-struct OptimalEndpointTables // note: should match C++ code struct
+// Basically it's this layout, just spelled out manually into a buffer.
+struct LookupTables // note: should match C++ code struct
 {
+    // optimal endpoint tables
     endpoint_err mode_1[256][2]; // [c][pbit]
     endpoint_err mode_7[256][2][2]; // [c][hp][lp]
     endpoint_err mode_6[256][2][2]; // [c][hp][lp]
     uint mode_4_3[256]; // [c]
     uint mode_4_2[256]; // [c]
     endpoint_err mode_0[256][2][2]; // [c][hp][lp]
+
+    // weights (what was g_bc7_weights2, g_bc7_weights3, g_bc7_weights4 in ISPC)
+    uint g_bc7_weights[4+8+16];
+    // Precomputed weight constants used during least fit determination. For each entry in g_bc7_weights[]: w * w, (1.0f - w) * w, (1.0f - w) * (1.0f - w), w
+    // (what was g_bc7_weights2x, g_bc7_weights3x, g_bc7_weights4x in ISPC)
+    float4 g_bc7_weightsx[4+8+16];
 };
 */
 StructuredBuffer<uint> s_Tables : register(t3);
@@ -216,6 +207,8 @@ uint get_table_mode6(uint c, uint hp, uint lp) { return s_Tables[1536 + c * 4 + 
 uint get_table_mode4_3(uint c) { return s_Tables[2560 + c]; }
 uint get_table_mode4_2(uint c) { return s_Tables[2816 + c]; }
 uint get_table_mode0(uint c, uint hp, uint lp) { return s_Tables[3072 + c * 4 + hp * 2 + lp]; }
+uint get_table_bc7_weight(uint index) { return s_Tables[4096 + index]; }
+float4 get_table_bc7_weightx(uint index) { index = 4124 + index * 4; uint4 r = uint4(s_Tables[index + 0], s_Tables[index + 1], s_Tables[index + 2], s_Tables[index + 3]); return asfloat(r); }
 
 static const uint BC7E_MODE_1_OPTIMAL_INDEX = 2;
 static const uint BC7E_MODE_7_OPTIMAL_INDEX = 1;
@@ -225,7 +218,7 @@ static const uint BC7E_MODE_4_OPTIMAL_INDEX2 = 1;
 static const uint BC7E_MODE_0_OPTIMAL_INDEX = 2;
 
 
-static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], float4 selector_weights[16], out precise float4 pXl, out precise float4 pXh, color_quad_i colors[16])
+static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], uint weights_index, out precise float4 pXl, out precise float4 pXh, color_quad_i colors[16])
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -234,12 +227,11 @@ static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], floa
     for (uint i = 0; i < N; i++)
     {
         const uint sel = selectors[i];
-
-        z00 += selector_weights[sel].r;
-        z10 += selector_weights[sel].g;
-        z11 += selector_weights[sel].b;
-
-        precise float w = selector_weights[sel].a;
+        precise float4 wt = get_table_bc7_weightx(weights_index+sel);
+        z00 += wt.r;
+        z10 += wt.g;
+        z11 += wt.b;
+        precise float w = wt.a;
         q00 += w * float4(colors[i]); t += float4(colors[i]);
     }
 
@@ -260,7 +252,7 @@ static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], floa
     pXl = iz00 * q00 + iz01 * q10; pXh = iz10 * q00 + iz11 * q10;
 }
 
-static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], float4 selector_weights[16], inout precise float4 pXl, inout precise float4 pXh, color_quad_i colors[16])
+static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], uint weights_index, inout precise float4 pXl, inout precise float4 pXh, color_quad_i colors[16])
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -269,12 +261,11 @@ static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], float
     for (uint i = 0; i < N; i++)
     {
         const uint sel = selectors[i];
-
-        z00 += selector_weights[sel].r;
-        z10 += selector_weights[sel].g;
-        z11 += selector_weights[sel].b;
-        precise float w = selector_weights[sel].a;
-
+        precise float4 wt = get_table_bc7_weightx(weights_index + sel);
+        z00 += wt.r;
+        z10 += wt.g;
+        z11 += wt.b;
+        precise float w = wt.a;
         q00 += w * float3(colors[i].rgb); t += float3(colors[i].rgb);
     }
 
@@ -295,7 +286,7 @@ static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], float
     pXl.rgb = iz00 * q00 + iz01 * q10; pXh.rgb = iz10 * q00 + iz11 * q10;
 }
 
-static void compute_least_squares_endpoints_a(uint N, int selectors[16], float4 selector_weights[16], out precise float pXl, out precise float pXh, color_quad_i colors[16])
+static void compute_least_squares_endpoints_a(uint N, int selectors[16], uint weights_index, out precise float pXl, out precise float pXh, color_quad_i colors[16])
 {
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
@@ -304,12 +295,11 @@ static void compute_least_squares_endpoints_a(uint N, int selectors[16], float4 
     for (uint i = 0; i < N; i++)
     {
         const uint sel = selectors[i];
-
-        z00 += selector_weights[sel].r;
-        z10 += selector_weights[sel].g;
-        z11 += selector_weights[sel].b;
-        precise float w = selector_weights[sel].a;
-
+        precise float4 wt = get_table_bc7_weightx(weights_index + sel);
+        z00 += wt.r;
+        z10 += wt.g;
+        z11 += wt.b;
+        precise float w = wt.a;
         q00_a += w * colors[i].a; t_a += colors[i].a;
     }
 
@@ -333,8 +323,7 @@ static void compute_least_squares_endpoints_a(uint N, int selectors[16], float4 
 struct color_cell_compressor_params
 {
     uint m_num_selector_weights;
-    uint m_selector_weights[16];
-    float4 m_selector_weightsx[16];
+    uint m_weights_index;
     uint m_comp_bits;
     uint4 m_weights;
     bool m_has_alpha;
@@ -346,13 +335,7 @@ struct color_cell_compressor_params
 static inline void color_cell_compressor_params_clear(out color_cell_compressor_params p)
 {
     p = (color_cell_compressor_params)0;
-    p.m_num_selector_weights = 0;
-    p.m_comp_bits = 0;
-    p.m_perceptual = false;
     p.m_weights = 1;
-    p.m_has_alpha = false;
-    p.m_has_pbits = false;
-    p.m_endpoints_share_pbit = false;
 }
 
 struct color_cell_compressor_results
@@ -483,7 +466,7 @@ static ModePackResult pack_mode1_to_one_color(color_cell_compressor_params pPara
         uint3 high = uint3(((pResults.m_high_endpoint.rgb << 1) | pResults.m_pbits[0]) << 1);
         high |= (high >> 7);
 
-        p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_1_OPTIMAL_INDEX] + 32) >> 6);
+        p.rgb = int3((low * (64 - get_table_bc7_weight(kBC7Weights3Index + BC7E_MODE_1_OPTIMAL_INDEX)) + high * get_table_bc7_weight(kBC7Weights3Index + BC7E_MODE_1_OPTIMAL_INDEX) + 32) >> 6);
     }
     p.a = 255;
 
@@ -530,9 +513,9 @@ static ModePackResult pack_mode24_to_one_color(color_cell_compressor_params pPar
         high |= (high >> 5);
 
         if (pParams.m_num_selector_weights == 8)
-            p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3]) + high * g_bc7_weights3[BC7E_MODE_4_OPTIMAL_INDEX3] + 32) >> 6);
+            p.rgb = int3((low * (64 - get_table_bc7_weight(kBC7Weights3Index + BC7E_MODE_4_OPTIMAL_INDEX3)) + high * get_table_bc7_weight(kBC7Weights3Index + BC7E_MODE_4_OPTIMAL_INDEX3) + 32) >> 6);
         else
-            p.rgb = int3((low * (64 - g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2]) + high * g_bc7_weights2[BC7E_MODE_4_OPTIMAL_INDEX2] + 32) >> 6);
+            p.rgb = int3((low * (64 - get_table_bc7_weight(kBC7Weights2Index + BC7E_MODE_4_OPTIMAL_INDEX2)) + high * get_table_bc7_weight(kBC7Weights2Index + BC7E_MODE_4_OPTIMAL_INDEX2) + 32) >> 6);
     }
     p.a = 255;
 
@@ -583,7 +566,7 @@ static ModePackResult pack_mode0_to_one_color(color_cell_compressor_params pPara
         uint3 high = uint3(((pResults.m_high_endpoint.rgb << 1) | pResults.m_pbits[1]) << 3);
         high |= (high >> 5);
 
-        p.rgb = int3((low * (64 - g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX]) + high * g_bc7_weights3[BC7E_MODE_0_OPTIMAL_INDEX] + 32) >> 6);
+        p.rgb = int3((low * (64 - get_table_bc7_weight(kBC7Weights3Index + BC7E_MODE_0_OPTIMAL_INDEX)) + high * get_table_bc7_weight(kBC7Weights3Index + BC7E_MODE_0_OPTIMAL_INDEX) + 32) >> 6);
     }    
     p.a = 255;
 
@@ -637,7 +620,7 @@ static ModePackResult pack_mode6_to_one_color(color_cell_compressor_params pPara
         uint4 low = uint4((pResults.m_low_endpoint << 1) | pResults.m_pbits[0]);
         uint4 high = uint4((pResults.m_high_endpoint << 1) | pResults.m_pbits[1]);
         
-        p = int4((low * (64 - g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX]) + high * g_bc7_weights4[BC7E_MODE_6_OPTIMAL_INDEX] + 32) >> 6);
+        p = int4((low * (64 - get_table_bc7_weight(kBC7Weights4Index + BC7E_MODE_6_OPTIMAL_INDEX)) + high * get_table_bc7_weight(kBC7Weights4Index + BC7E_MODE_6_OPTIMAL_INDEX) + 32) >> 6);
     }
 
     uint total_err = 0;
@@ -690,7 +673,7 @@ static ModePackResult pack_mode7_to_one_color(color_cell_compressor_params pPara
         uint4 low = uint4((pResults.m_low_endpoint << 1) | pResults.m_pbits[0]);
         uint4 high = uint4((pResults.m_high_endpoint << 1) | pResults.m_pbits[1]);
         
-        p = int4((low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6);
+        p = int4((low * (64 - get_table_bc7_weight(kBC7Weights2Index + BC7E_MODE_7_OPTIMAL_INDEX)) + high * get_table_bc7_weight(kBC7Weights2Index + BC7E_MODE_7_OPTIMAL_INDEX) + 32) >> 6);
     }
 
     uint total_err = 0;
@@ -765,7 +748,8 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
     for (uint i = 1; i < (N - 1); i++)
         for (uint j = 0; j < nc; j++)
         {
-            precise float w = (weightedColors[0][j] * (64.0f - pParams.m_selector_weights[i]) + weightedColors[N - 1][j] * pParams.m_selector_weights[i] + 32) * (1.0f / 64.0f);
+            precise float wt = get_table_bc7_weight(pParams.m_weights_index + i);
+            precise float w = (weightedColors[0][j] * (64.0f - wt) + weightedColors[N - 1][j] * wt + 32) * (1.0f / 64.0f);
             weightedColors[i][j] = floor(w);
         }
 
@@ -1680,10 +1664,10 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
     {
         precise vec4F xl = 0.0f, xh = 0.0f;
         if (pParams.m_has_alpha)
-            compute_least_squares_endpoints_rgba(num_pixels, pResults.m_selectors, pParams.m_selector_weightsx, xl, xh, pPixels);
+            compute_least_squares_endpoints_rgba(num_pixels, pResults.m_selectors, pParams.m_weights_index, xl, xh, pPixels);
         else
         {
-            compute_least_squares_endpoints_rgb(num_pixels, pResults.m_selectors, pParams.m_selector_weightsx, xl, xh, pPixels);
+            compute_least_squares_endpoints_rgb(num_pixels, pResults.m_selectors, pParams.m_weights_index, xl, xh, pPixels);
             xl.a = 255.0f;
             xh.a = 255.0f;
         }
@@ -1726,10 +1710,10 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
             }
                         
             if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
             else
             {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
                 xl.a = 255.0f;
                 xh.a = 255.0f;
             }
@@ -1752,10 +1736,10 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
             }
 
             if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
             else
             {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
                 xl.a = 255.0f;
                 xh.a = 255.0f;
             }
@@ -1780,10 +1764,10 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
             }
 
             if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
             else
             {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
                 xl.a = 255.0f;
                 xh.a = 255.0f;
             }
@@ -1812,10 +1796,10 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
                     xl = 0.0f;
                     xh = 0.0f;
                     if (pParams->m_has_alpha)
-                        compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                        compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
                     else
                     {
-                        compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pPixels);
+                        compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
                         xl.a = 255.0f;
                         xh.a = 255.0f;
                     }
@@ -2082,10 +2066,7 @@ static uint estimate_partition(uint mode, const color_quad_i pPixels[16])
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
 
-    if (g_bc7_color_index_bitcount[mode] == 2)
-        params.m_selector_weights = g_bc7_weights2;
-    else
-        params.m_selector_weights = g_bc7_weights3;
+    params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
     params.m_weights = g_params.m_weights;
@@ -2189,10 +2170,7 @@ static uint estimate_partition_list(uint mode, const color_quad_i pPixels[16],
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
 
-    if (g_bc7_color_index_bitcount[mode] == 2)
-        params.m_selector_weights = g_bc7_weights2;
-    else
-        params.m_selector_weights = g_bc7_weights3;
+    params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
     params.m_weights = g_params.m_weights;
@@ -2608,14 +2586,12 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
 
         if (index_selector)
         {
-            pParams.m_selector_weights = g_bc7_weights3;
-            pParams.m_selector_weightsx = g_bc7_weights3x;
+            pParams.m_weights_index = kBC7Weights3Index;
             pParams.m_num_selector_weights = 8;
         }
         else
         {
-            pParams.m_selector_weights = g_bc7_weights2;
-            pParams.m_selector_weightsx = g_bc7_weights2x;
+            pParams.m_weights_index = kBC7Weights2Index;
             pParams.m_num_selector_weights = 4;
         }
                                 
@@ -2652,7 +2628,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
                 vals[7] = (ha << 2) | (ha >> 4);
 
                 for (uint i = 1; i < 7; i++)
-                    vals[i] = (vals[0] * (64 - g_bc7_weights3[i]) + vals[7] * g_bc7_weights3[i] + 32) >> 6;
+                    vals[i] = (vals[0] * (64 - get_table_bc7_weight(kBC7Weights3Index + i)) + vals[7] * get_table_bc7_weight(kBC7Weights3Index + i) + 32) >> 6;
             }
             else
             {
@@ -2702,12 +2678,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
             if (pss == 0)
             {
                 precise float xl, xh;
-                float4 weightsx[16];
-                if (index_selector)
-                    weightsx = g_bc7_weights2x;
-                else
-                    weightsx = g_bc7_weights3x;
-                compute_least_squares_endpoints_a(16, trial_alpha_selectors, weightsx, xl, xh, pPixels);
+                compute_least_squares_endpoints_a(16, trial_alpha_selectors, index_selector ? kBC7Weights2Index : kBC7Weights3Index, xl, xh, pPixels);
                 if (xl > xh)
                     swapf(xl, xh);
                 xl = floor(xl * (63.0f / 255.0f) + .5f);
@@ -2737,7 +2708,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
                         vals[7] = (ha << 2) | (ha >> 4);
 
                         for (uint i = 1; i < 7; i++)
-                            vals[i] = (vals[0] * (64 - g_bc7_weights3[i]) + vals[7] * g_bc7_weights3[i] + 32) >> 6;
+                            vals[i] = (vals[0] * (64 - get_table_bc7_weight(kBC7Weights3Index + i)) + vals[7] * get_table_bc7_weight(kBC7Weights3Index + i) + 32) >> 6;
                     }
                     else
                     {
@@ -2816,8 +2787,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
 static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_compressor_params pParams, uint lo_a, uint hi_a,
     inout bc7_optimization_results pOpt_results5, inout uint pMode5_err)
 {
-    pParams.m_selector_weights = g_bc7_weights2;
-    pParams.m_selector_weightsx = g_bc7_weights2x;
+    pParams.m_weights_index = kBC7Weights2Index;
     pParams.m_num_selector_weights = 4;
 
     pParams.m_comp_bits = 7;
@@ -2886,7 +2856,7 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_
             if (!pss)
             {
                 float xl, xh;
-                compute_least_squares_endpoints_a(16, trial_alpha_selectors, g_bc7_weights2x, xl, xh, pPixels);
+                compute_least_squares_endpoints_a(16, trial_alpha_selectors, kBC7Weights2Index, xl, xh, pPixels);
 
                 uint new_lo_a = clamp((int)floor(xl + .5f), 0, 255);
                 uint new_hi_a = clamp((int)floor(xh + .5f), 0, 255);
@@ -3145,8 +3115,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
 
         color_cell_compressor_results results6 = (color_cell_compressor_results)0;
         
-        params6.m_selector_weights = g_bc7_weights4;
-        params6.m_selector_weightsx = g_bc7_weights4x;
+        params6.m_weights_index = kBC7Weights4Index;
         params6.m_num_selector_weights = 16;
 
         params6.m_comp_bits = 7;
@@ -3243,8 +3212,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
         
         // Note: m_mode67_error_weight_mul was always 1, removed
         
-        params7.m_selector_weights = g_bc7_weights2;
-        params7.m_selector_weightsx = g_bc7_weights2x;
+        params7.m_weights_index = kBC7Weights2Index;
         params7.m_num_selector_weights = 4;
 
         params7.m_comp_bits = 5;
@@ -3252,8 +3220,6 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
         params7.m_endpoints_share_pbit = false;
                 
         params7.m_has_alpha = true;
-
-        int selectors_temp[16];
 
         const bool disable_faster_part_selection = false;
 
@@ -3388,8 +3354,6 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
 
 static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_lists, color_cell_compressor_params pParams)
 {
-    int selectors_temp[16];
-        
     bc7_optimization_results opt_results = (bc7_optimization_results)0;
         
     uint best_err = UINT_MAX;
@@ -3397,8 +3361,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
     // Mode 6
     if (g_params.m_opaq_use_modes456 & 0xFF0000)
     {
-        pParams.m_selector_weights = g_bc7_weights4;
-        pParams.m_selector_weightsx = g_bc7_weights4x;
+        pParams.m_weights_index = kBC7Weights4Index;
         pParams.m_num_selector_weights = 16;
 
         pParams.m_comp_bits = 7;
@@ -3432,8 +3395,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
     // Mode 1
     if (g_params.m_opaq_use_modes0123 & 0xFF00)
     {
-        pParams.m_selector_weights = g_bc7_weights3;
-        pParams.m_selector_weightsx = g_bc7_weights3x;
+        pParams.m_weights_index = kBC7Weights3Index;
         pParams.m_num_selector_weights = 8;
 
         pParams.m_comp_bits = 6;
@@ -3571,8 +3533,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.z, solutions3);
 
-        pParams.m_selector_weights = g_bc7_weights3;
-        pParams.m_selector_weightsx = g_bc7_weights3x;
+        pParams.m_weights_index = kBC7Weights3Index;
         pParams.m_num_selector_weights = 8;
 
         pParams.m_comp_bits = 4;
@@ -3649,8 +3610,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
     // Mode 3
     if (g_params.m_opaq_use_modes0123 & 0xFF000000)
     {
-        pParams.m_selector_weights = g_bc7_weights2;
-        pParams.m_selector_weightsx = g_bc7_weights2x;
+        pParams.m_weights_index = kBC7Weights2Index;
         pParams.m_num_selector_weights = 4;
 
         pParams.m_comp_bits = 7;
@@ -3844,8 +3804,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
         solution solutions3[4];
         uint num_solutions3 = decode_solutions(solution_lists.w, solutions3);
 
-        pParams.m_selector_weights = g_bc7_weights2;
-        pParams.m_selector_weightsx = g_bc7_weights2x;
+        pParams.m_weights_index = kBC7Weights2Index;
         pParams.m_num_selector_weights = 4;
 
         pParams.m_comp_bits = 5;
@@ -3990,8 +3949,7 @@ static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cel
     uint best_err = UINT_MAX;
 
     // Mode 6
-    pParams.m_selector_weights = g_bc7_weights4;
-    pParams.m_selector_weightsx = g_bc7_weights4x;
+    pParams.m_weights_index = kBC7Weights4Index;
     pParams.m_num_selector_weights = 16;
 
     pParams.m_comp_bits = 7;
