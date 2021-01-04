@@ -2312,9 +2312,8 @@ struct bc7_optimization_results
     uint m_mode;                // 4B
     uint m_partition;           // 4B
     uint m_pbits;               // 4B [3][2] array of one bit each
-    uint m_rotation;            // 4B
-    uint m_index_selector;      // 4B
-}; // = 172B
+    uint m_rotation_index_sel;  // 4B 4 bits rotation, 4 bits index selector
+}; // = 168B
 
 static uint4 encode_bc7_block(const bc7_optimization_results pResults)
 {
@@ -2358,6 +2357,9 @@ static uint4 encode_bc7_block(const bc7_optimization_results pResults)
     anchor[1] = -1;
     anchor[2] = -1;
 
+    int index_selector = pResults.m_rotation_index_sel >> 4;
+    int rotation = pResults.m_rotation_index_sel & 0xF;
+
     for (uint k = 0; k < total_subsets; k++)
     {
         uint anchor_index = 0;
@@ -2379,7 +2381,7 @@ static uint4 encode_bc7_block(const bc7_optimization_results pResults)
 
         anchor[k] = anchor_index;
 
-        const uint color_index_bits = get_bc7_color_index_size(best_mode, pResults.m_index_selector);
+        const uint color_index_bits = get_bc7_color_index_size(best_mode, index_selector);
         const uint num_color_indices = 1 << color_index_bits;
 
         if (color_selectors[anchor_index] & (num_color_indices >> 1))
@@ -2413,7 +2415,7 @@ static uint4 encode_bc7_block(const bc7_optimization_results pResults)
 
         if (get_bc7_mode_has_seperate_alpha_selectors(best_mode))
         {
-            const uint alpha_index_bits = get_bc7_alpha_index_size(best_mode, pResults.m_index_selector);
+            const uint alpha_index_bits = get_bc7_alpha_index_size(best_mode, index_selector);
             const uint num_alpha_indices = 1 << alpha_index_bits;
 
             if (alpha_selectors[anchor_index] & (num_alpha_indices >> 1))
@@ -2438,10 +2440,10 @@ static uint4 encode_bc7_block(const bc7_optimization_results pResults)
     set_block_bits(block, 1 << best_mode, best_mode + 1, cur_bit_ofs);
 
     if ((best_mode == 4) || (best_mode == 5))
-        set_block_bits(block, pResults.m_rotation, 2, cur_bit_ofs);
+        set_block_bits(block, rotation, 2, cur_bit_ofs);
 
     if (best_mode == 4)
-        set_block_bits(block, pResults.m_index_selector, 1, cur_bit_ofs);
+        set_block_bits(block, index_selector, 1, cur_bit_ofs);
 
     if (total_partitions > 1)
         set_block_bits(block, pResults.m_partition, (total_partitions == 64) ? 6 : 4, cur_bit_ofs);
@@ -2472,12 +2474,12 @@ static uint4 encode_bc7_block(const bc7_optimization_results pResults)
         {
             int idx = x + y * 4;
 
-            uint n = pResults.m_index_selector ? get_bc7_alpha_index_size(best_mode, pResults.m_index_selector) : get_bc7_color_index_size(best_mode, pResults.m_index_selector);
+            uint n = index_selector ? get_bc7_alpha_index_size(best_mode, index_selector) : get_bc7_color_index_size(best_mode, index_selector);
 
             if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
                 n--;
 
-            set_block_bits(block, pResults.m_index_selector ? alpha_selectors[idx] : color_selectors[idx], n, cur_bit_ofs);
+            set_block_bits(block, index_selector ? alpha_selectors[idx] : color_selectors[idx], n, cur_bit_ofs);
         }
     }
 
@@ -2489,12 +2491,12 @@ static uint4 encode_bc7_block(const bc7_optimization_results pResults)
             {
                 int idx = x + y * 4;
 
-                uint n = pResults.m_index_selector ? get_bc7_color_index_size(best_mode, pResults.m_index_selector) : get_bc7_alpha_index_size(best_mode, pResults.m_index_selector);
+                uint n = index_selector ? get_bc7_color_index_size(best_mode, index_selector) : get_bc7_alpha_index_size(best_mode, index_selector);
 
                 if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
                     n--;
 
-                set_block_bits(block, pResults.m_index_selector ? color_selectors[idx] : alpha_selectors[idx], n, cur_bit_ofs);
+                set_block_bits(block, index_selector ? color_selectors[idx] : alpha_selectors[idx], n, cur_bit_ofs);
             }
         }
     }
@@ -2779,8 +2781,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
             pMode4_err = trial_err;
 
             pOpt_results4.m_mode = 4;
-            pOpt_results4.m_index_selector = index_selector;
-            pOpt_results4.m_rotation = 0;
+            pOpt_results4.m_rotation_index_sel = index_selector << 4;
             pOpt_results4.m_partition = 0;
 
             pOpt_results4.m_low[0] = results.m_low_endpoint;
@@ -2937,9 +2938,8 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_
     }
 
     pOpt_results5.m_mode = 5;
-    pOpt_results5.m_index_selector = 0;
+    pOpt_results5.m_rotation_index_sel = 0;
     pOpt_results5.m_selectors = results5.m_selectors;
-    pOpt_results5.m_rotation = 0;
     pOpt_results5.m_partition = 0;
 }
 
@@ -3102,8 +3102,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
                 best_err = trial_mode4_err;
 
                 opt_results.m_mode = 4;
-                opt_results.m_index_selector = trial_opt_results4.m_index_selector;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
                 opt_results.m_partition = 0;
 
                 opt_results.m_low[0] = trial_opt_results4.m_low[0];
@@ -3141,8 +3140,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
             best_err = mode6_err;
 
             opt_results.m_mode = 6;
-            opt_results.m_index_selector = 0;
-            opt_results.m_rotation = 0;
+            opt_results.m_rotation_index_sel = 0;
             opt_results.m_partition = 0;
 
             opt_results.m_low[0] = results6.m_low_endpoint;
@@ -3204,7 +3202,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
                 best_err = trial_mode5_err;
 
                 opt_results = trial_opt_results5;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation << 4;
             }
         } // rotation
     }
@@ -3274,8 +3272,7 @@ static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_l
                 best_err = trial_err;
                                         
                 opt_results.m_mode = 7;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
 
                 for (uint subset = 0; subset < 2; subset++)
@@ -3386,8 +3383,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
         best_err = color_cell_compression(6, pParams, results6, 16, pPixels, true);
                         
         opt_results.m_mode = 6;
-        opt_results.m_index_selector = 0;
-        opt_results.m_rotation = 0;
+        opt_results.m_rotation_index_sel = 0;
         opt_results.m_partition = 0;
 
         opt_results.m_low[0] = results6.m_low_endpoint;
@@ -3457,8 +3453,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
                 best_err = trial_err;
 
                 opt_results.m_mode = 1;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
 
                 for (uint subset = 0; subset < 2; subset++)
@@ -3598,8 +3593,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
                 best_err = mode0_err;
 
                 opt_results.m_mode = 0;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = best_partition0;
 
                 for (uint subset = 0; subset < 3; subset++)
@@ -3676,8 +3670,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
                 best_err = trial_err;
                                         
                 opt_results.m_mode = 3;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = trial_partition;
 
                 for (uint subset = 0; subset < 2; subset++)
@@ -3810,7 +3803,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
                 best_err = trial_mode5_err;
 
                 opt_results = trial_opt_results5;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation << 4;
             }
         } // rotation
     }
@@ -3874,8 +3867,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
                 best_err = mode2_err;
 
                 opt_results.m_mode = 2;
-                opt_results.m_index_selector = 0;
-                opt_results.m_rotation = 0;
+                opt_results.m_rotation_index_sel = 0;
                 opt_results.m_partition = best_partition2;
 
                 for (uint subset = 0; subset < 3; subset++)
@@ -3942,8 +3934,7 @@ static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_
                 best_err = trial_mode4_err;
 
                 opt_results.m_mode = 4;
-                opt_results.m_index_selector = trial_opt_results4.m_index_selector;
-                opt_results.m_rotation = rotation;
+                opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
                 opt_results.m_partition = 0;
 
                 opt_results.m_low[0] = trial_opt_results4.m_low[0];
@@ -3980,8 +3971,7 @@ static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cel
     best_err = color_cell_compression(6, pParams, results6, 16, pPixels, true);
                         
     opt_results.m_mode = 6;
-    opt_results.m_index_selector = 0;
-    opt_results.m_rotation = 0;
+    opt_results.m_rotation_index_sel = 0;
     opt_results.m_partition = 0;
 
     opt_results.m_low[0] = results6.m_low_endpoint;
