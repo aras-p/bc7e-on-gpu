@@ -474,24 +474,40 @@ static uint8_t* s_Bc7DecompressGot;
 
 #ifdef _MSC_VER
 typedef unsigned char BYTE;
-#include "../build/bc7e_encode.h"
-#include "../build/bc7e_lists.h"
+#include "../build/bc7e_compress_blocks_mode0.h"
+#include "../build/bc7e_compress_blocks_mode1.h"
+#include "../build/bc7e_compress_blocks_mode2.h"
+#include "../build/bc7e_compress_blocks_mode3.h"
+#include "../build/bc7e_compress_blocks_mode4_alpha.h"
+#include "../build/bc7e_compress_blocks_mode4_opaq.h"
+#include "../build/bc7e_compress_blocks_mode5.h"
+#include "../build/bc7e_compress_blocks_mode6.h"
+#include "../build/bc7e_compress_blocks_mode7.h"
+#include "../build/bc7e_encode_blocks.h"
+#include "../build/bc7e_estimate_partition_lists.h"
 static bool InitializeCompressorShaders()
 {
-    //s_Bc7KernelLists = SmolKernelCreate(g_Bc7BytecodeLists, sizeof(g_Bc7BytecodeLists));
-    s_Bc7KernelLists = SmolKernelCreate(g_Bc7BytecodeLists, sizeof(g_Bc7BytecodeLists), "bc7e_estimate_partition_lists");
-	if (s_Bc7KernelLists == nullptr)
-	{
-		printf("ERROR: failed to create lists compute shader\n");
-		return false;
+#define LOAD_KERNEL(var,name) \
+    var = SmolKernelCreate(g_##name, sizeof(g_##name), #name); \
+	if (var == nullptr) \
+	{ \
+		printf("ERROR: failed to create " #name " compute shader\n"); \
+		return false; \
 	}
-	//s_Bc7KernelEncode = SmolKernelCreate(g_Bc7BytecodeEncode, sizeof(g_Bc7BytecodeEncode));
-    s_Bc7KernelEncode = SmolKernelCreate(g_Bc7BytecodeEncode, sizeof(g_Bc7BytecodeEncode), "bc7e_compress_blocks");
-	if (s_Bc7KernelEncode == nullptr)
-	{
-		printf("ERROR: failed to create encode compute shader\n");
-		return false;
-	}
+
+    LOAD_KERNEL(s_Bc7KernelLists, bc7e_estimate_partition_lists);
+	LOAD_KERNEL(s_Bc7KernelCompress0, bc7e_compress_blocks_mode0);
+	LOAD_KERNEL(s_Bc7KernelCompress1, bc7e_compress_blocks_mode1);
+	LOAD_KERNEL(s_Bc7KernelCompress2, bc7e_compress_blocks_mode2);
+	LOAD_KERNEL(s_Bc7KernelCompress3, bc7e_compress_blocks_mode3);
+	LOAD_KERNEL(s_Bc7KernelCompress4a, bc7e_compress_blocks_mode4_alpha);
+	LOAD_KERNEL(s_Bc7KernelCompress4o, bc7e_compress_blocks_mode4_opaq);
+	LOAD_KERNEL(s_Bc7KernelCompress5, bc7e_compress_blocks_mode5);
+	LOAD_KERNEL(s_Bc7KernelCompress6, bc7e_compress_blocks_mode6);
+	LOAD_KERNEL(s_Bc7KernelCompress7, bc7e_compress_blocks_mode7);
+	LOAD_KERNEL(s_Bc7KernelEncode, bc7e_encode_blocks);
+
+#undef LOAD_KERNEL
     return true;
 }
 #else
