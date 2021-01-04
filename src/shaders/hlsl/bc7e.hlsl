@@ -1,4 +1,6 @@
 
+#define GROUP_SIZE 64
+
 //#define precise
 
 #define assert(x)
@@ -8,15 +10,6 @@
 //#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 //#define OPT_OPAQUE_ONLY // disables all transparency handling
-
-//#define OPT_DISABLE_MODE0
-//#define OPT_DISABLE_MODE1
-//#define OPT_DISABLE_MODE2
-//#define OPT_DISABLE_MODE3
-//#define OPT_DISABLE_MODE4
-//#define OPT_DISABLE_MODE5
-//#define OPT_DISABLE_MODE6
-//#define OPT_DISABLE_MODE7
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
@@ -198,7 +191,7 @@ struct LookupTables // note: should match C++ code struct
     float4 g_bc7_weightsx[4+8+16];
 };
 */
-StructuredBuffer<uint> s_Tables : register(t3);
+StructuredBuffer<uint> s_Tables : register(t4);
 uint get_table_mode1(uint c, uint pbit) { return s_Tables[c * 2 + pbit]; }
 uint get_table_mode7(uint c, uint hp, uint lp) { return s_Tables[512 + c * 4 + hp * 2 + lp]; }
 uint get_table_mode6(uint c, uint hp, uint lp) { return s_Tables[1536 + c * 4 + hp * 2 + lp]; }
@@ -3044,903 +3037,829 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
     return lists;
 }
 
-static uint4 handle_alpha_block(const color_quad_i pPixels[16], uint4 solution_lists, color_cell_compressor_params pParams, int lo_a, int hi_a)
+static void handle_alpha_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
 {
     pParams.m_perceptual = glob_is_perceptual();
+    color_cell_compressor_params params4 = pParams;
 
-    bc7_optimization_results opt_results = (bc7_optimization_results)0;
-    
-    uint best_err = UINT_MAX;
-        
-    // Mode 4
-#if !defined(OPT_DISABLE_MODE4)
-    if (g_params.m_alpha_use_modes4567 & 0xFF)
+    const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF))) ? 1 : 4;
+    for (int rotation = 0; rotation < num_rotations; rotation++)
     {
-        color_cell_compressor_params params4 = pParams;
+        if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
+            continue;
 
-        const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF))) ? 1 : 4;
-        for (int rotation = 0; rotation < num_rotations; rotation++)
+        params4.m_weights = pParams.m_weights;
+        if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
+        if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
+        if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
+
+        color_quad_i rot_pixels[16];
+        int trial_lo_a = lo_a, trial_hi_a = hi_a;
+        if (rotation)
         {
-            if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
-                continue;
+            trial_lo_a = 255;
+            trial_hi_a = 0;
 
-            params4.m_weights = pParams.m_weights;
-            if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
-            if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
-            if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
-                            
-            color_quad_i rot_pixels[16];
-            int trial_lo_a = lo_a, trial_hi_a = hi_a;
-            if (rotation)
+            for (uint i = 0; i < 16; i++)
             {
-                trial_lo_a = 255;
-                trial_hi_a = 0;
+                color_quad_i c = pixels[i];
+                if (rotation == 1) c = c.agbr;
+                if (rotation == 2) c = c.rabg;
+                if (rotation == 3) c = c.rgab;
+                rot_pixels[i] = c;
 
-                for (uint i = 0; i < 16; i++)
-                {
-                    color_quad_i c = pPixels[i];
-                    if (rotation == 1) c = c.agbr;
-                    if (rotation == 2) c = c.rabg;
-                    if (rotation == 3) c = c.rgab;
-                    rot_pixels[i] = c;
-
-                    trial_lo_a = min(trial_lo_a, c.a);
-                    trial_hi_a = max(trial_hi_a, c.a);
-                }
-            }
-            else
-                rot_pixels = pPixels;
-
-            bc7_optimization_results trial_opt_results4 = (bc7_optimization_results)0;
-
-            trial_opt_results4.m_error = best_err;
-            handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, trial_opt_results4);
-            if (trial_opt_results4.m_error < best_err)
-            {
-                best_err = trial_opt_results4.m_error;
-                opt_results.m_error = best_err;
-                opt_results.m_mode = 4;
-                opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
-                opt_results.m_partition = 0;
-
-                opt_results.m_low[0] = trial_opt_results4.m_low[0];
-                opt_results.m_high[0] = trial_opt_results4.m_high[0];
-                opt_results.m_selectors = trial_opt_results4.m_selectors;
-                opt_results.m_alpha_selectors = trial_opt_results4.m_alpha_selectors;
-            }
-        } // rotation
-    }
-#endif // #if !defined(OPT_DISABLE_MODE4)
-    
-    // Mode 6
-#if !defined(OPT_DISABLE_MODE6)
-    if (g_params.m_alpha_use_modes4567 & 0xFF0000)
-    {
-        color_cell_compressor_params params6 = pParams;
-
-        // Note: m_mode67_error_weight_mul was always 1, removed
-
-        color_cell_compressor_results results6 = (color_cell_compressor_results)0;
-        
-        params6.m_weights_index = kBC7Weights4Index;
-        params6.m_num_selector_weights = 16;
-
-        params6.m_comp_bits = 7;
-        params6.m_has_pbits = true;
-        params6.m_endpoints_share_pbit = false;
-        params6.m_has_alpha = true;
-                
-        uint mode6_err = color_cell_compression(6, params6, results6, 16, pPixels, true);
-        assert(mode6_err == results6.m_best_overall_err);
-        
-        if (mode6_err < best_err)
-        {
-            best_err = mode6_err;
-            opt_results.m_error = best_err;
-            opt_results.m_mode = 6;
-            opt_results.m_rotation_index_sel = 0;
-            opt_results.m_partition = 0;
-
-            opt_results.m_low[0] = results6.m_low_endpoint;
-            opt_results.m_high[0] = results6.m_high_endpoint;
-
-            opt_results.m_pbits = (opt_results.m_pbits & ~3) | results6.m_pbits;
-            opt_results.m_selectors = results6.m_selectors;
-        }
-    }
-#endif // #if !defined(OPT_DISABLE_MODE6)
-
-    // Mode 5
-#if !defined(OPT_DISABLE_MODE5)
-    if (g_params.m_alpha_use_modes4567 & 0xFF00)
-    {
-        color_cell_compressor_params params5 = pParams;
-
-        const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF00))) ? 1 : 4;
-        for (uint rotation = 0; rotation < num_rotations; rotation++)
-        {
-            if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
-                continue;
-
-            params5.m_weights = pParams.m_weights;
-            if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
-            if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
-            if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
-
-            color_quad_i rot_pixels[16];
-            int trial_lo_a = lo_a, trial_hi_a = hi_a;
-            if (rotation)
-            {
-                trial_lo_a = 255;
-                trial_hi_a = 0;
-
-                for (uint i = 0; i < 16; i++)
-                {
-                    color_quad_i c = pPixels[i];
-                    if (rotation == 1) c = c.agbr;
-                    if (rotation == 2) c = c.rabg;
-                    if (rotation == 3) c = c.rgab;
-                    rot_pixels[i] = c;
-
-                    trial_lo_a = min(trial_lo_a, c.a);
-                    trial_hi_a = max(trial_hi_a, c.a);
-                }
-            }
-            else
-                rot_pixels = pPixels;
-
-            bc7_optimization_results trial_opt_results5 = (bc7_optimization_results)0;
-            trial_opt_results5.m_error = 0;
-            handle_alpha_block_mode5(rot_pixels, params5, trial_lo_a, trial_hi_a, trial_opt_results5);
-            if (trial_opt_results5.m_error < best_err)
-            {
-                best_err = trial_opt_results5.m_error;
-                opt_results = trial_opt_results5;
-                opt_results.m_rotation_index_sel = rotation << 4;
-            }
-        } // rotation
-    }
-#endif // #if !defined(OPT_DISABLE_MODE5)
-
-    // Mode 7
-    #if !defined(OPT_ULTRAFAST_ONLY) && !defined(OPT_DISABLE_MODE7)
-    if (g_params.m_alpha_use_modes4567 & 0xFF000000)
-    {
-        solution solutions[4];
-        uint num_solutions = decode_solutions(solution_lists.x, solutions);
-
-        color_cell_compressor_params params7 = pParams;
-        
-        // Note: m_mode67_error_weight_mul was always 1, removed
-        
-        params7.m_weights_index = kBC7Weights2Index;
-        params7.m_num_selector_weights = 4;
-
-        params7.m_comp_bits = 5;
-        params7.m_has_pbits = true;
-        params7.m_endpoints_share_pbit = false;
-                
-        params7.m_has_alpha = true;
-
-        const bool disable_faster_part_selection = false;
-
-        for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
-        {
-            const uint trial_partition = solutions[solution_index].m_index;
-            assert(trial_partition < 64);
-
-            const int pPartition[16] = g_bc7_partition2[trial_partition];
-
-            color_quad_i subset_colors[2][16];
-
-            uint subset_total_colors7[2];
-            subset_total_colors7[0] = 0;
-            subset_total_colors7[1] = 0;
-             
-            int subset_pixel_index7[2][16];
-            color_cell_compressor_results subset_results7[2];
-
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-                assert(p < 2);
-
-                subset_colors[p][subset_total_colors7[p]] = pPixels[idx];
-                subset_pixel_index7[p][subset_total_colors7[p]] = idx;
-                subset_total_colors7[p]++;
-            }
-
-            uint trial_err = 0;
-            for (uint subset = 0; subset < 2; subset++)
-            {
-                uint err = color_cell_compression(7, params7, subset_results7[subset], subset_total_colors7[subset], subset_colors[subset], (num_solutions <= 2) || disable_faster_part_selection);
-                assert(err == subset_results7[subset].m_best_overall_err);
-
-                trial_err += err;
-                if (trial_err > best_err)
-                    break;
-            } // subset
-
-            if (trial_err < best_err)
-            {
-                best_err = trial_err;
-                opt_results.m_error = best_err;
-                opt_results.m_mode = 7;
-                opt_results.m_rotation_index_sel = 0;
-                opt_results.m_partition = trial_partition;
-
-                for (uint subset = 0; subset < 2; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors7[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index7[subset][i];
-
-                        opt_results.m_selectors[pixel_index] = subset_results7[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results7[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results7[subset].m_high_endpoint;
-                    uint pbits = opt_results.m_pbits;
-                    pbits &= ~(3 << subset * 2);
-                    pbits |= subset_results7[subset].m_pbits << subset * 2;
-                    opt_results.m_pbits = pbits;
-                }
-            }
-
-        } // solution_index
-
-        if ((num_solutions > 2) && (opt_results.m_mode == 7) && (!disable_faster_part_selection))
-        {
-            const uint trial_partition = opt_results.m_partition;
-            assert(trial_partition < 64);
-
-            const int pPartition[16] = g_bc7_partition2[trial_partition];
-
-            color_quad_i subset_colors[2][16];
-
-            uint subset_total_colors7[2];
-            subset_total_colors7[0] = 0;
-            subset_total_colors7[1] = 0;
-             
-            int subset_pixel_index7[2][16];
-            color_cell_compressor_results subset_results7[2];
-
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-                assert(p < 2);
-
-                subset_colors[p][subset_total_colors7[p]] = pPixels[idx];
-                subset_pixel_index7[p][subset_total_colors7[p]] = idx;
-                subset_total_colors7[p]++;
-            }
-
-            uint trial_err = 0;
-            for (uint subset = 0; subset < 2; subset++)
-            {
-                uint err = color_cell_compression(7, params7, subset_results7[subset], subset_total_colors7[subset], subset_colors[subset], true);
-                assert(err == subset_results7[subset].m_best_overall_err);
-
-                trial_err += err;
-                if (trial_err > best_err)
-                    break;
-            } // subset
-
-            if (trial_err < best_err)
-            {
-                best_err = trial_err;
-                opt_results.m_error = best_err;
-                                        
-                for (uint subset = 0; subset < 2; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors7[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index7[subset][i];
-
-                        opt_results.m_selectors[pixel_index] = subset_results7[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results7[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results7[subset].m_high_endpoint;
-                    uint pbits = opt_results.m_pbits;
-                    pbits &= ~(3 << subset * 2);
-                    pbits |= subset_results7[subset].m_pbits << subset * 2;
-                    opt_results.m_pbits = pbits;
-                }
+                trial_lo_a = min(trial_lo_a, c.a);
+                trial_hi_a = max(trial_hi_a, c.a);
             }
         }
-    }
-    #endif // #if !defined(OPT_ULTRAFAST_ONLY) && !defined(OPT_DISABLE_MODE7)
+        else
+            rot_pixels = pixels;
 
-    return encode_bc7_block(opt_results);
+        bc7_optimization_results trial_res = (bc7_optimization_results)0;
+        trial_res.m_error = res.m_error;
+        handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, trial_res);
+        if (trial_res.m_error < res.m_error)
+        {
+            res.m_error = trial_res.m_error;
+            res.m_mode = 4;
+            res.m_rotation_index_sel = rotation | trial_res.m_rotation_index_sel;
+            res.m_partition = 0;
+
+            res.m_low[0] = trial_res.m_low[0];
+            res.m_high[0] = trial_res.m_high[0];
+            res.m_selectors = trial_res.m_selectors;
+            res.m_alpha_selectors = trial_res.m_alpha_selectors;
+        }
+    } // rotation
 }
 
-static uint4 handle_opaque_block(const color_quad_i pPixels[16], uint4 solution_lists, color_cell_compressor_params pParams)
+static void handle_alpha_block_mode6(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
 {
-    bc7_optimization_results opt_results = (bc7_optimization_results)0;
-        
-    uint best_err = UINT_MAX;
+    pParams.m_perceptual = glob_is_perceptual();
+    color_cell_compressor_params params6 = pParams;
 
-    // Mode 6
-    if (g_params.m_opaq_use_modes456 & 0xFF0000)
+    // Note: m_mode67_error_weight_mul was always 1, removed
+
+    color_cell_compressor_results res6 = (color_cell_compressor_results)0;
+
+    params6.m_weights_index = kBC7Weights4Index;
+    params6.m_num_selector_weights = 16;
+
+    params6.m_comp_bits = 7;
+    params6.m_has_pbits = true;
+    params6.m_endpoints_share_pbit = false;
+    params6.m_has_alpha = true;
+
+    uint err = color_cell_compression(6, params6, res6, 16, pixels, true);
+
+    if (err < res.m_error)
     {
-        pParams.m_weights_index = kBC7Weights4Index;
-        pParams.m_num_selector_weights = 16;
-
-        pParams.m_comp_bits = 7;
-        pParams.m_has_pbits = true;
-        pParams.m_endpoints_share_pbit = false;
-
-        pParams.m_perceptual = glob_is_perceptual();
-                
-        color_cell_compressor_results results6 = (color_cell_compressor_results)0;
-
-        best_err = color_cell_compression(6, pParams, results6, 16, pPixels, true);
-
-        opt_results.m_error = best_err;
-        opt_results.m_mode = 6;
-        opt_results.m_rotation_index_sel = 0;
-        opt_results.m_partition = 0;
-
-        opt_results.m_low[0] = results6.m_low_endpoint;
-        opt_results.m_high[0] = results6.m_high_endpoint;
-
-        opt_results.m_pbits = results6.m_pbits;
-        opt_results.m_selectors = results6.m_selectors;
+        res.m_error = err;
+        res.m_mode = 6;
+        res.m_rotation_index_sel = 0;
+        res.m_partition = 0;
+        res.m_low[0] = res6.m_low_endpoint;
+        res.m_high[0] = res6.m_high_endpoint;
+        res.m_pbits = (res.m_pbits & ~3) | res6.m_pbits;
+        res.m_selectors = res6.m_selectors;
     }
-
-    solution solutions2[4];
-    uint num_solutions2 = decode_solutions(solution_lists.y, solutions2);
-        
-    const bool disable_faster_part_selection = false;
-                                
-    // Mode 1
-    if (g_params.m_opaq_use_modes0123 & 0xFF00)
-    {
-        pParams.m_weights_index = kBC7Weights3Index;
-        pParams.m_num_selector_weights = 8;
-
-        pParams.m_comp_bits = 6;
-        pParams.m_has_pbits = true;
-        pParams.m_endpoints_share_pbit = true;
-
-        pParams.m_perceptual = glob_is_perceptual();
-
-        for (uint solution_index = 0; solution_index < num_solutions2; solution_index++)
-        {
-            const uint trial_partition = solutions2[solution_index].m_index;
-            assert(trial_partition < 64);
-
-            const int pPartition[16] = g_bc7_partition2[trial_partition];
-                        
-            color_quad_i subset_colors[2][16];
-
-            uint subset_total_colors1[2];
-            subset_total_colors1[0] = 0;
-            subset_total_colors1[1] = 0;
-                
-            int subset_pixel_index1[2][16];
-            color_cell_compressor_results subset_results1[2];
-
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-                assert(p < 2);
-
-                subset_colors[p][subset_total_colors1[p]] = pPixels[idx];
-                subset_pixel_index1[p][subset_total_colors1[p]] = idx;
-                subset_total_colors1[p]++;
-            }
-                                
-            uint trial_err = 0;
-            for (uint subset = 0; subset < 2; subset++)
-            {
-                uint err = color_cell_compression(1, pParams, subset_results1[subset], subset_total_colors1[subset], subset_colors[subset], (num_solutions2 <= 2) || disable_faster_part_selection);
-                assert(err == subset_results1[subset].m_best_overall_err);
-
-                trial_err += err;
-                if (trial_err > best_err)
-                    break;
-                    
-            } // subset
-
-            if (trial_err < best_err)
-            {
-                best_err = trial_err;
-                opt_results.m_error = best_err;
-                opt_results.m_mode = 1;
-                opt_results.m_rotation_index_sel = 0;
-                opt_results.m_partition = trial_partition;
-
-                for (uint subset = 0; subset < 2; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors1[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index1[subset][i];
-
-                        opt_results.m_selectors[pixel_index] = subset_results1[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results1[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results1[subset].m_high_endpoint;
-                    uint pbits = opt_results.m_pbits;
-                    pbits &= ~(3 << subset * 2);
-                    pbits |= subset_results1[subset].m_pbits << subset * 2;
-                    opt_results.m_pbits = pbits;
-                }
-            }
-        }
-
-        if ((num_solutions2 > 2) && (opt_results.m_mode == 1) && (!disable_faster_part_selection))
-        {
-            const uint trial_partition = opt_results.m_partition;
-            assert(trial_partition < 64);
-
-            const int pPartition[16] = g_bc7_partition2[trial_partition];
-                        
-            color_quad_i subset_colors[2][16];
-
-            uint subset_total_colors1[2];
-            subset_total_colors1[0] = 0;
-            subset_total_colors1[1] = 0;
-                
-            int subset_pixel_index1[2][16];
-            color_cell_compressor_results subset_results1[2];
-
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-                assert(p < 2);
-
-                subset_colors[p][subset_total_colors1[p]] = pPixels[idx];
-                subset_pixel_index1[p][subset_total_colors1[p]] = idx;
-                subset_total_colors1[p]++;
-            }
-                                
-            uint trial_err = 0;
-            for (uint subset = 0; subset < 2; subset++)
-            {
-                uint err = color_cell_compression(1, pParams, subset_results1[subset], subset_total_colors1[subset], subset_colors[subset], true);
-                assert(err == subset_results1[subset].m_best_overall_err);
-
-                trial_err += err;
-                if (trial_err > best_err)
-                    break;
-                    
-            } // subset
-
-            if (trial_err < best_err)
-            {
-                best_err = trial_err;
-                opt_results.m_error = best_err;
-
-                for (uint subset = 0; subset < 2; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors1[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index1[subset][i];
-                        opt_results.m_selectors[pixel_index] = subset_results1[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results1[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results1[subset].m_high_endpoint;
-                    uint pbits = opt_results.m_pbits;
-                    pbits &= ~(3 << subset * 2);
-                    pbits |= subset_results1[subset].m_pbits << subset * 2;
-                    opt_results.m_pbits = pbits;
-                }
-            }
-        }
-    }
-        
-    // Mode 0
-    if (g_params.m_opaq_use_modes0123 & 0xFF)
-    {
-        solution solutions3[4];
-        uint num_solutions3 = decode_solutions(solution_lists.z, solutions3);
-
-        pParams.m_weights_index = kBC7Weights3Index;
-        pParams.m_num_selector_weights = 8;
-
-        pParams.m_comp_bits = 4;
-        pParams.m_has_pbits = true;
-        pParams.m_endpoints_share_pbit = false;
-
-        pParams.m_perceptual = glob_is_perceptual();
-                
-        for (uint solution_index = 0; solution_index < num_solutions3; solution_index++)
-        {
-            const uint best_partition0 = solutions3[solution_index].m_index;
-
-            const int pPartition[16] = g_bc7_partition3[best_partition0];
-
-            color_quad_i subset_colors[3][16];
-                        
-            uint subset_total_colors0[3];
-            subset_total_colors0[0] = 0;
-            subset_total_colors0[1] = 0;
-            subset_total_colors0[2] = 0;
-
-            int subset_pixel_index0[3][16];
-                        
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-
-                subset_colors[p][subset_total_colors0[p]] = pPixels[idx];
-                subset_pixel_index0[p][subset_total_colors0[p]] = idx;
-                subset_total_colors0[p]++;
-            }
-                                    
-            color_cell_compressor_results subset_results0[3];
-
-            uint mode0_err = 0;
-            for (uint subset = 0; subset < 3; subset++)
-            {
-                uint err = color_cell_compression(0, pParams, subset_results0[subset], subset_total_colors0[subset], subset_colors[subset], true);
-                assert(err == subset_results0[subset].m_best_overall_err);
-
-                mode0_err += err;
-                if (mode0_err > best_err)
-                    break;
-            } // subset
-
-            if (mode0_err < best_err)
-            {
-                best_err = mode0_err;
-                opt_results.m_error = best_err;
-                opt_results.m_mode = 0;
-                opt_results.m_rotation_index_sel = 0;
-                opt_results.m_partition = best_partition0;
-
-                for (uint subset = 0; subset < 3; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors0[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index0[subset][i];
-
-                        opt_results.m_selectors[pixel_index] = subset_results0[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results0[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results0[subset].m_high_endpoint;
-                    uint pbits = opt_results.m_pbits;
-                    pbits &= ~(3 << subset * 2);
-                    pbits |= subset_results0[subset].m_pbits << subset * 2;
-                    opt_results.m_pbits = pbits;
-                }
-            }
-        }
-    }
-        
-    // Mode 3
-    if (g_params.m_opaq_use_modes0123 & 0xFF000000)
-    {
-        pParams.m_weights_index = kBC7Weights2Index;
-        pParams.m_num_selector_weights = 4;
-
-        pParams.m_comp_bits = 7;
-        pParams.m_has_pbits = true;
-        pParams.m_endpoints_share_pbit = false;
-
-        pParams.m_perceptual = glob_is_perceptual();
-
-        for (uint solution_index = 0; solution_index < num_solutions2; solution_index++)
-        {
-            const uint trial_partition = solutions2[solution_index].m_index;
-            assert(trial_partition < 64);
-
-            const int pPartition[16] = g_bc7_partition2[trial_partition];
-
-            color_quad_i subset_colors[2][16];
-
-            uint subset_total_colors3[2];
-            subset_total_colors3[0] = 0;
-            subset_total_colors3[1] = 0;
-             
-            int subset_pixel_index3[2][16];
-            color_cell_compressor_results subset_results3[2];
-
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-                assert(p < 2);
-
-                subset_colors[p][subset_total_colors3[p]] = pPixels[idx];
-                subset_pixel_index3[p][subset_total_colors3[p]] = idx;
-                subset_total_colors3[p]++;
-            }
-
-            uint trial_err = 0;
-            for (uint subset = 0; subset < 2; subset++)
-            {
-                uint err = color_cell_compression(3, pParams, subset_results3[subset], subset_total_colors3[subset], subset_colors[subset], (num_solutions2 <= 2) || disable_faster_part_selection);
-                assert(err == subset_results3[subset].m_best_overall_err);
-
-                trial_err += err;
-                if (trial_err > best_err)
-                    break;
-            } // subset
-
-            if (trial_err < best_err)
-            {
-                best_err = trial_err;
-                opt_results.m_error = best_err;
-                opt_results.m_mode = 3;
-                opt_results.m_rotation_index_sel = 0;
-                opt_results.m_partition = trial_partition;
-
-                for (uint subset = 0; subset < 2; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors3[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index3[subset][i];
-                        opt_results.m_selectors[pixel_index] = subset_results3[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results3[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results3[subset].m_high_endpoint;
-                    uint pbits = opt_results.m_pbits;
-                    pbits &= ~(3 << subset * 2);
-                    pbits |= subset_results3[subset].m_pbits << subset * 2;
-                    opt_results.m_pbits = pbits;
-                }
-            }
-
-        } // solution_index
-
-        if ((num_solutions2 > 2) && (opt_results.m_mode == 3) && (!disable_faster_part_selection))
-        {
-            const uint trial_partition = opt_results.m_partition;
-            assert(trial_partition < 64);
-
-            const int pPartition[16] = g_bc7_partition2[trial_partition];
-
-            color_quad_i subset_colors[2][16];
-
-            uint subset_total_colors3[2];
-            subset_total_colors3[0] = 0;
-            subset_total_colors3[1] = 0;
-             
-            int subset_pixel_index3[2][16];
-            color_cell_compressor_results subset_results3[2];
-
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-                assert(p < 2);
-
-                subset_colors[p][subset_total_colors3[p]] = pPixels[idx];
-
-                subset_pixel_index3[p][subset_total_colors3[p]] = idx;
-
-                subset_total_colors3[p]++;
-            }
-
-            uint trial_err = 0;
-            for (uint subset = 0; subset < 2; subset++)
-            {
-                uint err = color_cell_compression(3, pParams, subset_results3[subset], subset_total_colors3[subset], subset_colors[subset], true);
-                assert(err == subset_results3[subset].m_best_overall_err);
-
-                trial_err += err;
-                if (trial_err > best_err)
-                    break;
-            } // subset
-
-            if (trial_err < best_err)
-            {
-                best_err = trial_err;
-                opt_results.m_error = best_err;
-                for (uint subset = 0; subset < 2; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors3[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index3[subset][i];
-
-                        opt_results.m_selectors[pixel_index] = subset_results3[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results3[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results3[subset].m_high_endpoint;
-                    uint pbits = opt_results.m_pbits;
-                    pbits &= ~(3 << subset * 2);
-                    pbits |= subset_results3[subset].m_pbits << subset * 2;
-                    opt_results.m_pbits = pbits;
-                }
-            }
-        }
-    }
-
-    // Mode 5
-    if ((!glob_is_perceptual()) && (g_params.m_opaq_use_modes456 & 0xFF00))
-    {
-        color_cell_compressor_params params5 = pParams;
-
-        for (uint rotation = 0; rotation < 4; rotation++)
-        {
-            if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
-                continue;
-
-            params5.m_weights = pParams.m_weights;
-            if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
-            if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
-            if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
-
-            color_quad_i rot_pixels[16];
-            int trial_lo_a = 255, trial_hi_a = 255;
-            if (rotation)
-            {
-                trial_lo_a = 255;
-                trial_hi_a = 0;
-
-                for (uint i = 0; i < 16; i++)
-                {
-                    color_quad_i c = pPixels[i];
-                    if (rotation == 1) c = c.agbr;
-                    if (rotation == 2) c = c.rabg;
-                    if (rotation == 3) c = c.rgab;
-                    rot_pixels[i] = c;
-
-                    trial_lo_a = min(trial_lo_a, c.a);
-                    trial_hi_a = max(trial_hi_a, c.a);
-                }
-            }
-            else
-                rot_pixels = pPixels;
-
-            bc7_optimization_results trial_opt_results5 = (bc7_optimization_results)0;
-            trial_opt_results5.m_error = 0;
-            handle_alpha_block_mode5(rot_pixels, params5, trial_lo_a, trial_hi_a, trial_opt_results5);
-            if (trial_opt_results5.m_error < best_err)
-            {
-                best_err = trial_opt_results5.m_error;
-
-                opt_results = trial_opt_results5;
-                opt_results.m_rotation_index_sel = rotation << 4;
-            }
-        } // rotation
-    }
-
-    // Mode 2
-    if (g_params.m_opaq_use_modes0123 & 0xFF0000)
-    {
-        solution solutions3[4];
-        uint num_solutions3 = decode_solutions(solution_lists.w, solutions3);
-
-        pParams.m_weights_index = kBC7Weights2Index;
-        pParams.m_num_selector_weights = 4;
-
-        pParams.m_comp_bits = 5;
-        pParams.m_has_pbits = false;
-        pParams.m_endpoints_share_pbit = false;
-
-        pParams.m_perceptual = glob_is_perceptual();
-
-        for (uint solution_index = 0; solution_index < num_solutions3; solution_index++)
-        {
-            const int best_partition2 = solutions3[solution_index].m_index;
-                        
-            uint subset_total_colors2[3];
-            subset_total_colors2[0] = 0;
-            subset_total_colors2[1] = 0;
-            subset_total_colors2[2] = 0;
-
-            int subset_pixel_index2[3][16];
-                            
-            const int pPartition[16] = g_bc7_partition3[best_partition2];
-
-            color_quad_i subset_colors[3][16];
-
-            for (uint idx = 0; idx < 16; idx++)
-            {
-                const uint p = pPartition[idx];
-
-                subset_colors[p][subset_total_colors2[p]] = pPixels[idx];
-
-                subset_pixel_index2[p][subset_total_colors2[p]] = idx;
-
-                subset_total_colors2[p]++;
-            }
-            
-            color_cell_compressor_results subset_results2[3];
-                        
-            uint mode2_err = 0;
-            for (uint subset = 0; subset < 3; subset++)
-            {
-                uint err = color_cell_compression(2, pParams, subset_results2[subset], subset_total_colors2[subset], subset_colors[subset], true);
-                assert(err == subset_results2[subset].m_best_overall_err);
-
-                mode2_err += err;
-                if (mode2_err > best_err)
-                    break;
-            } // subset
-
-            if (mode2_err < best_err)
-            {
-                best_err = mode2_err;
-                opt_results.m_error = best_err;
-                opt_results.m_mode = 2;
-                opt_results.m_rotation_index_sel = 0;
-                opt_results.m_partition = best_partition2;
-
-                for (uint subset = 0; subset < 3; subset++)
-                {
-                    for (uint i = 0; i < subset_total_colors2[subset]; i++)
-                    {
-                        const uint pixel_index = subset_pixel_index2[subset][i];
-
-                        opt_results.m_selectors[pixel_index] = subset_results2[subset].m_selectors[i];
-                    }
-
-                    opt_results.m_low[subset] = subset_results2[subset].m_low_endpoint;
-                    opt_results.m_high[subset] = subset_results2[subset].m_high_endpoint;
-                }
-            }
-        }
-    }
-
-    // Mode 4
-    if ((!glob_is_perceptual()) && (g_params.m_opaq_use_modes456 & 0xFF))
-    {
-        color_cell_compressor_params params4 = pParams;
-
-        for (uint rotation = 0; rotation < 4; rotation++)
-        {
-            if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
-                continue;
-
-            params4.m_weights = pParams.m_weights;
-            if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
-            if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
-            if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
-                            
-            color_quad_i rot_pixels[16];
-            int trial_lo_a = 255, trial_hi_a = 255;
-            if (rotation)
-            {
-                trial_lo_a = 255;
-                trial_hi_a = 0;
-
-                for (uint i = 0; i < 16; i++)
-                {
-                    color_quad_i c = pPixels[i];
-                    if (rotation == 1) c = c.agbr;
-                    if (rotation == 2) c = c.rabg;
-                    if (rotation == 3) c = c.rgab;
-                    rot_pixels[i] = c;
-
-                    trial_lo_a = min(trial_lo_a, c.a);
-                    trial_hi_a = max(trial_hi_a, c.a);
-                }
-            }
-            else
-                rot_pixels = pPixels;
-
-            bc7_optimization_results trial_opt_results4 = (bc7_optimization_results)0;
-            trial_opt_results4.m_error = best_err;
-            handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, trial_opt_results4);
-
-            if (trial_opt_results4.m_error < best_err)
-            {
-                best_err = trial_opt_results4.m_error;
-                opt_results.m_error = best_err;
-                opt_results.m_mode = 4;
-                opt_results.m_rotation_index_sel = rotation | trial_opt_results4.m_rotation_index_sel;
-                opt_results.m_partition = 0;
-
-                opt_results.m_low[0] = trial_opt_results4.m_low[0];
-                opt_results.m_high[0] = trial_opt_results4.m_high[0];
-
-                opt_results.m_selectors = trial_opt_results4.m_selectors;
-                opt_results.m_alpha_selectors = trial_opt_results4.m_alpha_selectors;
-            }
-        } // rotation
-    }
-    
-    return encode_bc7_block(opt_results);
 }
 
+static void handle_alpha_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    color_cell_compressor_params params5 = pParams;
+
+    const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF00))) ? 1 : 4;
+    for (uint rotation = 0; rotation < num_rotations; rotation++)
+    {
+        if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
+            continue;
+
+        params5.m_weights = pParams.m_weights;
+        if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
+        if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
+        if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
+
+        color_quad_i rot_pixels[16];
+        int trial_lo_a = lo_a, trial_hi_a = hi_a;
+        if (rotation)
+        {
+            trial_lo_a = 255;
+            trial_hi_a = 0;
+
+            for (uint i = 0; i < 16; i++)
+            {
+                color_quad_i c = pixels[i];
+                if (rotation == 1) c = c.agbr;
+                if (rotation == 2) c = c.rabg;
+                if (rotation == 3) c = c.rgab;
+                rot_pixels[i] = c;
+
+                trial_lo_a = min(trial_lo_a, c.a);
+                trial_hi_a = max(trial_hi_a, c.a);
+            }
+        }
+        else
+            rot_pixels = pixels;
+
+        bc7_optimization_results trial_res = (bc7_optimization_results)0;
+        trial_res.m_error = 0;
+        handle_alpha_block_mode5(rot_pixels, params5, trial_lo_a, trial_hi_a, trial_res);
+        if (trial_res.m_error < res.m_error)
+        {
+            res = trial_res;
+            res.m_rotation_index_sel = rotation;
+        }
+    } // rotation
+}
+
+static void handle_alpha_block_mode7(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a, uint4 solution_lists)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    solution solutions[4];
+    uint num_solutions = decode_solutions(solution_lists.x, solutions);
+
+    color_cell_compressor_params params7 = pParams;
+
+    // Note: m_mode67_error_weight_mul was always 1, removed
+
+    params7.m_weights_index = kBC7Weights2Index;
+    params7.m_num_selector_weights = 4;
+
+    params7.m_comp_bits = 5;
+    params7.m_has_pbits = true;
+    params7.m_endpoints_share_pbit = false;
+
+    params7.m_has_alpha = true;
+
+    const bool disable_faster_part_selection = false;
+
+    for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
+    {
+        const uint trial_partition = solutions[solution_index].m_index;
+        assert(trial_partition < 64);
+
+        const int pPartition[16] = g_bc7_partition2[trial_partition];
+
+        color_quad_i subset_colors[2][16];
+
+        uint subset_total_colors7[2];
+        subset_total_colors7[0] = 0;
+        subset_total_colors7[1] = 0;
+
+        int subset_pixel_index7[2][16];
+        color_cell_compressor_results subset_results7[2];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+            assert(p < 2);
+
+            subset_colors[p][subset_total_colors7[p]] = pixels[idx];
+            subset_pixel_index7[p][subset_total_colors7[p]] = idx;
+            subset_total_colors7[p]++;
+        }
+
+        uint trial_err = 0;
+        for (uint subset = 0; subset < 2; subset++)
+        {
+            uint err = color_cell_compression(7, params7, subset_results7[subset], subset_total_colors7[subset], subset_colors[subset], (num_solutions <= 2) || disable_faster_part_selection);
+            assert(err == subset_results7[subset].m_best_overall_err);
+
+            trial_err += err;
+            if (trial_err > res.m_error)
+                break;
+        } // subset
+
+        if (trial_err < res.m_error)
+        {
+            res.m_error = trial_err;
+            res.m_mode = 7;
+            res.m_rotation_index_sel = 0;
+            res.m_partition = trial_partition;
+
+            for (uint subset = 0; subset < 2; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors7[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index7[subset][i];
+
+                    res.m_selectors[pixel_index] = subset_results7[subset].m_selectors[i];
+                }
+
+                res.m_low[subset] = subset_results7[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results7[subset].m_high_endpoint;
+                uint pbits = res.m_pbits;
+                pbits &= ~(3 << subset * 2);
+                pbits |= subset_results7[subset].m_pbits << subset * 2;
+                res.m_pbits = pbits;
+            }
+        }
+
+    } // solution_index
+
+    if ((num_solutions > 2) && (res.m_mode == 7) && (!disable_faster_part_selection))
+    {
+        const uint trial_partition = res.m_partition;
+        assert(trial_partition < 64);
+
+        const int pPartition[16] = g_bc7_partition2[trial_partition];
+
+        color_quad_i subset_colors[2][16];
+
+        uint subset_total_colors7[2];
+        subset_total_colors7[0] = 0;
+        subset_total_colors7[1] = 0;
+
+        int subset_pixel_index7[2][16];
+        color_cell_compressor_results subset_results7[2];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+            assert(p < 2);
+
+            subset_colors[p][subset_total_colors7[p]] = pixels[idx];
+            subset_pixel_index7[p][subset_total_colors7[p]] = idx;
+            subset_total_colors7[p]++;
+        }
+
+        uint trial_err = 0;
+        for (uint subset = 0; subset < 2; subset++)
+        {
+            uint err = color_cell_compression(7, params7, subset_results7[subset], subset_total_colors7[subset], subset_colors[subset], true);
+            assert(err == subset_results7[subset].m_best_overall_err);
+
+            trial_err += err;
+            if (trial_err > res.m_error)
+                break;
+        } // subset
+
+        if (trial_err < res.m_error)
+        {
+            res.m_error = trial_err;
+
+            for (uint subset = 0; subset < 2; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors7[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index7[subset][i];
+
+                    res.m_selectors[pixel_index] = subset_results7[subset].m_selectors[i];
+                }
+
+                res.m_low[subset] = subset_results7[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results7[subset].m_high_endpoint;
+                uint pbits = res.m_pbits;
+                pbits &= ~(3 << subset * 2);
+                pbits |= subset_results7[subset].m_pbits << subset * 2;
+                res.m_pbits = pbits;
+            }
+        }
+    }
+}
+
+static void handle_opaque_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    color_cell_compressor_params params4 = pParams;
+
+    for (uint rotation = 0; rotation < 4; rotation++)
+    {
+        if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
+            continue;
+
+        params4.m_weights = pParams.m_weights;
+        if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
+        if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
+        if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
+
+        color_quad_i rot_pixels[16];
+        int trial_lo_a = 255, trial_hi_a = 255;
+        if (rotation)
+        {
+            trial_lo_a = 255;
+            trial_hi_a = 0;
+
+            for (uint i = 0; i < 16; i++)
+            {
+                color_quad_i c = pixels[i];
+                if (rotation == 1) c = c.agbr;
+                if (rotation == 2) c = c.rabg;
+                if (rotation == 3) c = c.rgab;
+                rot_pixels[i] = c;
+
+                trial_lo_a = min(trial_lo_a, c.a);
+                trial_hi_a = max(trial_hi_a, c.a);
+            }
+        }
+        else
+            rot_pixels = pixels;
+
+        bc7_optimization_results trial_res = (bc7_optimization_results)0;
+        trial_res.m_error = res.m_error;
+        handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, trial_res);
+
+        if (trial_res.m_error < res.m_error)
+        {
+            res.m_error = trial_res.m_error;
+            res.m_mode = 4;
+            res.m_rotation_index_sel = rotation | trial_res.m_rotation_index_sel;
+            res.m_partition = 0;
+            res.m_low[0] = trial_res.m_low[0];
+            res.m_high[0] = trial_res.m_high[0];
+            res.m_selectors = trial_res.m_selectors;
+            res.m_alpha_selectors = trial_res.m_alpha_selectors;
+        }
+    } // rotation
+}
+
+static void handle_opaque_block_mode6(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams)
+{
+    pParams.m_weights_index = kBC7Weights4Index;
+    pParams.m_num_selector_weights = 16;
+
+    pParams.m_comp_bits = 7;
+    pParams.m_has_pbits = true;
+    pParams.m_endpoints_share_pbit = false;
+
+    pParams.m_perceptual = glob_is_perceptual();
+
+    color_cell_compressor_results results6 = (color_cell_compressor_results)0;
+
+    uint err = color_cell_compression(6, pParams, results6, 16, pixels, true);
+    if (err < res.m_error)
+    {
+        res.m_error = err;
+        res.m_mode = 6;
+        res.m_rotation_index_sel = 0;
+        res.m_partition = 0;
+        res.m_low[0] = results6.m_low_endpoint;
+        res.m_high[0] = results6.m_high_endpoint;
+        res.m_pbits = results6.m_pbits;
+        res.m_selectors = results6.m_selectors;
+    }
+}
+
+static void handle_opaque_block_mode1(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    solution solutions[4];
+    uint num_solutions = decode_solutions(solution_lists.y, solutions);
+    const bool disable_faster_part_selection = false;
+    pParams.m_weights_index = kBC7Weights3Index;
+    pParams.m_num_selector_weights = 8;
+    pParams.m_comp_bits = 6;
+    pParams.m_has_pbits = true;
+    pParams.m_endpoints_share_pbit = true;
+
+    for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
+    {
+        const uint trial_partition = solutions[solution_index].m_index;
+        assert(trial_partition < 64);
+
+        const int pPartition[16] = g_bc7_partition2[trial_partition];
+
+        color_quad_i subset_colors[2][16];
+
+        uint subset_total_colors1[2];
+        subset_total_colors1[0] = 0;
+        subset_total_colors1[1] = 0;
+
+        int subset_pixel_index1[2][16];
+        color_cell_compressor_results subset_results1[2];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+            assert(p < 2);
+
+            subset_colors[p][subset_total_colors1[p]] = pixels[idx];
+            subset_pixel_index1[p][subset_total_colors1[p]] = idx;
+            subset_total_colors1[p]++;
+        }
+
+        uint trial_err = 0;
+        for (uint subset = 0; subset < 2; subset++)
+        {
+            uint err = color_cell_compression(1, pParams, subset_results1[subset], subset_total_colors1[subset], subset_colors[subset], (num_solutions <= 2) || disable_faster_part_selection);
+            assert(err == subset_results1[subset].m_best_overall_err);
+
+            trial_err += err;
+            if (trial_err > res.m_error)
+                break;
+
+        } // subset
+
+        if (trial_err < res.m_error)
+        {
+            res.m_error = trial_err;
+            res.m_mode = 1;
+            res.m_rotation_index_sel = 0;
+            res.m_partition = trial_partition;
+
+            for (uint subset = 0; subset < 2; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors1[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index1[subset][i];
+
+                    res.m_selectors[pixel_index] = subset_results1[subset].m_selectors[i];
+                }
+
+                res.m_low[subset] = subset_results1[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results1[subset].m_high_endpoint;
+                uint pbits = res.m_pbits;
+                pbits &= ~(3 << subset * 2);
+                pbits |= subset_results1[subset].m_pbits << subset * 2;
+                res.m_pbits = pbits;
+            }
+        }
+    }
+
+    if ((num_solutions > 2) && (res.m_mode == 1) && (!disable_faster_part_selection))
+    {
+        const uint trial_partition = res.m_partition;
+        assert(trial_partition < 64);
+
+        const int pPartition[16] = g_bc7_partition2[trial_partition];
+
+        color_quad_i subset_colors[2][16];
+
+        uint subset_total_colors1[2];
+        subset_total_colors1[0] = 0;
+        subset_total_colors1[1] = 0;
+
+        int subset_pixel_index1[2][16];
+        color_cell_compressor_results subset_results1[2];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+            assert(p < 2);
+
+            subset_colors[p][subset_total_colors1[p]] = pixels[idx];
+            subset_pixel_index1[p][subset_total_colors1[p]] = idx;
+            subset_total_colors1[p]++;
+        }
+
+        uint trial_err = 0;
+        for (uint subset = 0; subset < 2; subset++)
+        {
+            uint err = color_cell_compression(1, pParams, subset_results1[subset], subset_total_colors1[subset], subset_colors[subset], true);
+            assert(err == subset_results1[subset].m_best_overall_err);
+
+            trial_err += err;
+            if (trial_err > res.m_error)
+                break;
+
+        } // subset
+
+        if (trial_err < res.m_error)
+        {
+            res.m_error = trial_err;
+            for (uint subset = 0; subset < 2; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors1[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index1[subset][i];
+                    res.m_selectors[pixel_index] = subset_results1[subset].m_selectors[i];
+                }
+
+                res.m_low[subset] = subset_results1[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results1[subset].m_high_endpoint;
+                uint pbits = res.m_pbits;
+                pbits &= ~(3 << subset * 2);
+                pbits |= subset_results1[subset].m_pbits << subset * 2;
+                res.m_pbits = pbits;
+            }
+        }
+    }
+}
+
+static void handle_opaque_block_mode0(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    solution solutions[4];
+    uint num_solutions = decode_solutions(solution_lists.z, solutions);
+    pParams.m_weights_index = kBC7Weights3Index;
+    pParams.m_num_selector_weights = 8;
+    pParams.m_comp_bits = 4;
+    pParams.m_has_pbits = true;
+    pParams.m_endpoints_share_pbit = false;
+
+    for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
+    {
+        const uint best_partition0 = solutions[solution_index].m_index;
+
+        const int pPartition[16] = g_bc7_partition3[best_partition0];
+
+        color_quad_i subset_colors[3][16];
+
+        uint subset_total_colors0[3];
+        subset_total_colors0[0] = 0;
+        subset_total_colors0[1] = 0;
+        subset_total_colors0[2] = 0;
+
+        int subset_pixel_index0[3][16];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+
+            subset_colors[p][subset_total_colors0[p]] = pixels[idx];
+            subset_pixel_index0[p][subset_total_colors0[p]] = idx;
+            subset_total_colors0[p]++;
+        }
+
+        color_cell_compressor_results subset_results0[3];
+
+        uint mode0_err = 0;
+        for (uint subset = 0; subset < 3; subset++)
+        {
+            uint err = color_cell_compression(0, pParams, subset_results0[subset], subset_total_colors0[subset], subset_colors[subset], true);
+            assert(err == subset_results0[subset].m_best_overall_err);
+
+            mode0_err += err;
+            if (mode0_err > res.m_error)
+                break;
+        } // subset
+
+        if (mode0_err < res.m_error)
+        {
+            res.m_error = mode0_err;
+            res.m_mode = 0;
+            res.m_rotation_index_sel = 0;
+            res.m_partition = best_partition0;
+            for (uint subset = 0; subset < 3; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors0[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index0[subset][i];
+                    res.m_selectors[pixel_index] = subset_results0[subset].m_selectors[i];
+                }
+                res.m_low[subset] = subset_results0[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results0[subset].m_high_endpoint;
+                uint pbits = res.m_pbits;
+                pbits &= ~(3 << subset * 2);
+                pbits |= subset_results0[subset].m_pbits << subset * 2;
+                res.m_pbits = pbits;
+            }
+        }
+    }
+}
+
+static void handle_opaque_block_mode3(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    solution solutions[4];
+    uint num_solutions = decode_solutions(solution_lists.y, solutions);
+    const bool disable_faster_part_selection = false;
+    pParams.m_weights_index = kBC7Weights2Index;
+    pParams.m_num_selector_weights = 4;
+
+    pParams.m_comp_bits = 7;
+    pParams.m_has_pbits = true;
+    pParams.m_endpoints_share_pbit = false;
+
+    pParams.m_perceptual = glob_is_perceptual();
+
+    for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
+    {
+        const uint trial_partition = solutions[solution_index].m_index;
+        assert(trial_partition < 64);
+
+        const int pPartition[16] = g_bc7_partition2[trial_partition];
+
+        color_quad_i subset_colors[2][16];
+
+        uint subset_total_colors3[2];
+        subset_total_colors3[0] = 0;
+        subset_total_colors3[1] = 0;
+
+        int subset_pixel_index3[2][16];
+        color_cell_compressor_results subset_results3[2];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+            assert(p < 2);
+
+            subset_colors[p][subset_total_colors3[p]] = pixels[idx];
+            subset_pixel_index3[p][subset_total_colors3[p]] = idx;
+            subset_total_colors3[p]++;
+        }
+
+        uint trial_err = 0;
+        for (uint subset = 0; subset < 2; subset++)
+        {
+            uint err = color_cell_compression(3, pParams, subset_results3[subset], subset_total_colors3[subset], subset_colors[subset], (num_solutions <= 2) || disable_faster_part_selection);
+            assert(err == subset_results3[subset].m_best_overall_err);
+
+            trial_err += err;
+            if (trial_err > res.m_error)
+                break;
+        } // subset
+
+        if (trial_err < res.m_error)
+        {
+            res.m_error = trial_err;
+            res.m_mode = 3;
+            res.m_rotation_index_sel = 0;
+            res.m_partition = trial_partition;
+            for (uint subset = 0; subset < 2; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors3[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index3[subset][i];
+                    res.m_selectors[pixel_index] = subset_results3[subset].m_selectors[i];
+                }
+                res.m_low[subset] = subset_results3[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results3[subset].m_high_endpoint;
+                uint pbits = res.m_pbits;
+                pbits &= ~(3 << subset * 2);
+                pbits |= subset_results3[subset].m_pbits << subset * 2;
+                res.m_pbits = pbits;
+            }
+        }
+
+    } // solution_index
+
+    if ((num_solutions > 2) && (res.m_mode == 3) && (!disable_faster_part_selection))
+    {
+        const uint trial_partition = res.m_partition;
+        assert(trial_partition < 64);
+
+        const int pPartition[16] = g_bc7_partition2[trial_partition];
+
+        color_quad_i subset_colors[2][16];
+
+        uint subset_total_colors3[2];
+        subset_total_colors3[0] = 0;
+        subset_total_colors3[1] = 0;
+
+        int subset_pixel_index3[2][16];
+        color_cell_compressor_results subset_results3[2];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+            assert(p < 2);
+
+            subset_colors[p][subset_total_colors3[p]] = pixels[idx];
+            subset_pixel_index3[p][subset_total_colors3[p]] = idx;
+            subset_total_colors3[p]++;
+        }
+
+        uint trial_err = 0;
+        for (uint subset = 0; subset < 2; subset++)
+        {
+            uint err = color_cell_compression(3, pParams, subset_results3[subset], subset_total_colors3[subset], subset_colors[subset], true);
+            assert(err == subset_results3[subset].m_best_overall_err);
+
+            trial_err += err;
+            if (trial_err > res.m_error)
+                break;
+        } // subset
+
+        if (trial_err < res.m_error)
+        {
+            res.m_error = trial_err;
+            for (uint subset = 0; subset < 2; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors3[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index3[subset][i];
+                    res.m_selectors[pixel_index] = subset_results3[subset].m_selectors[i];
+                }
+                res.m_low[subset] = subset_results3[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results3[subset].m_high_endpoint;
+                uint pbits = res.m_pbits;
+                pbits &= ~(3 << subset * 2);
+                pbits |= subset_results3[subset].m_pbits << subset * 2;
+                res.m_pbits = pbits;
+            }
+        }
+    }
+}
+
+static void handle_opaque_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    color_cell_compressor_params params5 = pParams;
+
+    for (uint rotation = 0; rotation < 4; rotation++)
+    {
+        if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
+            continue;
+
+        params5.m_weights = pParams.m_weights;
+        if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
+        if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
+        if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
+
+        color_quad_i rot_pixels[16];
+        int trial_lo_a = 255, trial_hi_a = 255;
+        if (rotation)
+        {
+            trial_lo_a = 255;
+            trial_hi_a = 0;
+
+            for (uint i = 0; i < 16; i++)
+            {
+                color_quad_i c = pixels[i];
+                if (rotation == 1) c = c.agbr;
+                if (rotation == 2) c = c.rabg;
+                if (rotation == 3) c = c.rgab;
+                rot_pixels[i] = c;
+
+                trial_lo_a = min(trial_lo_a, c.a);
+                trial_hi_a = max(trial_hi_a, c.a);
+            }
+        }
+        else
+            rot_pixels = pixels;
+
+        bc7_optimization_results trial_res = (bc7_optimization_results)0;
+        trial_res.m_error = 0;
+        handle_alpha_block_mode5(rot_pixels, params5, trial_lo_a, trial_hi_a, trial_res);
+        if (trial_res.m_error < res.m_error)
+        {
+            res = trial_res;
+            res.m_rotation_index_sel = rotation;
+        }
+    } // rotation
+}
+
+static void handle_opaque_block_mode2(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+{
+    pParams.m_perceptual = glob_is_perceptual();
+    solution solutions[4];
+    uint num_solutions = decode_solutions(solution_lists.w, solutions);
+    pParams.m_weights_index = kBC7Weights2Index;
+    pParams.m_num_selector_weights = 4;
+    pParams.m_comp_bits = 5;
+    pParams.m_has_pbits = false;
+    pParams.m_endpoints_share_pbit = false;
+    for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
+    {
+        const int best_partition2 = solutions[solution_index].m_index;
+
+        uint subset_total_colors2[3];
+        subset_total_colors2[0] = 0;
+        subset_total_colors2[1] = 0;
+        subset_total_colors2[2] = 0;
+
+        int subset_pixel_index2[3][16];
+
+        const int pPartition[16] = g_bc7_partition3[best_partition2];
+
+        color_quad_i subset_colors[3][16];
+
+        for (uint idx = 0; idx < 16; idx++)
+        {
+            const uint p = pPartition[idx];
+
+            subset_colors[p][subset_total_colors2[p]] = pixels[idx];
+
+            subset_pixel_index2[p][subset_total_colors2[p]] = idx;
+
+            subset_total_colors2[p]++;
+        }
+
+        color_cell_compressor_results subset_results2[3];
+
+        uint mode2_err = 0;
+        for (uint subset = 0; subset < 3; subset++)
+        {
+            uint err = color_cell_compression(2, pParams, subset_results2[subset], subset_total_colors2[subset], subset_colors[subset], true);
+            assert(err == subset_results2[subset].m_best_overall_err);
+
+            mode2_err += err;
+            if (mode2_err > res.m_error)
+                break;
+        } // subset
+
+        if (mode2_err < res.m_error)
+        {
+            res.m_error = mode2_err;
+            res.m_mode = 2;
+            res.m_rotation_index_sel = 0;
+            res.m_partition = best_partition2;
+            for (uint subset = 0; subset < 3; subset++)
+            {
+                for (uint i = 0; i < subset_total_colors2[subset]; i++)
+                {
+                    const uint pixel_index = subset_pixel_index2[subset][i];
+                    res.m_selectors[pixel_index] = subset_results2[subset].m_selectors[i];
+                }
+                res.m_low[subset] = subset_results2[subset].m_low_endpoint;
+                res.m_high[subset] = subset_results2[subset].m_high_endpoint;
+            }
+        }
+    }
+}
 
 static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cell_compressor_params pParams)
 {
@@ -3990,7 +3909,9 @@ void load_pixel_block(out color_quad_i pixels[16], out float out_lo_a, out float
         int g = (craw >> 8) & 0xFF;
         int b = (craw >> 16) & 0xFF;
         int a = (craw >> 24);
-
+#       ifdef OPT_OPAQUE_ONLY
+        a = 255;
+#       endif
         pixels[i] = int4(r, g, b, a);
 
         float fa = a;
@@ -4003,75 +3924,4 @@ void load_pixel_block(out color_quad_i pixels[16], out float out_lo_a, out float
 }
 
 RWStructuredBuffer<uint4> s_BufOutput : register(u2);
-
-// First pass: figures out mode partition lists
-// (writes them into the output texture buffer)
-// - Up to 4 partitions for mode; partition indices encoded in 6 bits each, then list size
-// - x: mode 7
-// - y: mode 1|3
-// - z: mode 0
-// - w: mode 2
-[numthreads(64,1,1)]
-void bc7e_estimate_partition_lists(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= g_widthInBlocks || id.y >= g_heightInBlocks)
-        return;
-    
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(params);
-    
-    params.m_weights = g_params.m_weights;
-    
-    color_quad_i pixels[16];
-    float lo_a, hi_a;
-    load_pixel_block(pixels, lo_a, hi_a, id, g_width);
-    
-    const bool has_alpha = (lo_a < 255);
-
-    uint4 lists;
-    if (has_alpha)
-        lists = get_lists_alpha(pixels);
-    else
-        lists = get_lists_opaque(pixels);
-    uint block_index = id.y * g_widthInBlocks + id.x;
-    s_BufOutput[block_index] = lists;
-}
-
-[numthreads(64, 1, 1)]
-void bc7e_compress_blocks(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= g_widthInBlocks || id.y >= g_heightInBlocks)
-        return;
-    
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(params);
-    
-    params.m_weights = g_params.m_weights;
-    
-    color_quad_i pixels[16];
-    float lo_a, hi_a;
-    load_pixel_block(pixels, lo_a, hi_a, id, g_width);
-    
-    const bool has_alpha = (lo_a < 255);
-    uint4 block;
-    
-    uint block_index = id.y * g_widthInBlocks + id.x;
-    uint4 lists = s_BufOutput[block_index];
-
-#if !defined(OPT_OPAQUE_ONLY)
-    if (has_alpha)
-        block = handle_alpha_block(pixels, lists, params, (int)lo_a, (int)hi_a);
-    else
-#endif
-    {
-#ifdef OPT_ULTRAFAST_ONLY
-        block = handle_opaque_block_mode6(pixels, params);
-#else
-        if (glob_is_mode6_only())
-            block = handle_opaque_block_mode6(pixels, params);
-        else
-            block = handle_opaque_block(pixels, lists, params);
-#endif
-    }
-    s_BufOutput[block_index] = block;
-}
+RWStructuredBuffer<bc7_optimization_results> s_BufTemp : register(u3);

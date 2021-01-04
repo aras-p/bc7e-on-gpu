@@ -633,7 +633,13 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
     s_Bc7TablesBuffer = SmolBufferCreate(sizeof(s_Tables), SmolBufferType::Structured, 4);
     s_Bc7GlobBuffer = SmolBufferCreate(sizeof(Globals), SmolBufferType::Constant);
     s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
-    s_Bc7TempBuffer = SmolBufferCreate(maxBc7Size / 16 * 64, SmolBufferType::Structured, 64); // 64 bytes per block
+    size_t tempBufferElSize;
+#ifdef _MSC_VER
+    tempBufferElSize = 172;
+#else
+    tempBufferElSize = 64; // 64 bytes per block on Metal
+#endif
+    s_Bc7TempBuffer = SmolBufferCreate(maxBc7Size / 16 * tempBufferElSize, SmolBufferType::Structured, tempBufferElSize);
     s_Bc7OutputBuffer = SmolBufferCreate(maxBc7Size, SmolBufferType::Structured, 16);
     SmolBufferSetData(s_Bc7TablesBuffer, &s_Tables, sizeof(s_Tables));
 
