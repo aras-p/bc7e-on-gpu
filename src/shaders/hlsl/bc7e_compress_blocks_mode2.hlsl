@@ -8,7 +8,6 @@ void bc7e_compress_blocks_mode2(uint3 id : SV_DispatchThreadID)
 
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
-    params.m_weights = g_params.m_weights;
 
     color_quad_i pixels[16];
     float lo_a, hi_a;
@@ -20,15 +19,13 @@ void bc7e_compress_blocks_mode2(uint3 id : SV_DispatchThreadID)
     bc7_optimization_results res = (bc7_optimization_results)0;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         return;
     }
     else
-#endif
     {
-        if (!(g_params.m_opaq_use_modes0123 & 0xFF0000))
+        if (!(g_params.m_opaq_use_modes0123 & 0xFF0000) || glob_is_mode6_only())
             return;
         uint4 lists = s_BufOutput[block_index];
         handle_opaque_block_mode2(res, pixels, params, lists);

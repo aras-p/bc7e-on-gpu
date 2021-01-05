@@ -16,8 +16,6 @@ void bc7e_estimate_partition_lists(uint3 id : SV_DispatchThreadID)
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
 
-    params.m_weights = g_params.m_weights;
-
     color_quad_i pixels[16];
     float lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, g_width);
@@ -25,11 +23,9 @@ void bc7e_estimate_partition_lists(uint3 id : SV_DispatchThreadID)
     const bool has_alpha = (lo_a < 255);
 
     uint4 lists = 0;
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
         lists = get_lists_alpha(pixels);
     else
-#endif
     {
 #ifdef OPT_ULTRAFAST_ONLY
         ;

@@ -8,7 +8,6 @@ void bc7e_compress_blocks_mode4_opaq(uint3 id : SV_DispatchThreadID)
 
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
-    params.m_weights = g_params.m_weights;
 
     color_quad_i pixels[16];
     float lo_a, hi_a;
@@ -20,13 +19,11 @@ void bc7e_compress_blocks_mode4_opaq(uint3 id : SV_DispatchThreadID)
     bc7_optimization_results res = (bc7_optimization_results)0;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         return;
     }
     else
-#endif
     {
 #ifdef OPT_ULTRAFAST_ONLY
         return;

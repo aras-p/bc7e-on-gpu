@@ -8,7 +8,6 @@ void bc7e_compress_blocks_mode5(uint3 id : SV_DispatchThreadID)
 
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(params);
-    params.m_weights = g_params.m_weights;
 
     color_quad_i pixels[16];
     float lo_a, hi_a;
@@ -20,7 +19,6 @@ void bc7e_compress_blocks_mode5(uint3 id : SV_DispatchThreadID)
     bc7_optimization_results res = (bc7_optimization_results)0;
     res.m_error = prev_error;
 
-#if !defined(OPT_OPAQUE_ONLY)
     if (has_alpha)
     {
         if (!(g_params.m_alpha_use_modes4567 & 0xFF00))
@@ -28,9 +26,8 @@ void bc7e_compress_blocks_mode5(uint3 id : SV_DispatchThreadID)
         handle_alpha_block_mode5(res, pixels, params, lo_a, hi_a);
     }
     else
-#endif
     {
-        if (glob_is_perceptual() || !(g_params.m_opaq_use_modes456 & 0xFF00))
+        if (glob_is_perceptual() || !(g_params.m_opaq_use_modes456 & 0xFF00) || glob_is_mode6_only())
             return;
         handle_opaque_block_mode5(res, pixels, params);
     }

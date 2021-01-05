@@ -7,9 +7,8 @@
 #define select(a, b, c) ((c) ? (b) : (a))
 #define max3(a, b, c) (max((a), max((b), (c))))
 
-#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
+//#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
-//#define OPT_OPAQUE_ONLY // disables all transparency handling
 #define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
@@ -215,7 +214,7 @@ static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], uint
     // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
     // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
     precise float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    precise float4 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
+    precise float4 q00 = 0.0f, t = 0.0f;
     for (uint i = 0; i < N; i++)
     {
         const uint sel = selectors[i];
@@ -224,10 +223,11 @@ static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], uint
         z10 += wt.g;
         z11 += wt.b;
         precise float w = wt.a;
-        q00 += w * float4(colors[i]); t += float4(colors[i]);
+        precise float4 pc = float4(colors[i]);
+        q00 += w * pc; t += pc;
     }
 
-    q10 = t - q00;
+    precise float4 q10 = t - q00;
 
     z01 = z10;
 
@@ -242,40 +242,6 @@ static void compute_least_squares_endpoints_rgba(uint N, int selectors[16], uint
     iz11 = z00 * det;
 
     pXl = iz00 * q00 + iz01 * q10; pXh = iz10 * q00 + iz11 * q10;
-}
-
-static void compute_least_squares_endpoints_rgb(uint N, int selectors[16], uint weights_index, inout precise float4 pXl, inout precise float4 pXh, color_quad_i colors[16])
-{
-    // Least squares using normal equations: http://www.cs.cornell.edu/~bindel/class/cs3220-s12/notes/lec10.pdf
-    // I did this in matrix form first, expanded out all the ops, then optimized it a bit.
-    precise float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-    precise float3 q00 = 0.0f, q10 = 0.0f, t = 0.0f;
-    for (uint i = 0; i < N; i++)
-    {
-        const uint sel = selectors[i];
-        precise float4 wt = get_table_bc7_weightx(weights_index + sel);
-        z00 += wt.r;
-        z10 += wt.g;
-        z11 += wt.b;
-        precise float w = wt.a;
-        q00 += w * float3(colors[i].rgb); t += float3(colors[i].rgb);
-    }
-
-    q10 = t - q00;
-
-    z01 = z10;
-
-    precise float det = z00 * z11 - z01 * z10;
-    if (det != 0.0f)
-        det = 1.0f / det;
-
-    precise float iz00, iz01, iz10, iz11;
-    iz00 = z11 * det;
-    iz01 = -z01 * det;
-    iz10 = -z10 * det;
-    iz11 = z00 * det;
-
-    pXl.rgb = iz00 * q00 + iz01 * q10; pXh.rgb = iz10 * q00 + iz11 * q10;
 }
 
 static void compute_least_squares_endpoints_a(uint N, int selectors[16], uint weights_index, out precise float pXl, out precise float pXh, color_quad_i colors[16])
@@ -327,7 +293,8 @@ struct color_cell_compressor_params
 static inline void color_cell_compressor_params_clear(out color_cell_compressor_params p)
 {
     p = (color_cell_compressor_params)0;
-    p.m_weights = 1;
+    p.m_perceptual = glob_is_perceptual();
+    p.m_weights = g_params.m_weights;
 }
 
 int4 unpack_color(uint packed)
@@ -809,7 +776,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
-                    selectors[i] = (int)select(best_sel0, best_sel, min_err == err0);
+                    selectors[i] = (int)select(best_sel, best_sel0, min_err == err0);
                 }
             }
             else if (N == 8)
@@ -846,9 +813,9 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                         best_err = min(min(min(err0, err1), err2), err3);
                                     
-                        best_sel = select(1, 0, best_err == err1);
-                        best_sel = select(2, best_sel, best_err == err2);
-                        best_sel = select(3, best_sel, best_err == err3);
+                        best_sel = select(0, 1, best_err == err1);
+                        best_sel = select(best_sel, 2, best_err == err2);
+                        best_sel = select(best_sel, 3, best_err == err3);
                     }
 
                     {
@@ -874,10 +841,10 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
 
-                        best_sel = select(4, best_sel, best_err == err0);
-                        best_sel = select(5, best_sel, best_err == err1);
-                        best_sel = select(6, best_sel, best_err == err2);
-                        best_sel = select(7, best_sel, best_err == err3);
+                        best_sel = select(best_sel, 4, best_err == err0);
+                        best_sel = select(best_sel, 5, best_err == err1);
+                        best_sel = select(best_sel, 6, best_err == err2);
+                        best_sel = select(best_sel, 7, best_err == err3);
                     }
                 
                     total_errf += best_err;
@@ -915,9 +882,9 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                     float best_err = min(min(min(err0, err1), err2), err3);
 
-                    int best_sel = select(1, 0, best_err == err1);
-                    best_sel = select(2, best_sel, best_err == err2);
-                    best_sel = select(3, best_sel, best_err == err3);
+                    int best_sel = select(0, 1, best_err == err1);
+                    best_sel = select(best_sel, 2, best_err == err2);
+                    best_sel = select(best_sel, 3, best_err == err3);
                                 
                     total_errf += best_err;
 
@@ -975,7 +942,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
-                    selectors[i] = (int)select(best_sel0, best_sel, min_err == err0);
+                    selectors[i] = (int)select(best_sel, best_sel0, min_err == err0);
                 }
             }
             else if (N == 8)
@@ -1017,9 +984,9 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                         best_err = min(min(min(err0, err1), err2), err3);
                                     
-                        best_sel = select(1, 0, best_err == err1);
-                        best_sel = select(2, best_sel, best_err == err2);
-                        best_sel = select(3, best_sel, best_err == err3);
+                        best_sel = select(0 1, best_err == err1);
+                        best_sel = select(best_sel, 2, best_err == err2);
+                        best_sel = select(best_sel, 3, best_err == err3);
                     }
 
                     {
@@ -1049,10 +1016,10 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
 
-                        best_sel = select(4, best_sel, best_err == err0);
-                        best_sel = select(5, best_sel, best_err == err1);
-                        best_sel = select(6, best_sel, best_err == err2);
-                        best_sel = select(7, best_sel, best_err == err3);
+                        best_sel = select(best_sel, 4, best_err == err0);
+                        best_sel = select(best_sel, 5, best_err == err1);
+                        best_sel = select(best_sel, 6, best_err == err2);
+                        best_sel = select(best_sel, 7, best_err == err3);
                     }
                 
                     total_errf += best_err;
@@ -1095,9 +1062,9 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                     float best_err = min(min(min(err0, err1), err2), err3);
 
-                    int best_sel = select(1, 0, best_err == err1);
-                    best_sel = select(2, best_sel, best_err == err2);
-                    best_sel = select(3, best_sel, best_err == err3);
+                    int best_sel = select(0, 1, best_err == err1);
+                    best_sel = select(best_sel, 2, best_err == err2);
+                    best_sel = select(best_sel, 3, best_err == err3);
                                 
                     total_errf += best_err;
 
@@ -1667,11 +1634,9 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
     //for (uint i = 0; i < g_params.m_refinement_passes; i++)
     {
         precise vec4F xl = 0.0f, xh = 0.0f;
-        if (pParams.m_has_alpha)
-            compute_least_squares_endpoints_rgba(num_pixels, pResults.m_selectors, pParams.m_weights_index, xl, xh, pPixels);
-        else
+        compute_least_squares_endpoints_rgba(num_pixels, pResults.m_selectors, pParams.m_weights_index, xl, xh, pPixels);
+        if (!pParams.m_has_alpha)
         {
-            compute_least_squares_endpoints_rgb(num_pixels, pResults.m_selectors, pParams.m_weights_index, xl, xh, pPixels);
             xl.a = 255.0f;
             xh.a = 255.0f;
         }
@@ -1703,75 +1668,25 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
 
         vec4F xl = 0.0f, xh = 0.0f;
 
-        if (g_params.m_uber1_mask & 1)
+        for (uint uber_it = 0; uber_it < 3; ++uber_it)
         {
+            // note: m_uber1_mask is always 7, skip check
+            //uint uber_mask = 1 << uber_it;
+            //if (!(g_params.m_uber1_mask & uber_mask))
+            //    continue;
             for (uint i = 0; i < num_pixels; i++)
             {
                 uint sel = selectors_temp0[i];
-                if ((sel == min_sel) && (sel < (pParams->m_num_selector_weights - 1)))
+                if ((sel == min_sel) && (sel < max_selector) && (uber_it == 0 || uber_it == 2))
+                    sel++;
+                else if ((sel == max_sel) && (sel > 0) && (uber_it == 1 || uber_it == 2))
                     sel++;
                 selectors_temp1[i] = sel;
             }
                         
-            if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
-            else
+            compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
+            if (!pParams->m_has_alpha)
             {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
-                xl.a = 255.0f;
-                xh.a = 255.0f;
-            }
-
-            xl *= 1.0f / 255.0f;
-            xh *= 1.0f / 255.0f;
-
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search(), num_pixels, pPixels))
-                return 0;
-        }
-
-        if (g_params.m_uber1_mask & 2)
-        {
-            for (uint i = 0; i < num_pixels; i++)
-            {
-                uint sel = selectors_temp0[i];
-                if ((sel == max_sel) && (sel > 0))
-                    sel--;
-                selectors_temp1[i] = sel;
-            }
-
-            if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
-            else
-            {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
-                xl.a = 255.0f;
-                xh.a = 255.0f;
-            }
-
-            xl *= 1.0f / 255.0f;
-            xh *= 1.0f / 255.0f;
-
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search(), num_pixels, pPixels))
-                return 0;
-        }
-
-        if (g_params.m_uber1_mask & 4)
-        {
-            for (uint i = 0; i < num_pixels; i++)
-            {
-                uint sel = selectors_temp0[i];
-                if ((sel == min_sel) && (sel < (pParams->m_num_selector_weights - 1)))
-                    sel++;
-                else if ((sel == max_sel) && (sel > 0))
-                    sel--;
-                selectors_temp1[i] = sel;
-            }
-
-            if (pParams->m_has_alpha)
-                compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
-            else
-            {
-                compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
                 xl.a = 255.0f;
                 xh.a = 255.0f;
             }
@@ -1800,11 +1715,9 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
 
                     xl = 0.0f;
                     xh = 0.0f;
-                    if (pParams->m_has_alpha)
-                        compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
-                    else
+                    compute_least_squares_endpoints_rgba(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
+                    if (!pParams.m_has_alpha)
                     {
-                        compute_least_squares_endpoints_rgb(num_pixels, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
                         xl.a = 255.0f;
                         xh.a = 255.0f;
                     }
@@ -2073,12 +1986,6 @@ static uint estimate_partition(uint mode, const color_quad_i pPixels[16])
     params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
-    params.m_weights = g_params.m_weights;
-
-    // Note: m_mode67_error_weight_mul was always 1, removed
-
-    params.m_perceptual = glob_is_perceptual();
-
     for (uint partition = 0; partition < total_partitions; partition++)
     {
         int pPartition[16];
@@ -2176,12 +2083,6 @@ static uint estimate_partition_list(uint mode, const color_quad_i pPixels[16],
 
     params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
     params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
-
-    params.m_weights = g_params.m_weights;
-
-    // Note: m_mode67_error_weight_mul was always 1, removed
-
-    params.m_perceptual = glob_is_perceptual();
 
     int num_solutions = 0;
 
@@ -2586,7 +2487,6 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
     pParams.m_comp_bits = 5;
     pParams.m_has_pbits = false;
     pParams.m_endpoints_share_pbit = false;
-    pParams.m_perceptual = glob_is_perceptual();
 
     for (uint index_selector = 0; index_selector < 2; index_selector++)
     {
@@ -2801,8 +2701,6 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_
     pParams.m_has_pbits = false;
     pParams.m_endpoints_share_pbit = false;
     
-    pParams.m_perceptual = glob_is_perceptual();
-        
     color_cell_compressor_results results5 = (color_cell_compressor_results)0;
 
     pOpt_results5.m_error = color_cell_compression(5, pParams, results5, 16, pPixels, true);
@@ -2987,7 +2885,7 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
     // w = mode 2 lists
     uint4 lists = 0;
     
-    if ((g_params.m_opaq_use_modes0123 & 0xFF00) || (g_params.m_opaq_use_modes0123 & 0xFF000000))
+    if (((g_params.m_opaq_use_modes0123 & 0xFF00) || (g_params.m_opaq_use_modes0123 & 0xFF000000)) && !glob_is_mode6_only())
     {
         solution sol13[4];
         uint num_sol13 = 0;
@@ -3003,7 +2901,7 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
         lists.y = encode_solutions(sol13, num_sol13);
     }
     
-    if (g_params.m_opaq_use_modes0123 & 0xFF)
+    if ((g_params.m_opaq_use_modes0123 & 0xFF) && !glob_is_mode6_only())
     {
         solution sol0[4];
         uint num_sol0 = 0;
@@ -3019,7 +2917,7 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
         lists.z = encode_solutions(sol0, num_sol0);
     }
     
-    if (g_params.m_opaq_use_modes0123 & 0xFF0000)
+    if ((g_params.m_opaq_use_modes0123 & 0xFF0000) && !glob_is_mode6_only())
     {
         solution sol2[4];
         uint num_sol2 = 0;
@@ -3040,7 +2938,6 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
 
 static void handle_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a, int num_rotations)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     color_cell_compressor_params params4 = pParams;
 
     for (int rotation = 0; rotation < num_rotations; rotation++)
@@ -3081,7 +2978,6 @@ static void handle_block_mode4(inout bc7_optimization_results res, const color_q
 
 static void handle_alpha_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     color_cell_compressor_params params5 = pParams;
 
     const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF00))) ? 1 : 4;
@@ -3130,7 +3026,6 @@ static void handle_alpha_block_mode5(inout bc7_optimization_results res, const c
 
 static void handle_alpha_block_mode7(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a, uint4 solution_lists)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.x, solutions);
 
@@ -3282,7 +3177,6 @@ static void handle_block_mode6(inout bc7_optimization_results res, const color_q
     pParams.m_has_pbits = true;
     pParams.m_endpoints_share_pbit = false;
     pParams.m_has_alpha = has_alpha;
-    pParams.m_perceptual = glob_is_perceptual();
 
     color_cell_compressor_results cres = (color_cell_compressor_results)0;
     uint err = color_cell_compression(6, pParams, cres, 16, pixels, true);
@@ -3301,7 +3195,6 @@ static void handle_block_mode6(inout bc7_optimization_results res, const color_q
 
 static void handle_opaque_block_mode1(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
     const bool disable_faster_part_selection = false;
@@ -3437,7 +3330,6 @@ static void handle_opaque_block_mode1(inout bc7_optimization_results res, const 
 
 static void handle_opaque_block_mode0(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.z, solutions);
     pParams.m_weights_index = kBC7Weights3Index;
@@ -3509,7 +3401,6 @@ static void handle_opaque_block_mode0(inout bc7_optimization_results res, const 
 
 static void handle_opaque_block_mode3(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
     const bool disable_faster_part_selection = false;
@@ -3519,8 +3410,6 @@ static void handle_opaque_block_mode3(inout bc7_optimization_results res, const 
     pParams.m_comp_bits = 7;
     pParams.m_has_pbits = true;
     pParams.m_endpoints_share_pbit = false;
-
-    pParams.m_perceptual = glob_is_perceptual();
 
     for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
     {
@@ -3643,7 +3532,6 @@ static void handle_opaque_block_mode3(inout bc7_optimization_results res, const 
 
 static void handle_opaque_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     color_cell_compressor_params params5 = pParams;
 
     for (uint rotation = 0; rotation < 4; rotation++)
@@ -3691,7 +3579,6 @@ static void handle_opaque_block_mode5(inout bc7_optimization_results res, const 
 
 static void handle_opaque_block_mode2(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
 {
-    pParams.m_perceptual = glob_is_perceptual();
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.w, solutions);
     pParams.m_weights_index = kBC7Weights2Index;
@@ -3772,8 +3659,6 @@ static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cel
     pParams.m_has_pbits = true;
     pParams.m_endpoints_share_pbit = false;
 
-    pParams.m_perceptual = glob_is_perceptual();
-                
     color_cell_compressor_results results6 = (color_cell_compressor_results)0;
 
     best_err = color_cell_compression(6, pParams, results6, 16, pPixels, true);
@@ -3806,9 +3691,6 @@ void load_pixel_block(out color_quad_i pixels[16], out float out_lo_a, out float
         int g = (craw >> 8) & 0xFF;
         int b = (craw >> 16) & 0xFF;
         int a = (craw >> 24);
-#       ifdef OPT_OPAQUE_ONLY
-        a = 255;
-#       endif
         pixels[i] = int4(r, g, b, a);
 
         float fa = a;
