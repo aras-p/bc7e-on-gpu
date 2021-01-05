@@ -984,7 +984,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                         best_err = min(min(min(err0, err1), err2), err3);
                                     
-                        best_sel = select(0 1, best_err == err1);
+                        best_sel = select(0, 1, best_err == err1);
                         best_sel = select(best_sel, 2, best_err == err2);
                         best_sel = select(best_sel, 3, best_err == err3);
                     }

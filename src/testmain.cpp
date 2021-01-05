@@ -17,14 +17,15 @@
 #endif
 
 const bool kDoCapture = false;
-const int kQuality = 3;
+const int kQuality = 0;
 const int kRunCount = kDoCapture ? 1 : 8;
+const bool kAlwaysPerceptual = false;
 #ifdef _MSC_VER
 const bool kRequireExactResultsMatch = false;
 #else
 const bool kRequireExactResultsMatch = true;
 #endif
-const float kAllowedPsnrDiff = 66;
+const float kAllowedPsnrDiff = 57;
 
 
 static const char* kTestFileNames[] =
@@ -718,6 +719,8 @@ static float eval_psnr(int width, int height, int channels, const unsigned char*
 
 static bool TestOnFile(TestFile& tf, bool perceptual)
 {
+    if (kAlwaysPerceptual)
+        perceptual = true;
     printf("  testing %s\n", tf.fileNameBase.c_str());
     const int kBC7BlockBytes = 16;
     const size_t compressedSize = tf.bc7exp.size();
