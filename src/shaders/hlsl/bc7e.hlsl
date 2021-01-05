@@ -7,7 +7,7 @@
 #define select(a, b, c) ((c) ? (b) : (a))
 #define max3(a, b, c) (max((a), max((b), (c))))
 
-#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
+//#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 #define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
 
@@ -362,7 +362,8 @@ static inline uint compute_color_distance_rgb(color_quad_i e1, color_quad_i e2, 
         float dg = (float)e1.g - (float)e2.g;
         float db = (float)e1.b - (float)e2.b;
         
-        return (int)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db);
+        precise float res = (weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db);
+        return (uint)res;
     }
 }
 
@@ -394,7 +395,8 @@ static inline uint compute_color_distance_rgba(color_quad_i e1, color_quad_i e2,
         float dg = (float)e1.g - (float)e2.g;
         float db = (float)e1.b - (float)e2.b;
 
-        return (int)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db + a_err);
+        precise float res = (weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db + a_err);
+        return (uint)res;
     }
 }
 
@@ -729,7 +731,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                 float dg = actualMaxColor[1] - lg;
                 float db = actualMaxColor[2] - lb;
             
-                const float f = N / (dr * dr + dg * dg + db * db);
+                precise const float f = N / (dr * dr + dg * dg + db * db);
 
                 lr *= -dr;
                 lg *= -dg;
@@ -744,7 +746,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                     float g = pC.g;
                     float b = pC.b;
 
-                    float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb)) * f + .5f);
+                    precise float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb)) * f + .5f);
                     best_sel = clamp(best_sel, (float)1, (float)(N - 1));
 
                     float best_sel0 = best_sel - 1;
@@ -755,7 +757,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                     float db0 = weightedColors[(int)best_sel0][2] - b;
 
-                    float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
+                    precise float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
                     float dr1 = weightedColors[(int)best_sel][0] - r;
 
@@ -763,7 +765,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
                     float db1 = weightedColors[(int)best_sel][2] - b;
 
-                    float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
+                    precise float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
@@ -787,22 +789,22 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                         float dr0 = weightedColors[0][0] - pr;
                         float dg0 = weightedColors[0][1] - pg;
                         float db0 = weightedColors[0][2] - pb;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
+                        precise float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
                         float dr1 = weightedColors[1][0] - pr;
                         float dg1 = weightedColors[1][1] - pg;
                         float db1 = weightedColors[1][2] - pb;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
+                        precise float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
                         float dr2 = weightedColors[2][0] - pr;
                         float dg2 = weightedColors[2][1] - pg;
                         float db2 = weightedColors[2][2] - pb;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
+                        precise float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
 
                         float dr3 = weightedColors[3][0] - pr;
                         float dg3 = weightedColors[3][1] - pg;
                         float db3 = weightedColors[3][2] - pb;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
+                        precise float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
 
                         best_err = min(min(min(err0, err1), err2), err3);
                                     
@@ -815,22 +817,22 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                         float dr0 = weightedColors[4][0] - pr;
                         float dg0 = weightedColors[4][1] - pg;
                         float db0 = weightedColors[4][2] - pb;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
+                        precise float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
                         float dr1 = weightedColors[5][0] - pr;
                         float dg1 = weightedColors[5][1] - pg;
                         float db1 = weightedColors[5][2] - pb;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
+                        precise float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
                         float dr2 = weightedColors[6][0] - pr;
                         float dg2 = weightedColors[6][1] - pg;
                         float db2 = weightedColors[6][2] - pb;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
+                        precise float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
 
                         float dr3 = weightedColors[7][0] - pr;
                         float dg3 = weightedColors[7][1] - pg;
                         float db3 = weightedColors[7][2] - pb;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
+                        precise float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
 
@@ -858,22 +860,22 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                     float dr0 = weightedColors[0][0] - pr;
                     float dg0 = weightedColors[0][1] - pg;
                     float db0 = weightedColors[0][2] - pb;
-                    float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
+                    precise float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
 
                     float dr1 = weightedColors[1][0] - pr;
                     float dg1 = weightedColors[1][1] - pg;
                     float db1 = weightedColors[1][2] - pb;
-                    float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
+                    precise float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
 
                     float dr2 = weightedColors[2][0] - pr;
                     float dg2 = weightedColors[2][1] - pg;
                     float db2 = weightedColors[2][2] - pb;
-                    float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
+                    precise float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
 
                     float dr3 = weightedColors[3][0] - pr;
                     float dg3 = weightedColors[3][1] - pg;
                     float db3 = weightedColors[3][2] - pb;
-                    float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
+                    precise float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
 
                     float best_err = min(min(min(err0, err1), err2), err3);
 
@@ -902,7 +904,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                 float db = actualMaxColor[2] - lb;
                 float da = actualMaxColor[3] - la;
             
-                const float f = N / (dr * dr + dg * dg + db * db + da * da);
+                precise const float f = N / (dr * dr + dg * dg + db * db + da * da);
 
                 lr *= -dr;
                 lg *= -dg;
@@ -919,7 +921,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                     float b = pC.b;
                     float a = pC.a;
 
-                    float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb) + (a * da + la)) * f + .5f);
+                    precise float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb) + (a * da + la)) * f + .5f);
                     best_sel = clamp(best_sel, (float)1, (float)(N - 1));
 
                     float best_sel0 = best_sel - 1;
@@ -928,14 +930,14 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                     float dg0 = weightedColors[(int)best_sel0][1] - g;
                     float db0 = weightedColors[(int)best_sel0][2] - b;
                     float da0 = weightedColors[(int)best_sel0][3] - a;
-                    float err0 = (wr * dr0 * dr0) + (wg * dg0 * dg0) + (wb * db0 * db0) + (wa * da0 * da0);
+                    precise float err0 = (wr * dr0 * dr0) + (wg * dg0 * dg0) + (wb * db0 * db0) + (wa * da0 * da0);
 
                     float dr1 = weightedColors[(int)best_sel][0] - r;
                     float dg1 = weightedColors[(int)best_sel][1] - g;
                     float db1 = weightedColors[(int)best_sel][2] - b;
                     float da1 = weightedColors[(int)best_sel][3] - a;
 
-                    float err1 = (wr * dr1 * dr1) + (wg * dg1 * dg1) + (wb * db1 * db1) + (wa * da1 * da1);
+                    precise float err1 = (wr * dr1 * dr1) + (wg * dg1 * dg1) + (wb * db1 * db1) + (wa * da1 * da1);
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
@@ -961,25 +963,25 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                         float dg0 = weightedColors[0][1] - pg;
                         float db0 = weightedColors[0][2] - pb;
                         float da0 = weightedColors[0][3] - pa;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
+                        precise float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
 
                         float dr1 = weightedColors[1][0] - pr;
                         float dg1 = weightedColors[1][1] - pg;
                         float db1 = weightedColors[1][2] - pb;
                         float da1 = weightedColors[1][3] - pa;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
+                        precise float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
 
                         float dr2 = weightedColors[2][0] - pr;
                         float dg2 = weightedColors[2][1] - pg;
                         float db2 = weightedColors[2][2] - pb;
                         float da2 = weightedColors[2][3] - pa;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
+                        precise float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
 
                         float dr3 = weightedColors[3][0] - pr;
                         float dg3 = weightedColors[3][1] - pg;
                         float db3 = weightedColors[3][2] - pb;
                         float da3 = weightedColors[3][3] - pa;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
+                        precise float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
 
                         best_err = min(min(min(err0, err1), err2), err3);
                                     
@@ -993,25 +995,25 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                         float dg0 = weightedColors[4][1] - pg;
                         float db0 = weightedColors[4][2] - pb;
                         float da0 = weightedColors[4][3] - pa;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
+                        precise float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
 
                         float dr1 = weightedColors[5][0] - pr;
                         float dg1 = weightedColors[5][1] - pg;
                         float db1 = weightedColors[5][2] - pb;
                         float da1 = weightedColors[5][3] - pa;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
+                        precise float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
 
                         float dr2 = weightedColors[6][0] - pr;
                         float dg2 = weightedColors[6][1] - pg;
                         float db2 = weightedColors[6][2] - pb;
                         float da2 = weightedColors[6][3] - pa;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
+                        precise float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
 
                         float dr3 = weightedColors[7][0] - pr;
                         float dg3 = weightedColors[7][1] - pg;
                         float db3 = weightedColors[7][2] - pb;
                         float da3 = weightedColors[7][3] - pa;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
+                        precise float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
 
@@ -1041,25 +1043,25 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
                     float dg0 = weightedColors[0][1] - pg;
                     float db0 = weightedColors[0][2] - pb;
                     float da0 = weightedColors[0][3] - pa;
-                    float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
+                    precise float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
 
                     float dr1 = weightedColors[1][0] - pr;
                     float dg1 = weightedColors[1][1] - pg;
                     float db1 = weightedColors[1][2] - pb;
                     float da1 = weightedColors[1][3] - pa;
-                    float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
+                    precise float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
 
                     float dr2 = weightedColors[2][0] - pr;
                     float dg2 = weightedColors[2][1] - pg;
                     float db2 = weightedColors[2][2] - pb;
                     float da2 = weightedColors[2][3] - pa;
-                    float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
+                    precise float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
 
                     float dr3 = weightedColors[3][0] - pr;
                     float dg3 = weightedColors[3][1] - pg;
                     float db3 = weightedColors[3][2] - pb;
                     float da3 = weightedColors[3][3] - pa;
-                    float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
+                    precise float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
 
                     float best_err = min(min(min(err0, err1), err2), err3);
 
@@ -1852,13 +1854,13 @@ static uint color_cell_compression_est(uint mode, const color_cell_compressor_pa
     float fag = dig;
     float fab = dib;
 
-    float low = far * sr + fag * sg + fab * sb;
-    float high = far * hr + fag * hg + fab * hb;
+    precise float low = far * sr + fag * sg + fab * sb;
+    precise float high = far * hr + fag * hg + fab * hb;
 
-    float scale = ((float)N - 1) / (float)(high - low);
-    float inv_n = 1.0f / ((float)N - 1);
+    precise float scale = ((float)N - 1) / (float)(high - low);
+    precise float inv_n = 1.0f / ((float)N - 1);
 
-    float total_errf = 0;
+    precise float total_errf = 0;
 
     // We don't handle perceptual very well here, but the difference is very slight (<.05 dB avg Luma PSNR across a large corpus) and the perf lost was high (2x slower).
     if ((pParams.m_weights[0] != 1) || (pParams.m_weights[1] != 1) || (pParams.m_weights[2] != 1))
@@ -1873,13 +1875,13 @@ static uint color_cell_compression_est(uint mode, const color_cell_compressor_pa
                 continue;
             const color_quad_i pC = pPixels[i];
 
-            float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b;
+            precise float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b;
 
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
+            precise float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
+            precise float itr = sr + dir * s;
+            precise float itg = sg + dig * s;
+            precise float itb = sb + dib * s;
 
             float dr = itr - (float)pC.r;
             float dg = itg - (float)pC.g;
@@ -1896,13 +1898,13 @@ static uint color_cell_compression_est(uint mode, const color_cell_compressor_pa
                 continue;
             const color_quad_i pC = pPixels[i];
 
-            float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b;
+            precise float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b;
 
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
+            precise float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
+            precise float itr = sr + dir * s;
+            precise float itg = sg + dig * s;
+            precise float itb = sb + dib * s;
 
             float dr = itr - (float)pC.r;
             float dg = itg - (float)pC.g;
@@ -1963,13 +1965,13 @@ static uint color_cell_compression_est_mode7(uint mode, const color_cell_compres
     float fab = dib;
     float faa = dia;
 
-    float low = far * sr + fag * sg + fab * sb + faa * sa;
-    float high = far * hr + fag * hg + fab * hb + faa * ha;
+    precise float low = far * sr + fag * sg + fab * sb + faa * sa;
+    precise float high = far * hr + fag * hg + fab * hb + faa * ha;
 
-    float scale = ((float)N - 1) / (float)(high - low);
-    float inv_n = 1.0f / ((float)N - 1);
+    precise float scale = ((float)N - 1) / (float)(high - low);
+    precise float inv_n = 1.0f / ((float)N - 1);
 
-    float total_errf = 0;
+    precise float total_errf = 0;
 
     // We don't handle perceptual very well here, but the difference is very slight (<.05 dB avg Luma PSNR across a large corpus) and the perf lost was high (2x slower).
     if ( (!pParams.m_perceptual) && ((pParams.m_weights[0] != 1) || (pParams.m_weights[1] != 1) || (pParams.m_weights[2] != 1) || (pParams.m_weights[3] != 1)) )
@@ -1985,14 +1987,14 @@ static uint color_cell_compression_est_mode7(uint mode, const color_cell_compres
                 continue;
             const color_quad_i pC = pPixels[i];
 
-            float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b + faa * (float)pC.a;
+            precise float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b + faa * (float)pC.a;
 
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
+            precise float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
-            float ita = sa + dia * s;
+            precise float itr = sr + dir * s;
+            precise float itg = sg + dig * s;
+            precise float itb = sb + dib * s;
+            precise float ita = sa + dia * s;
 
             float dr = itr - (float)pC.r;
             float dg = itg - (float)pC.g;
@@ -2010,14 +2012,14 @@ static uint color_cell_compression_est_mode7(uint mode, const color_cell_compres
                 continue;
             const color_quad_i pC = pPixels[i];
 
-            float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b + faa * (float)pC.a;
+            precise float d = far * (float)pC.r + fag * (float)pC.g + fab * (float)pC.b + faa * (float)pC.a;
 
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
+            precise float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
 
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
-            float ita = sa + dia * s;
+            precise float itr = sr + dir * s;
+            precise float itg = sg + dig * s;
+            precise float itb = sb + dib * s;
+            precise float ita = sa + dia * s;
 
             float dr = itr - (float)pC.r;
             float dg = itg - (float)pC.g;

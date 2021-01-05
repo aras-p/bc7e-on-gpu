@@ -25,7 +25,7 @@ const bool kRequireExactResultsMatch = false;
 #else
 const bool kRequireExactResultsMatch = true;
 #endif
-const float kAllowedPsnrDiff = 57;
+const float kAllowedPsnrDiff = 51;
 
 
 static const char* kTestFileNames[] =
