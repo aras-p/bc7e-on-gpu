@@ -2420,91 +2420,9 @@ static uint4 encode_bc7_block(const bc7_optimization_results pResults)
     return uint4(block[0], block[1], block[2], block[3]);
 }
 
-static inline uint4 encode_bc7_block_mode6(const bc7_optimization_results pResults)
-{
-    color_quad_i low, high;
-    uint pbits[2];
-        
-    uint invert_selectors = 0;
-    uint invert_maskz = 0;
-    uint invert_maskw = 0;
-    if (pResults.m_selectors[0] & 8)
-    {
-        invert_selectors = 15;
-        invert_maskz = 0xFFFFFFF0;
-        invert_maskw = 0xFFFFFFFF;
-
-        low = pResults.m_high[0];
-        high = pResults.m_low[0];
-
-        pbits[0] = (pResults.m_pbits & 2) ? 1 : 0;
-        pbits[1] = (pResults.m_pbits & 1) ? 1 : 0;
-    }
-    else
-    {
-        low = pResults.m_low[0];
-        high = pResults.m_high[0];
-
-        pbits[0] = (pResults.m_pbits & 1) ? 1 : 0;
-        pbits[1] = (pResults.m_pbits & 2) ? 1 : 0;
-    }
-
-    uint4 r = 0;
-
-    r.x = 1 << 6;
-
-    r.x |= (low.r << 7);
-    r.x |= (high.r << 14);
-
-    r.x |= (low.g << 21);
-    r.x |= (high.g << 28); // 4 bits
-    r.y |= (high.g >> 4); // 3 bits
-
-    r.y |= (low.b << 3);
-    r.y |= (high.b << 10);
-
-    r.y |= (low.a << 17);
-    r.y |= (high.a << 24);
-
-    r.y |= (pbits[0] << 31);
-        
-    r.z = pbits[1];
-    
-    r.z |= ((invert_selectors ^ pResults.m_selectors[0]) << 1);
-
-    r.z |= pResults.m_selectors[1] << 4;
-    r.z |= pResults.m_selectors[2] << 8;
-    r.z |= pResults.m_selectors[3] << 12;
-    r.z |= pResults.m_selectors[4] << 16;
-    
-    r.z |= pResults.m_selectors[5] << 20;
-    r.z |= pResults.m_selectors[6] << 24;
-    r.z |= pResults.m_selectors[7] << 28;
-    r.w |= pResults.m_selectors[8] << 0;
-
-    r.w |= pResults.m_selectors[9] << 4;
-    r.w |= pResults.m_selectors[10] << 8;
-    r.w |= pResults.m_selectors[11] << 12;
-    r.w |= pResults.m_selectors[12] << 16;
-
-    r.w |= pResults.m_selectors[13] << 20;
-    r.w |= pResults.m_selectors[14] << 24;
-    r.w |= pResults.m_selectors[15] << 28;
-    
-    r.z ^= invert_maskz;
-    r.w ^= invert_maskw;
-
-    return r;
-}
-
 static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_compressor_params pParams, uint lo_a, uint hi_a,
     inout bc7_optimization_results res, int rotation)
 {
-    pParams.m_has_alpha = false;
-    pParams.m_comp_bits = 5;
-    pParams.m_has_pbits = false;
-    pParams.m_endpoints_share_pbit = false;
-
     for (uint index_selector = 0; index_selector < 2; index_selector++)
     {
         if ((g_params.m_mode4_index_mask & (1 << index_selector)) == 0)
@@ -2707,17 +2625,9 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
     } // index_selector
 }
 
-static void handle_alpha_block_mode5(const color_quad_i pPixels[16], color_cell_compressor_params pParams, uint lo_a, uint hi_a,
+static void handle_alpha_block_mode5(const color_quad_i pPixels[16], const color_cell_compressor_params pParams, uint lo_a, uint hi_a,
     inout bc7_optimization_results pOpt_results5)
-{
-    pParams.m_weights_index = kBC7Weights2Index;
-    pParams.m_num_selector_weights = 4;
-
-    pParams.m_comp_bits = 7;
-    pParams.m_has_alpha = false;
-    pParams.m_has_pbits = false;
-    pParams.m_endpoints_share_pbit = false;
-    
+{    
     color_cell_compressor_results results5 = (color_cell_compressor_results)0;
 
     pOpt_results5.m_error = color_cell_compression(5, pParams, results5, 0, 0, pPixels, true);
@@ -2882,7 +2792,7 @@ static uint4 get_lists_alpha(const color_quad_i pPixels[16])
     uint4 lists = 0;
 
     // Mode 7
-    #ifndef OPT_ULTRAFAST_ONLY
+#   if !defined(OPT_ULTRAFAST_ONLY)
     if (g_params.m_alpha_use_modes4567 & 0xFF000000)
     {
         uint res = 0;
@@ -2890,7 +2800,7 @@ static uint4 get_lists_alpha(const color_quad_i pPixels[16])
         uint num_solutions = estimate_partition_list(7, pPixels, solutions, g_params.m_alpha_max_mode7_partitions_to_try);
         lists.x = encode_solutions(solutions, num_solutions);
     }
-    #endif // #ifndef OPT_ULTRAFAST_ONLY
+#   endif // #if !defined(OPT_ULTRAFAST_ONLY)
     return lists;
 }
 
@@ -2953,19 +2863,24 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
     return lists;
 }
 
-static void handle_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a, int num_rotations)
+static void handle_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], int lo_a, int hi_a, int num_rotations)
 {
-    color_cell_compressor_params params4 = pParams;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_has_alpha = false;
+    params.m_comp_bits = 5;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
 
     for (int rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params4.m_weights = pParams.m_weights;
-        if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
-        if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
-        if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
+        params.m_weights = g_params.m_weights;
+        if (rotation == 1) params.m_weights = params.m_weights.agbr;
+        if (rotation == 2) params.m_weights = params.m_weights.rabg;
+        if (rotation == 3) params.m_weights = params.m_weights.rgab;
 
         color_quad_i rot_pixels[16];
         int trial_lo_a = lo_a, trial_hi_a = hi_a;
@@ -2989,13 +2904,20 @@ static void handle_block_mode4(inout bc7_optimization_results res, const color_q
         else
             rot_pixels = pixels;
 
-        handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, res, rotation);
+        handle_alpha_block_mode4(rot_pixels, params, trial_lo_a, trial_hi_a, res, rotation);
     } // rotation
 }
 
-static void handle_alpha_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
+static void handle_alpha_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], int lo_a, int hi_a)
 {
-    color_cell_compressor_params params5 = pParams;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 7;
+    params.m_has_alpha = false;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
 
     const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF00))) ? 1 : 4;
     for (uint rotation = 0; rotation < num_rotations; rotation++)
@@ -3003,10 +2925,10 @@ static void handle_alpha_block_mode5(inout bc7_optimization_results res, const c
         if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params5.m_weights = pParams.m_weights;
-        if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
-        if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
-        if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
+        params.m_weights = g_params.m_weights;
+        if (rotation == 1) params.m_weights = params.m_weights.agbr;
+        if (rotation == 2) params.m_weights = params.m_weights.rabg;
+        if (rotation == 3) params.m_weights = params.m_weights.rgab;
 
         color_quad_i rot_pixels[16];
         int trial_lo_a = lo_a, trial_hi_a = hi_a;
@@ -3032,7 +2954,7 @@ static void handle_alpha_block_mode5(inout bc7_optimization_results res, const c
 
         bc7_optimization_results trial_res = (bc7_optimization_results)0;
         trial_res.m_error = 0;
-        handle_alpha_block_mode5(rot_pixels, params5, trial_lo_a, trial_hi_a, trial_res);
+        handle_alpha_block_mode5(rot_pixels, params, trial_lo_a, trial_hi_a, trial_res);
         if (trial_res.m_error < res.m_error)
         {
             res = trial_res;
@@ -3041,23 +2963,19 @@ static void handle_alpha_block_mode5(inout bc7_optimization_results res, const c
     } // rotation
 }
 
-static void handle_alpha_block_mode7(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a, uint4 solution_lists)
+static void handle_alpha_block_mode7(inout bc7_optimization_results res, const color_quad_i pixels[16], uint4 solution_lists)
 {
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.x, solutions);
 
-    color_cell_compressor_params params7 = pParams;
-
-    // Note: m_mode67_error_weight_mul was always 1, removed
-
-    params7.m_weights_index = kBC7Weights2Index;
-    params7.m_num_selector_weights = 4;
-
-    params7.m_comp_bits = 5;
-    params7.m_has_pbits = true;
-    params7.m_endpoints_share_pbit = false;
-
-    params7.m_has_alpha = true;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 5;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
+    params.m_has_alpha = true;
 
     const bool disable_faster_part_selection = false;
 
@@ -3073,7 +2991,7 @@ static void handle_alpha_block_mode7(inout bc7_optimization_results res, const c
         uint trial_err = 0;
         for (uint subset = 0; subset < 2; subset++)
         {
-            uint err = color_cell_compression(7, params7, sub_res[subset], part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection);
+            uint err = color_cell_compression(7, params, sub_res[subset], part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection);
             assert(err == sub_res[subset].m_best_overall_err);
             trial_err += err;
             if (trial_err > res.m_error)
@@ -3088,14 +3006,12 @@ static void handle_alpha_block_mode7(inout bc7_optimization_results res, const c
             res.m_partition = trial_partition;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 res.m_selectors[i] = sub_res[pm & 3].m_selectors[i];
+            res.m_pbits = 0;
             for (uint subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-                uint pbits = res.m_pbits;
-                pbits &= ~(3 << subset * 2);
-                pbits |= sub_res[subset].m_pbits << subset * 2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << (subset * 2);
             }
         }
 
@@ -3113,7 +3029,7 @@ static void handle_alpha_block_mode7(inout bc7_optimization_results res, const c
         uint trial_err = 0;
         for (uint subset = 0; subset < 2; subset++)
         {
-            uint err = color_cell_compression(7, params7, sub_res[subset], part_mask, subset, pixels, true);
+            uint err = color_cell_compression(7, params, sub_res[subset], part_mask, subset, pixels, true);
             assert(err == sub_res[subset].m_best_overall_err);
 
             trial_err += err;
@@ -3126,30 +3042,30 @@ static void handle_alpha_block_mode7(inout bc7_optimization_results res, const c
             res.m_error = trial_err;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 res.m_selectors[i] = sub_res[pm & 3].m_selectors[i];
+            res.m_pbits = 0;
             for (uint subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-                uint pbits = res.m_pbits;
-                pbits &= ~(3 << subset * 2);
-                pbits |= sub_res[subset].m_pbits << subset * 2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << (subset * 2);
             }
         }
     }
 }
 
-static void handle_block_mode6(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, bool has_alpha)
+static void handle_block_mode6(inout bc7_optimization_results res, const color_quad_i pixels[16], bool has_alpha)
 {
-    pParams.m_weights_index = kBC7Weights4Index;
-    pParams.m_num_selector_weights = 16;
-    pParams.m_comp_bits = 7;
-    pParams.m_has_pbits = true;
-    pParams.m_endpoints_share_pbit = false;
-    pParams.m_has_alpha = has_alpha;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights4Index;
+    params.m_num_selector_weights = 16;
+    params.m_comp_bits = 7;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
+    params.m_has_alpha = has_alpha;
 
     color_cell_compressor_results cres = (color_cell_compressor_results)0;
-    uint err = color_cell_compression(6, pParams, cres, 0, 0, pixels, true);
+    uint err = color_cell_compression(6, params, cres, 0, 0, pixels, true);
     if (err < res.m_error)
     {
         res.m_error = err;
@@ -3163,16 +3079,18 @@ static void handle_block_mode6(inout bc7_optimization_results res, const color_q
     }
 }
 
-static void handle_opaque_block_mode1(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+static void handle_opaque_block_mode1(inout bc7_optimization_results res, const color_quad_i pixels[16], uint4 solution_lists)
 {
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
     const bool disable_faster_part_selection = false;
-    pParams.m_weights_index = kBC7Weights3Index;
-    pParams.m_num_selector_weights = 8;
-    pParams.m_comp_bits = 6;
-    pParams.m_has_pbits = true;
-    pParams.m_endpoints_share_pbit = true;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights3Index;
+    params.m_num_selector_weights = 8;
+    params.m_comp_bits = 6;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = true;
 
     for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
     {
@@ -3185,7 +3103,7 @@ static void handle_opaque_block_mode1(inout bc7_optimization_results res, const 
         uint trial_err = 0;
         for (uint subset = 0; subset < 2; subset++)
         {
-            uint err = color_cell_compression(1, pParams, sub_res[subset], part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection);
+            uint err = color_cell_compression(1, params, sub_res[subset], part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection);
             assert(err == sub_res[subset].m_best_overall_err);
             trial_err += err;
             if (trial_err > res.m_error)
@@ -3200,14 +3118,12 @@ static void handle_opaque_block_mode1(inout bc7_optimization_results res, const 
             res.m_partition = trial_partition;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 res.m_selectors[i] = sub_res[pm & 3].m_selectors[i];
+            res.m_pbits = 0;
             for (uint subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-                uint pbits = res.m_pbits;
-                pbits &= ~(3 << subset * 2);
-                pbits |= sub_res[subset].m_pbits << subset * 2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << (subset * 2);
             }
         }
     }
@@ -3223,7 +3139,7 @@ static void handle_opaque_block_mode1(inout bc7_optimization_results res, const 
         uint trial_err = 0;
         for (uint subset = 0; subset < 2; subset++)
         {
-            uint err = color_cell_compression(1, pParams, sub_res[subset], part_mask, subset, pixels, true);
+            uint err = color_cell_compression(1, params, sub_res[subset], part_mask, subset, pixels, true);
             assert(err == sub_res[subset].m_best_overall_err);
             trial_err += err;
             if (trial_err > res.m_error)
@@ -3235,28 +3151,28 @@ static void handle_opaque_block_mode1(inout bc7_optimization_results res, const 
             res.m_error = trial_err;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 res.m_selectors[i] = sub_res[pm & 3].m_selectors[i];
+            res.m_pbits = 0;
             for (uint subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-                uint pbits = res.m_pbits;
-                pbits &= ~(3 << subset * 2);
-                pbits |= sub_res[subset].m_pbits << subset * 2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << (subset * 2);
             }
         }
     }
 }
 
-static void handle_opaque_block_mode0(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+static void handle_opaque_block_mode0(inout bc7_optimization_results res, const color_quad_i pixels[16], uint4 solution_lists)
 {
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.z, solutions);
-    pParams.m_weights_index = kBC7Weights3Index;
-    pParams.m_num_selector_weights = 8;
-    pParams.m_comp_bits = 4;
-    pParams.m_has_pbits = true;
-    pParams.m_endpoints_share_pbit = false;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights3Index;
+    params.m_num_selector_weights = 8;
+    params.m_comp_bits = 4;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
 
     for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
     {
@@ -3268,7 +3184,7 @@ static void handle_opaque_block_mode0(inout bc7_optimization_results res, const 
         uint trial_err = 0;
         for (uint subset = 0; subset < 3; subset++)
         {
-            uint err = color_cell_compression(0, pParams, sub_res[subset], part_mask, subset, pixels, true);
+            uint err = color_cell_compression(0, params, sub_res[subset], part_mask, subset, pixels, true);
             assert(err == sub_res[subset].m_best_overall_err);
             trial_err += err;
             if (trial_err > res.m_error)
@@ -3283,30 +3199,29 @@ static void handle_opaque_block_mode0(inout bc7_optimization_results res, const 
             res.m_partition = best_partition;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 res.m_selectors[i] = sub_res[pm & 3].m_selectors[i];
+            res.m_pbits = 0;
             for (uint subset = 0; subset < 3; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-                uint pbits = res.m_pbits;
-                pbits &= ~(3 << subset * 2);
-                pbits |= sub_res[subset].m_pbits << subset * 2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << (subset * 2);
             }
         }
     }
 }
 
-static void handle_opaque_block_mode3(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+static void handle_opaque_block_mode3(inout bc7_optimization_results res, const color_quad_i pixels[16], uint4 solution_lists)
 {
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
     const bool disable_faster_part_selection = false;
-    pParams.m_weights_index = kBC7Weights2Index;
-    pParams.m_num_selector_weights = 4;
-
-    pParams.m_comp_bits = 7;
-    pParams.m_has_pbits = true;
-    pParams.m_endpoints_share_pbit = false;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 7;
+    params.m_has_pbits = true;
+    params.m_endpoints_share_pbit = false;
 
     for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
     {
@@ -3319,7 +3234,7 @@ static void handle_opaque_block_mode3(inout bc7_optimization_results res, const 
         uint trial_err = 0;
         for (uint subset = 0; subset < 2; subset++)
         {
-            uint err = color_cell_compression(3, pParams, sub_res[subset], part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection);
+            uint err = color_cell_compression(3, params, sub_res[subset], part_mask, subset, pixels, (num_solutions <= 2) || disable_faster_part_selection);
             assert(err == sub_res[subset].m_best_overall_err);
             trial_err += err;
             if (trial_err > res.m_error)
@@ -3334,14 +3249,12 @@ static void handle_opaque_block_mode3(inout bc7_optimization_results res, const 
             res.m_partition = trial_partition;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 res.m_selectors[i] = sub_res[pm & 3].m_selectors[i];
+            res.m_pbits = 0;
             for (uint subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-                uint pbits = res.m_pbits;
-                pbits &= ~(3 << subset * 2);
-                pbits |= sub_res[subset].m_pbits << subset * 2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << (subset * 2);
             }
         }
 
@@ -3358,7 +3271,7 @@ static void handle_opaque_block_mode3(inout bc7_optimization_results res, const 
         uint trial_err = 0;
         for (uint subset = 0; subset < 2; subset++)
         {
-            uint err = color_cell_compression(3, pParams, sub_res[subset], part_mask, subset, pixels, true);
+            uint err = color_cell_compression(3, params, sub_res[subset], part_mask, subset, pixels, true);
             assert(err == sub_res[subset].m_best_overall_err);
             trial_err += err;
             if (trial_err > res.m_error)
@@ -3370,32 +3283,37 @@ static void handle_opaque_block_mode3(inout bc7_optimization_results res, const 
             res.m_error = trial_err;
             for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 res.m_selectors[i] = sub_res[pm & 3].m_selectors[i];
+            res.m_pbits = 0;
             for (uint subset = 0; subset < 2; subset++)
             {
                 res.m_low[subset] = sub_res[subset].m_low_endpoint;
                 res.m_high[subset] = sub_res[subset].m_high_endpoint;
-                uint pbits = res.m_pbits;
-                pbits &= ~(3 << subset * 2);
-                pbits |= sub_res[subset].m_pbits << subset * 2;
-                res.m_pbits = pbits;
+                res.m_pbits |= sub_res[subset].m_pbits << (subset * 2);
             }
         }
     }
 }
 
-static void handle_opaque_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams)
+static void handle_opaque_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16])
 {
-    color_cell_compressor_params params5 = pParams;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 7;
+    params.m_has_alpha = false;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
 
     for (uint rotation = 0; rotation < 4; rotation++)
     {
         if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params5.m_weights = pParams.m_weights;
-        if (rotation == 1) params5.m_weights = params5.m_weights.agbr;
-        if (rotation == 2) params5.m_weights = params5.m_weights.rabg;
-        if (rotation == 3) params5.m_weights = params5.m_weights.rgab;
+        params.m_weights = g_params.m_weights;
+        if (rotation == 1) params.m_weights = params.m_weights.agbr;
+        if (rotation == 2) params.m_weights = params.m_weights.rabg;
+        if (rotation == 3) params.m_weights = params.m_weights.rgab;
 
         color_quad_i rot_pixels[16];
         int trial_lo_a = 255, trial_hi_a = 255;
@@ -3421,7 +3339,7 @@ static void handle_opaque_block_mode5(inout bc7_optimization_results res, const 
 
         bc7_optimization_results trial_res = (bc7_optimization_results)0;
         trial_res.m_error = 0;
-        handle_alpha_block_mode5(rot_pixels, params5, trial_lo_a, trial_hi_a, trial_res);
+        handle_alpha_block_mode5(rot_pixels, params, trial_lo_a, trial_hi_a, trial_res);
         if (trial_res.m_error < res.m_error)
         {
             res = trial_res;
@@ -3430,15 +3348,17 @@ static void handle_opaque_block_mode5(inout bc7_optimization_results res, const 
     } // rotation
 }
 
-static void handle_opaque_block_mode2(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, uint4 solution_lists)
+static void handle_opaque_block_mode2(inout bc7_optimization_results res, const color_quad_i pixels[16], uint4 solution_lists)
 {
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.w, solutions);
-    pParams.m_weights_index = kBC7Weights2Index;
-    pParams.m_num_selector_weights = 4;
-    pParams.m_comp_bits = 5;
-    pParams.m_has_pbits = false;
-    pParams.m_endpoints_share_pbit = false;
+    color_cell_compressor_params params;
+    color_cell_compressor_params_clear(params);
+    params.m_weights_index = kBC7Weights2Index;
+    params.m_num_selector_weights = 4;
+    params.m_comp_bits = 5;
+    params.m_has_pbits = false;
+    params.m_endpoints_share_pbit = false;
     for (uint solution_index = 0; solution_index < num_solutions; solution_index++)
     {
         const int best_partition2 = solutions[solution_index].m_index;
@@ -3449,7 +3369,7 @@ static void handle_opaque_block_mode2(inout bc7_optimization_results res, const 
         uint trial_err = 0;
         for (uint subset = 0; subset < 3; subset++)
         {
-            uint err = color_cell_compression(2, pParams, sub_res[subset], part_mask, subset, pixels, true);
+            uint err = color_cell_compression(2, params, sub_res[subset], part_mask, subset, pixels, true);
             assert(err == sub_res[subset].m_best_overall_err);
             trial_err += err;
             if (trial_err > res.m_error)
@@ -3473,36 +3393,6 @@ static void handle_opaque_block_mode2(inout bc7_optimization_results res, const 
     }
 }
 
-static uint4 handle_opaque_block_mode6(const color_quad_i pPixels[16], color_cell_compressor_params pParams)
-{
-    bc7_optimization_results opt_results = (bc7_optimization_results)0;
-        
-    uint best_err = UINT_MAX;
-
-    // Mode 6
-    pParams.m_weights_index = kBC7Weights4Index;
-    pParams.m_num_selector_weights = 16;
-
-    pParams.m_comp_bits = 7;
-    pParams.m_has_pbits = true;
-    pParams.m_endpoints_share_pbit = false;
-
-    color_cell_compressor_results results6 = (color_cell_compressor_results)0;
-
-    best_err = color_cell_compression(6, pParams, results6, 0, 0, pPixels, true);
-    opt_results.m_error = best_err;
-    opt_results.m_mode = 6;
-    opt_results.m_rotation_index_sel = 0;
-    opt_results.m_partition = 0;
-
-    opt_results.m_low[0] = results6.m_low_endpoint;
-    opt_results.m_high[0] = results6.m_high_endpoint;
-
-    opt_results.m_pbits = results6.m_pbits;
-    opt_results.m_selectors = results6.m_selectors;
-
-    return encode_bc7_block_mode6(opt_results);
-}
 
 StructuredBuffer<uint> s_BufInput : register(t1);
 

@@ -6,9 +6,6 @@ void bc7e_compress_blocks_mode5(uint3 id : SV_DispatchThreadID)
     if (id.x >= g_widthInBlocks || id.y >= g_heightInBlocks)
         return;
 
-    color_cell_compressor_params params;
-    color_cell_compressor_params_clear(params);
-
     color_quad_i pixels[16];
     float lo_a, hi_a;
     load_pixel_block(pixels, lo_a, hi_a, id, g_width);
@@ -23,13 +20,13 @@ void bc7e_compress_blocks_mode5(uint3 id : SV_DispatchThreadID)
     {
         if (!(g_params.m_alpha_use_modes4567 & 0xFF00))
             return;
-        handle_alpha_block_mode5(res, pixels, params, lo_a, hi_a);
+        handle_alpha_block_mode5(res, pixels, lo_a, hi_a);
     }
     else
     {
         if (glob_is_perceptual() || !(g_params.m_opaq_use_modes456 & 0xFF00) || glob_is_mode6_only())
             return;
-        handle_opaque_block_mode5(res, pixels, params);
+        handle_opaque_block_mode5(res, pixels);
     }
     if (res.m_error < prev_error)
         s_BufTemp[block_index] = res;
