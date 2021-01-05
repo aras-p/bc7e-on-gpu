@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
+    <ProjectConfiguration Include="Debug_DX11|x64">
+      <Configuration>Debug_DX11</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x64">
-      <Configuration>Release</Configuration>
+    <ProjectConfiguration Include="Debug_Vulkan|x64">
+      <Configuration>Debug_Vulkan</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_DX11|x64">
+      <Configuration>Release_DX11</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Vulkan|x64">
+      <Configuration>Release_Vulkan</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
@@ -18,13 +26,26 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
@@ -36,30 +57,48 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)..\..\build\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>..\..\build\$(Platform)\$(Configuration)\</IntDir>
     <MultiProcFXC>true</MultiProcFXC>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)..\..\build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>..\..\build\$(Platform)\$(Configuration)\</IntDir>
+    <MultiProcFXC>true</MultiProcFXC>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)..\..\build\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>..\..\build\$(Platform)\$(Configuration)\</IntDir>
     <MultiProcFXC>true</MultiProcFXC>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)..\..\build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>..\..\build\$(Platform)\$(Configuration)\</IntDir>
+    <MultiProcFXC>true</MultiProcFXC>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE; _CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE; _CRT_SECURE_NO_WARNINGS;USE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -77,13 +116,36 @@
       <AdditionalOptions>/Gis %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE; _CRT_SECURE_NO_WARNINGS;USE_DX11;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>d3d11.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <FxCompile>
+      <ShaderModel>5.0</ShaderModel>
+      <ShaderType>Compute</ShaderType>
+      <HeaderFileOutput>$(SolutionDir)..\..\build\%(Filename).h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+      <AdditionalOptions>/Gis %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE; _CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE; _CRT_SECURE_NO_WARNINGS;USE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -103,6 +165,33 @@
       <AdditionalOptions>/Gis %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE; _CRT_SECURE_NO_WARNINGS;USE_DX11;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>d3d11.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <FxCompile>
+      <ShaderModel>5.0</ShaderModel>
+      <ShaderType>Compute</ShaderType>
+      <HeaderFileOutput>$(SolutionDir)..\..\build\%(Filename).h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+      <AdditionalOptions>/Gis %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\external\bc7enc\bc7decomp.h" />
     <ClInclude Include="..\..\external\ic_pfor.h" />
@@ -114,16 +203,26 @@
   <ItemGroup>
     <CustomBuild Include="..\..\external\bc7e\bc7e.ispc">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
 </Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ISPC compile %(Identity)</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(TargetDir)%(Filename).obj</Outputs>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
 </Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ISPC compile %(Identity)</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(TargetDir)%(Filename).obj</Outputs>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ISPC compile %(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ISPC compile %(Identity)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">$(TargetDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">$(TargetDir)%(Filename).obj</Outputs>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ISPC compile %(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ISPC compile %(Identity)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">$(TargetDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">$(TargetDir)%(Filename).obj</Outputs>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <None Include="..\..\src\externals.mm" />
     <None Include="..\..\src\shaders\metal\bc7e.metal" />
@@ -135,200 +234,361 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\..\src\shaders\hlsl\bc7e.hlsl">
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">
       </EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">
       </EntryPointName>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/Gis %(AdditionalOptions)</AdditionalOptions>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">
+      </EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">
+      </EntryPointName>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">/Gis %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">/Gis %(AdditionalOptions)</AdditionalOptions>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode0.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode1.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode2.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode3.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode4_alpha.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode4_opaq.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode5.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode6.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_compress_blocks_mode7.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_encode_blocks.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
     <CustomBuild Include="..\..\src\shaders\hlsl\bc7e_estimate_partition_lists.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Glslang Compiling %(Filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Glslang Compiling %(Filename)</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
-      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ClInclude</OutputItemType>
-      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ClInclude</OutputItemType>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..\build\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\build\%(Filename).h</Outputs>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildInParallel>
-      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildInParallel>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">Glslang Compiling %(Filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">Glslang Compiling %(Filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\tools\glslangValidator -e %(Filename) -D -S comp -g -V %(Identity) --vn g_%(Filename) -o ..\..\build\%(Filename).h </Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">false</LinkObjects>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\src\shaders\hlsl\bc7e.hlsl</AdditionalInputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">false</LinkObjects>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">ClInclude</OutputItemType>
+      <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">ClInclude</OutputItemType>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">..\..\build\%(Filename).h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">..\..\build\%(Filename).h</Outputs>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_Vulkan|x64'">true</BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release_DX11|x64'">true</BuildInParallel>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
