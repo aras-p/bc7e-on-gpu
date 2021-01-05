@@ -7,7 +7,7 @@
 #define select(a, b, c) ((c) ? (b) : (a))
 #define max3(a, b, c) (max((a), max((b), (c))))
 
-//#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
+#define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 #define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
 
@@ -703,12 +703,15 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
     weightedColors[N-1] = float4(actualMaxColor);
         
     for (uint i = 1; i < (N - 1); i++)
+    {
+        [unroll]
         for (uint j = 0; j < nc; j++)
         {
             precise float wt = get_table_bc7_weight(pParams.m_weights_index + i);
             precise float w = (weightedColors[0][j] * (64.0f - wt) + weightedColors[N - 1][j] * wt + 32) * (1.0f / 64.0f);
             weightedColors[i][j] = floor(w);
         }
+    }
 
     int selectors[16];
 
@@ -1178,6 +1181,7 @@ static uint evaluate_solution(const color_quad_i pLow, const color_quad_i pHigh,
 
         pResults.m_pbits = pbits[0] | (pbits[1] << 1);
 
+        [unroll]
         for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
         {
             if (((pm & 3) != partition))
@@ -1194,6 +1198,7 @@ static void fixDegenerateEndpoints(uint mode, inout color_quad_i pTrialMinColor,
     if ((mode == 1) || (mode == 4)) // also mode 2
     {
         // fix degenerate case where the input collapses to a single colorspace voxel, and we loose all freedom (test with grayscale ramps)
+        [unroll]
         for (uint i = 0; i < 3; i++)
         {
             if (pTrialMinColor[i] == pTrialMaxColor[i])
@@ -2871,6 +2876,7 @@ static void handle_block_mode4(inout bc7_optimization_results res, const color_q
     params.m_has_pbits = false;
     params.m_endpoints_share_pbit = false;
 
+    [loop]
     for (int rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
@@ -2919,6 +2925,7 @@ static void handle_alpha_block_mode5(inout bc7_optimization_results res, const c
     params.m_endpoints_share_pbit = false;
 
     const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF00))) ? 1 : 4;
+    [loop]
     for (uint rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)
@@ -3304,6 +3311,7 @@ static void handle_opaque_block_mode5(inout bc7_optimization_results res, const 
     params.m_has_pbits = false;
     params.m_endpoints_share_pbit = false;
 
+    [loop]
     for (uint rotation = 0; rotation < 4; rotation++)
     {
         if ((g_params.m_mode5_rotation_mask & (1 << rotation)) == 0)

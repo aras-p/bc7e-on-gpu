@@ -655,8 +655,10 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
     s_Bc7GlobBuffer = SmolBufferCreate(sizeof(Globals), SmolBufferType::Constant);
     s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
     size_t tempBufferElSize;
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && defined(USE_VULKAN)
     tempBufferElSize = 256;
+#elif defined(_MSC_VER) && defined(USE_DX11)
+	tempBufferElSize = 244;
 #else
     tempBufferElSize = 64; // 64 bytes per block on Metal
 #endif
