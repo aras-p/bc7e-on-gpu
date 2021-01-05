@@ -203,9 +203,9 @@
   <ItemGroup>
     <CustomBuild Include="..\..\external\bc7e\bc7e.ispc">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">..\..\tools\ispc_win.exe -O0 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
 </Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\ispc_win.exe -O2 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">..\..\tools\ispc_win.exe -O0 "%(Identity)" -o "$(TargetDir)%(Filename).obj" -h "%(RelativeDir)%(Filename)_ispc.h" --target=avx2 --opt=disable-assertions --opt=disable-fma
 </Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">ISPC compile %(Identity)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug_DX11|x64'">ISPC compile %(Identity)</Message>
