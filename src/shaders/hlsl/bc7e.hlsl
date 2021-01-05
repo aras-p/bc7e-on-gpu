@@ -1694,7 +1694,7 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
     {
         int selectors_temp0[16], selectors_temp1[16];
         selectors_temp0 = pResults.m_selectors;
-        const int max_selector = pParams->m_num_selector_weights - 1;
+        const int max_selector = pParams.m_num_selector_weights - 1;
 
         uint min_sel = 16;
         uint max_sel = 0;
@@ -1727,8 +1727,8 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
                 selectors_temp1[i] = sel;
             }
                         
-            compute_least_squares_endpoints_rgba(part_mask, partition, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels);
-            if (!pParams->m_has_alpha)
+            compute_least_squares_endpoints_rgba(part_mask, partition, selectors_temp1, pParams.m_weights_index, xl, xh, pPixels);
+            if (!pParams.m_has_alpha)
             {
                 xl.a = 255.0f;
                 xh.a = 255.0f;
@@ -1737,7 +1737,7 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
             xl *= 1.0f / 255.0f;
             xh *= 1.0f / 255.0f;
 
-            if (!find_optimal_solution(mode, &xl, &xh, pParams, pResults, glob_is_pbit_search(), part_mask, partition, pPixels))
+            if (!find_optimal_solution(mode, xl, xh, pParams, pResults, glob_is_pbit_search(), part_mask, partition, pPixels))
                 return 0;
         }
 
@@ -2586,7 +2586,7 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
                             e = abs(a - vals[7]); if (e < be) { be = e; s = 7; }
                         }
 
-                        trial_alpha_err += (be * be) * pParams->m_weights[3];
+                        trial_alpha_err += (be * be) * pParams.m_weights[3];
 
                         trial_alpha_selectors[i] = s;
                     }
@@ -2709,8 +2709,8 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], const color
             {
                 for (int hd = -D; hd <= D; hd++)
                 {
-                    lo_a = clamp((int)pOpt_results5->m_low[0].a + ld, 0, 255);
-                    hi_a = clamp((int)pOpt_results5->m_high[0].a + hd, 0, 255);
+                    lo_a = clamp((int)pOpt_results5.m_low[0].a + ld, 0, 255);
+                    hi_a = clamp((int)pOpt_results5.m_high[0].a + hd, 0, 255);
                     
                     int vals[4];
                     vals[0] = lo_a;
@@ -2735,16 +2735,15 @@ static void handle_alpha_block_mode5(const color_quad_i pPixels[16], const color
 
                         trial_alpha_selectors[i] = s;
                                 
-                        trial_alpha_err += (be * be) * pParams->m_weights[3];
+                        trial_alpha_err += (be * be) * pParams.m_weights[3];
                     }
 
                     if (trial_alpha_err < mode5_alpha_err)
                     {
                         mode5_alpha_err = trial_alpha_err;
-                        pOpt_results5->m_low[0].a = lo_a;
-                        pOpt_results5->m_high[0].a = hi_a;
-                        for (uint i = 0; i < 16; i++)
-                            pOpt_results5->m_alpha_selectors[i] = trial_alpha_selectors[i];
+                        pOpt_results5.m_low[0].a = lo_a;
+                        pOpt_results5.m_high[0].a = hi_a;
+                        pOpt_results5.m_alpha_selectors = trial_alpha_selectors;
                     }
                 
                 } // hd
