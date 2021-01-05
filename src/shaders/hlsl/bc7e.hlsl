@@ -2779,7 +2779,7 @@ static uint encode_solutions(const solution solutions[4], uint count)
     return res;
 }
 
-static uint decode_solutions(uint enc, solution solutions[4])
+static uint decode_solutions(uint enc, out solution solutions[4])
 {
     uint count = (enc >> 24) & 3;
     for (uint i = 0; i < count; ++i)
