@@ -25,15 +25,14 @@ void bc7e_compress_blocks_mode6(uint3 id : SV_DispatchThreadID)
     {
         if (!(g_params.m_alpha_use_modes4567 & 0xFF0000))
             return;
-        handle_alpha_block_mode6(res, pixels, params, lo_a, hi_a);
     }
     else
 #endif
     {
         if (!(g_params.m_opaq_use_modes456 & 0xFF0000))
             return;
-        handle_opaque_block_mode6(res, pixels, params);
     }
+    handle_block_mode6(res, pixels, params, has_alpha);
     if (res.m_error < prev_error)
         s_BufTemp[block_index] = res;
 }

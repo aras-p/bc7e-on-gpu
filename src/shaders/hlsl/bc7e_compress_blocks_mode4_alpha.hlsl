@@ -25,7 +25,8 @@ void bc7e_compress_blocks_mode4_alpha(uint3 id : SV_DispatchThreadID)
     {
         if (!(g_params.m_alpha_use_modes4567 & 0xFF))
             return;
-        handle_alpha_block_mode4(res, pixels, params, lo_a, hi_a);
+        const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF))) ? 1 : 4;
+        handle_block_mode4(res, pixels, params, lo_a, hi_a, num_rotations);
     }
     else
 #endif

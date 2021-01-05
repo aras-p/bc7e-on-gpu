@@ -10,6 +10,7 @@
 #define OPT_ULTRAFAST_ONLY // disables Mode 7; for opaque only uses Mode 6
 #define OPT_FASTMODES_ONLY // disables m_uber_level being non-zero paths
 //#define OPT_OPAQUE_ONLY // disables all transparency handling
+#define OPT_UBER_LESS_THAN_2_ONLY // disables "slowest" and "veryslow" modes
 
 #define BC7E_2SUBSET_CHECKERBOARD_PARTITION_INDEX (34)
 #define BC7E_BLOCK_SIZE (16)
@@ -1782,6 +1783,7 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
                 return 0;
         }
 
+#       if !defined(OPT_UBER_LESS_THAN_2_ONLY)
         const uint uber_err_thresh = (num_pixels * 56) >> 4;
         if ((g_params.m_uber_level >= 2) && (pResults->m_best_overall_err > uber_err_thresh))
         {
@@ -1815,6 +1817,7 @@ static uint color_cell_compression(uint mode, const color_cell_compressor_params
                 }
             }
         }
+#       endif // #if !defined(OPT_UBER_LESS_THAN_2_ONLY)
     }
 #endif // #if !defined(OPT_FASTMODES_ONLY) && !defined(OPT_ULTRAFAST_ONLY)
 
@@ -2577,7 +2580,7 @@ static inline uint4 encode_bc7_block_mode6(const bc7_optimization_results pResul
 }
 
 static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_compressor_params pParams, uint lo_a, uint hi_a,
-    inout bc7_optimization_results pOpt_results4)
+    inout bc7_optimization_results res, int rotation)
 {
     pParams.m_has_alpha = false;
     pParams.m_comp_bits = 5;
@@ -2770,20 +2773,18 @@ static void handle_alpha_block_mode4(const color_quad_i pPixels[16], color_cell_
 
         trial_err += best_alpha_err;
 
-        if (trial_err < pOpt_results4.m_error)
+        if (trial_err < res.m_error)
         {
-            pOpt_results4.m_error = trial_err;
-
-            pOpt_results4.m_mode = 4;
-            pOpt_results4.m_rotation_index_sel = index_selector << 4;
-            pOpt_results4.m_partition = 0;
-
-            pOpt_results4.m_low[0] = results.m_low_endpoint;
-            pOpt_results4.m_high[0] = results.m_high_endpoint;
-            pOpt_results4.m_low[0].a = best_la;
-            pOpt_results4.m_high[0].a = best_ha;
-            pOpt_results4.m_selectors = results.m_selectors;
-            pOpt_results4.m_alpha_selectors = best_alpha_selectors;
+            res.m_error = trial_err;
+            res.m_mode = 4;
+            res.m_rotation_index_sel = (index_selector << 4) | rotation;
+            res.m_partition = 0;
+            res.m_low[0] = results.m_low_endpoint;
+            res.m_high[0] = results.m_high_endpoint;
+            res.m_low[0].a = best_la;
+            res.m_high[0].a = best_ha;
+            res.m_selectors = results.m_selectors;
+            res.m_alpha_selectors = best_alpha_selectors;
         }
 
     } // index_selector
@@ -3037,12 +3038,11 @@ static uint4 get_lists_opaque(const color_quad_i pPixels[16])
     return lists;
 }
 
-static void handle_alpha_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
+static void handle_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a, int num_rotations)
 {
     pParams.m_perceptual = glob_is_perceptual();
     color_cell_compressor_params params4 = pParams;
 
-    const int num_rotations = (glob_is_perceptual() || (!(g_params.m_alpha_use_mode45_rotation & 0xFF))) ? 1 : 4;
     for (int rotation = 0; rotation < num_rotations; rotation++)
     {
         if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
@@ -3075,54 +3075,8 @@ static void handle_alpha_block_mode4(inout bc7_optimization_results res, const c
         else
             rot_pixels = pixels;
 
-        bc7_optimization_results trial_res = (bc7_optimization_results)0;
-        trial_res.m_error = res.m_error;
-        handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, trial_res);
-        if (trial_res.m_error < res.m_error)
-        {
-            res.m_error = trial_res.m_error;
-            res.m_mode = 4;
-            res.m_rotation_index_sel = rotation | trial_res.m_rotation_index_sel;
-            res.m_partition = 0;
-
-            res.m_low[0] = trial_res.m_low[0];
-            res.m_high[0] = trial_res.m_high[0];
-            res.m_selectors = trial_res.m_selectors;
-            res.m_alpha_selectors = trial_res.m_alpha_selectors;
-        }
+        handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, res, rotation);
     } // rotation
-}
-
-static void handle_alpha_block_mode6(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
-{
-    pParams.m_perceptual = glob_is_perceptual();
-    color_cell_compressor_params params6 = pParams;
-
-    // Note: m_mode67_error_weight_mul was always 1, removed
-
-    color_cell_compressor_results res6 = (color_cell_compressor_results)0;
-
-    params6.m_weights_index = kBC7Weights4Index;
-    params6.m_num_selector_weights = 16;
-
-    params6.m_comp_bits = 7;
-    params6.m_has_pbits = true;
-    params6.m_endpoints_share_pbit = false;
-    params6.m_has_alpha = true;
-
-    uint err = color_cell_compression(6, params6, res6, 16, pixels, true);
-
-    if (err < res.m_error)
-    {
-        res.m_error = err;
-        res.m_mode = 6;
-        res.m_rotation_index_sel = 0;
-        res.m_partition = 0;
-        res.m_low[0] = res6.m_low_endpoint;
-        res.m_high[0] = res6.m_high_endpoint;
-        res.m_pbits = (res.m_pbits & ~3) | res6.m_pbits;
-        res.m_selectors = res6.m_selectors;
-    }
 }
 
 static void handle_alpha_block_mode5(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, int lo_a, int hi_a)
@@ -3320,85 +3274,28 @@ static void handle_alpha_block_mode7(inout bc7_optimization_results res, const c
     }
 }
 
-static void handle_opaque_block_mode4(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams)
-{
-    pParams.m_perceptual = glob_is_perceptual();
-    color_cell_compressor_params params4 = pParams;
-
-    for (uint rotation = 0; rotation < 4; rotation++)
-    {
-        if ((g_params.m_mode4_rotation_mask & (1 << rotation)) == 0)
-            continue;
-
-        params4.m_weights = pParams.m_weights;
-        if (rotation == 1) params4.m_weights = params4.m_weights.agbr;
-        if (rotation == 2) params4.m_weights = params4.m_weights.rabg;
-        if (rotation == 3) params4.m_weights = params4.m_weights.rgab;
-
-        color_quad_i rot_pixels[16];
-        int trial_lo_a = 255, trial_hi_a = 255;
-        if (rotation)
-        {
-            trial_lo_a = 255;
-            trial_hi_a = 0;
-
-            for (uint i = 0; i < 16; i++)
-            {
-                color_quad_i c = pixels[i];
-                if (rotation == 1) c = c.agbr;
-                if (rotation == 2) c = c.rabg;
-                if (rotation == 3) c = c.rgab;
-                rot_pixels[i] = c;
-
-                trial_lo_a = min(trial_lo_a, c.a);
-                trial_hi_a = max(trial_hi_a, c.a);
-            }
-        }
-        else
-            rot_pixels = pixels;
-
-        bc7_optimization_results trial_res = (bc7_optimization_results)0;
-        trial_res.m_error = res.m_error;
-        handle_alpha_block_mode4(rot_pixels, params4, trial_lo_a, trial_hi_a, trial_res);
-
-        if (trial_res.m_error < res.m_error)
-        {
-            res.m_error = trial_res.m_error;
-            res.m_mode = 4;
-            res.m_rotation_index_sel = rotation | trial_res.m_rotation_index_sel;
-            res.m_partition = 0;
-            res.m_low[0] = trial_res.m_low[0];
-            res.m_high[0] = trial_res.m_high[0];
-            res.m_selectors = trial_res.m_selectors;
-            res.m_alpha_selectors = trial_res.m_alpha_selectors;
-        }
-    } // rotation
-}
-
-static void handle_opaque_block_mode6(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams)
+static void handle_block_mode6(inout bc7_optimization_results res, const color_quad_i pixels[16], color_cell_compressor_params pParams, bool has_alpha)
 {
     pParams.m_weights_index = kBC7Weights4Index;
     pParams.m_num_selector_weights = 16;
-
     pParams.m_comp_bits = 7;
     pParams.m_has_pbits = true;
     pParams.m_endpoints_share_pbit = false;
-
+    pParams.m_has_alpha = has_alpha;
     pParams.m_perceptual = glob_is_perceptual();
 
-    color_cell_compressor_results results6 = (color_cell_compressor_results)0;
-
-    uint err = color_cell_compression(6, pParams, results6, 16, pixels, true);
+    color_cell_compressor_results cres = (color_cell_compressor_results)0;
+    uint err = color_cell_compression(6, pParams, cres, 16, pixels, true);
     if (err < res.m_error)
     {
         res.m_error = err;
         res.m_mode = 6;
         res.m_rotation_index_sel = 0;
         res.m_partition = 0;
-        res.m_low[0] = results6.m_low_endpoint;
-        res.m_high[0] = results6.m_high_endpoint;
-        res.m_pbits = results6.m_pbits;
-        res.m_selectors = results6.m_selectors;
+        res.m_low[0] = cres.m_low_endpoint;
+        res.m_high[0] = cres.m_high_endpoint;
+        res.m_pbits = cres.m_pbits;
+        res.m_selectors = cres.m_selectors;
     }
 }
 
