@@ -19,8 +19,12 @@
 const bool kDoCapture = false;
 const int kQuality = 3;
 const int kRunCount = kDoCapture ? 1 : 8;
+#ifdef _MSC_VER
+const bool kRequireExactResultsMatch = false;
+#else
 const bool kRequireExactResultsMatch = true;
-const float kAllowedPsnrDiff = 80;
+#endif
+const float kAllowedPsnrDiff = 66;
 
 
 static const char* kTestFileNames[] =
@@ -651,7 +655,7 @@ static bool InitializeCompressorResources(size_t maxRgbaSize, size_t maxBc7Size)
     s_Bc7InputBuffer = SmolBufferCreate(maxRgbaSize, SmolBufferType::Structured, 4);
     size_t tempBufferElSize;
 #ifdef _MSC_VER
-    tempBufferElSize = 172;
+    tempBufferElSize = 256;
 #else
     tempBufferElSize = 64; // 64 bytes per block on Metal
 #endif
@@ -799,7 +803,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
             SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
         }
-        if (settings.m_opaque_settings.m_use_mode[1])
+        if (settings.m_opaque_settings.m_use_mode[1] && !settings.m_mode6_only)
         {
             SmolKernelSet(s_Bc7KernelCompress1);
             SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
@@ -809,7 +813,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
             SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
         }
-        if (settings.m_opaque_settings.m_use_mode[0])
+        if (settings.m_opaque_settings.m_use_mode[0] && !settings.m_mode6_only)
         {
             SmolKernelSet(s_Bc7KernelCompress0);
             SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
@@ -819,7 +823,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
             SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
         }
-        if (settings.m_opaque_settings.m_use_mode[3])
+        if (settings.m_opaque_settings.m_use_mode[3] && !settings.m_mode6_only)
         {
             SmolKernelSet(s_Bc7KernelCompress3);
             SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
@@ -829,7 +833,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
             SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
         }
-        if (settings.m_opaque_settings.m_use_mode[5] || (hasAlpha && settings.m_alpha_settings.m_use_mode5))
+        if ((settings.m_opaque_settings.m_use_mode[5] && !settings.m_mode6_only) || (hasAlpha && settings.m_alpha_settings.m_use_mode5))
         {
             SmolKernelSet(s_Bc7KernelCompress5);
             SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
@@ -839,7 +843,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
             SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
         }
-        if (settings.m_opaque_settings.m_use_mode[2])
+        if (settings.m_opaque_settings.m_use_mode[2] && !settings.m_mode6_only)
         {
             SmolKernelSet(s_Bc7KernelCompress2);
             SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);
@@ -849,7 +853,7 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
             SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, 64, 1, 1);
         }
-        if (settings.m_opaque_settings.m_use_mode[4])
+        if (settings.m_opaque_settings.m_use_mode[4] && !settings.m_mode6_only)
         {
             SmolKernelSet(s_Bc7KernelCompress4o);
             SmolKernelSetBuffer(s_Bc7GlobBuffer, 0, SmolBufferBinding::Constant);

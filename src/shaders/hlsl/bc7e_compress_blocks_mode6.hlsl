@@ -30,9 +30,6 @@ void bc7e_compress_blocks_mode6(uint3 id : SV_DispatchThreadID)
     else
 #endif
     {
-#ifdef OPT_ULTRAFAST_ONLY
-        return;
-#endif
         if (!(g_params.m_opaq_use_modes456 & 0xFF0000))
             return;
         handle_opaque_block_mode6(res, pixels, params);
