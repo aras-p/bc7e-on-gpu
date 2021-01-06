@@ -740,6 +740,13 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
         case 3: ispc::bc7e_compress_block_params_init_basic(&settings, perceptual); break;
         case 4: ispc::bc7e_compress_block_params_init_slow(&settings, perceptual); break;
     }
+    if (settings.m_perceptual) // reduce range of weights setup by bc7e; same ratios so same results
+    {
+        settings.m_weights[0] = 8;
+        settings.m_weights[1] = 4;
+        settings.m_weights[2] = 1;
+        settings.m_weights[3] = 16;
+    }
     {
         uint64_t t0 = stm_now();
         ic::pfor(tf.heightInBlocks, 1, [&](int blockY, int threadIdx)

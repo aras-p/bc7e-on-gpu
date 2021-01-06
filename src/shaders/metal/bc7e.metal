@@ -285,7 +285,7 @@ static const constant mode_desc g_bc7_modes[8 + 1] =
 
 struct color_cell_compressor_params
 {
-    uint4 m_weights;
+    uchar4 m_weights;
     bool m_has_alpha;
     bool m_perceptual;
 };
@@ -293,7 +293,7 @@ struct color_cell_compressor_params
 static inline void color_cell_compressor_params_clear(thread color_cell_compressor_params* p, const constant bc7e_compress_block_params* pComp_params)
 {
     p->m_perceptual = pComp_params->m_perceptual;
-    p->m_weights = pComp_params->m_weights;
+    p->m_weights = uchar4(pComp_params->m_weights);
     p->m_has_alpha = false;
 }
 
@@ -325,7 +325,7 @@ static inline uint get_mode_scale_bits(uint mode)
 static const constant float pr_weight = (.5f / (1.0f - .2126f)) * (.5f / (1.0f - .2126f));
 static const constant float pb_weight = (.5f / (1.0f - .0722f)) * (.5f / (1.0f - .0722f));
 
-static inline uint32_t compute_color_distance_rgb(const thread color_quad_i* pE1, const thread uchar4* pE2, bool perceptual, uint4 weights)
+static inline uint32_t compute_color_distance_rgb(const thread color_quad_i* pE1, const thread uchar4* pE2, bool perceptual, uchar4 weights)
 {
     if (perceptual)
     {
@@ -345,18 +345,15 @@ static inline uint32_t compute_color_distance_rgb(const thread color_quad_i* pE1
     }
     else
     {
-        float dr = (float)pE1->r - (float)pE2->r;
-        float dg = (float)pE1->g - (float)pE2->g;
-        float db = (float)pE1->b - (float)pE2->b;
-        
-        return (int32_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db);
+        int3 d = pE1->rgb - (int3)pE2->rgb;
+        return weights.r * d.r * d.r + weights.g * d.g * d.g + weights.b * d.b * d.b;
     }
 }
 
-static inline uint32_t compute_color_distance_rgba(const thread color_quad_i* pE1, const thread uchar4* pE2, bool perceptual, uint4 weights)
+static inline uint compute_color_distance_rgba(const thread color_quad_i* pE1, const thread uchar4* pE2, bool perceptual, uchar4 weights)
 {
-    float da = (float)pE1->a - (float)pE2->a;
-    float a_err = weights[3] * (da * da);
+    int da = pE1->a - pE2->a;
+    int a_err = weights.a * (da * da);
 
     if (perceptual)
     {
@@ -372,15 +369,12 @@ static inline uint32_t compute_color_distance_rgba(const thread color_quad_i* pE
         float dcr = cr1 - cr2;
         float dcb = cb1 - cb2;
 
-        return (int32_t)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb) + a_err);
+        return (uint)(weights[0] * (dl * dl) + weights[1] * pr_weight * (dcr * dcr) + weights[2] * pb_weight * (dcb * dcb) + a_err);
     }
     else
     {
-        float dr = (float)pE1->r - (float)pE2->r;
-        float dg = (float)pE1->g - (float)pE2->g;
-        float db = (float)pE1->b - (float)pE2->b;
-        
-        return (int32_t)(weights[0] * dr * dr + weights[1] * dg * dg + weights[2] * db * db + a_err);
+        int3 d = pE1->rgb - (int3)pE2->rgb;
+        return weights.r * d.r * d.r + weights.g * d.g * d.g + weights.b * d.b * d.b + a_err;
     }
 }
 
@@ -2434,7 +2428,7 @@ static void handle_block_mode4(
         if ((pComp_params->m_mode4_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params.m_weights = pComp_params->m_weights;
+        params.m_weights = uchar4(pComp_params->m_weights);
         if (rotation == 1) params.m_weights = params.m_weights.agbr;
         if (rotation == 2) params.m_weights = params.m_weights.rabg;
         if (rotation == 3) params.m_weights = params.m_weights.rgab;
@@ -2483,7 +2477,7 @@ static void handle_block_mode5(
         if ((pComp_params->m_mode5_rotation_mask & (1 << rotation)) == 0)
             continue;
 
-        params.m_weights = pComp_params->m_weights;
+        params.m_weights = uchar4(pComp_params->m_weights);
         if (rotation == 1) params.m_weights = params.m_weights.agbr;
         if (rotation == 2) params.m_weights = params.m_weights.rabg;
         if (rotation == 3) params.m_weights = params.m_weights.rgab;
