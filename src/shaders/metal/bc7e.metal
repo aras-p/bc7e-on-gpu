@@ -634,7 +634,7 @@ static ModePackResult pack_mode_to_one_color(
     return res;
 }
 
-static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const thread uint32_t* pbits,
+static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, uint pbits,
     const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, const uint part_mask, const uint partition, const thread uchar4* pPixels, const constant LookupTables* tables)
 {
     color_quad_i quantMinColor = color_quad_i(pLow);
@@ -642,20 +642,17 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
 
     if (pParams->m_has_pbits)
     {
-        uint32_t minPBit, maxPBit;
-
+        uint minPBit, maxPBit;
         if (pParams->m_endpoints_share_pbit)
-            maxPBit = minPBit = pbits[0];
+            maxPBit = minPBit = pbits & 1;
         else
         {
-            minPBit = pbits[0];
-            maxPBit = pbits[1];
+            minPBit = pbits & 1;
+            maxPBit = pbits >> 1;
         }
-
         quantMinColor = (quantMinColor << 1) | minPBit;
         quantMaxColor = (quantMaxColor << 1) | maxPBit;
     }
-
     color_quad_i actualMinColor = scale_color(&quantMinColor, pParams);
     color_quad_i actualMaxColor = scale_color(&quantMaxColor, pParams);
 
@@ -859,7 +856,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
         pResults->m_best_overall_err = total_err;
         pResults->m_low_endpoint = pLow;
         pResults->m_high_endpoint = pHigh;
-        pResults->m_pbits = pbits[0] | (pbits[1] << 1);
+        pResults->m_pbits = pbits;
         for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
         {
             if ((pm & 3) != partition)
@@ -1018,7 +1015,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
 
             const int32_t totalComps = pParams->m_has_alpha ? 4 : 3;
 
-            uint32_t best_pbits[2];
+            uint best_pbits = 0;
             uchar4 bestMinColor, bestMaxColor;
                         
             if (!pParams->m_endpoints_share_pbit)
@@ -1050,20 +1047,16 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                         err0 += square(scaledLow[i] - xl[i]*255.0f);
                         err1 += square(scaledHigh[i] - xh[i]*255.0f);
                     }
-
                     if (err0 < best_err0)
                     {
                         best_err0 = err0;
-                        best_pbits[0] = p;
-                        
+                        best_pbits |= p;
                         bestMinColor = uchar4(xMinColor >> 1);
                     }
-
                     if (err1 < best_err1)
                     {
                         best_err1 = err1;
-                        best_pbits[1] = p;
-                        
+                        best_pbits |= p << 1;
                         bestMaxColor = uchar4(xMaxColor >> 1);
                     }
                 }
@@ -1092,9 +1085,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                     if (err < best_err)
                     {
                         best_err = err;
-                        best_pbits[0] = p;
-                        best_pbits[1] = p;
-                        
+                        best_pbits |= p | (p<<1);
                         bestMinColor = uchar4(xMinColor >> 1);
                         bestMaxColor = uchar4(xMaxColor >> 1);
                     }
@@ -1103,8 +1094,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
 
             fixDegenerateEndpoints(mode, bestMinColor, bestMaxColor, xl, xh, iscalep >> 1);
 
-            uint best_pbits_mask = best_pbits[0] | (best_pbits[1] << 1);
-            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits_mask != pResults->m_pbits))
+            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits != pResults->m_pbits))
             {
                 evaluate_solution(bestMinColor, bestMaxColor, best_pbits, pParams, pResults, part_mask, partition, pPixels, tables);
             }
@@ -1122,11 +1112,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
 
         if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(trialMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(trialMaxColor, pResults->m_high_endpoint))
         {
-            uint32_t pbits[2];
-            pbits[0] = 0;
-            pbits[1] = 0;
-
-            evaluate_solution(trialMinColor, trialMaxColor, pbits, pParams, pResults, part_mask, partition, pPixels, tables);
+            evaluate_solution(trialMinColor, trialMaxColor, 0, pParams, pResults, part_mask, partition, pPixels, tables);
         }
     }
 
