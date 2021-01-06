@@ -923,6 +923,9 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
     vec4F xl = saturate(*pXl);
     vec4F xh = saturate(*pXh);
         
+    uchar4 minColor, maxColor;
+    uint pbits;
+    int final_iscale;
     if (pParams->m_has_pbits)
     {
         /* @TODO: disable pbit_search for now
@@ -1091,13 +1094,10 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                     }
                 }
             }
-
-            fixDegenerateEndpoints(mode, bestMinColor, bestMaxColor, xl, xh, iscalep >> 1);
-
-            if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(bestMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(bestMaxColor, pResults->m_high_endpoint) || (best_pbits != pResults->m_pbits))
-            {
-                evaluate_solution(bestMinColor, bestMaxColor, best_pbits, pParams, pResults, part_mask, partition, pPixels, tables);
-            }
+            minColor = bestMinColor;
+            maxColor = bestMaxColor;
+            pbits = best_pbits;
+            final_iscale = iscalep >> 1;
         }
     }
     else
@@ -1105,17 +1105,17 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
         const int iscale = (1 << pParams->m_comp_bits) - 1;
         const float scale = (float)iscale;
 
-        uchar4 trialMinColor = uchar4(clamp(int4(xl * scale + .5f), 0, 255));
-        uchar4 trialMaxColor = uchar4(clamp(int4(xh * scale + .5f), 0, 255));
-
-        fixDegenerateEndpoints(mode, trialMinColor, trialMaxColor, xl, xh, iscale);
-
-        if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(trialMinColor, pResults->m_low_endpoint) || color_quad_i_notequals(trialMaxColor, pResults->m_high_endpoint))
-        {
-            evaluate_solution(trialMinColor, trialMaxColor, 0, pParams, pResults, part_mask, partition, pPixels, tables);
-        }
+        minColor = uchar4(clamp(int4(xl * scale + .5f), 0, 255));
+        maxColor = uchar4(clamp(int4(xh * scale + .5f), 0, 255));
+        pbits = 0;
+        final_iscale = iscale;
     }
-
+    
+    fixDegenerateEndpoints(mode, minColor, maxColor, xl, xh, final_iscale);
+    if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(minColor, pResults->m_low_endpoint) || color_quad_i_notequals(maxColor, pResults->m_high_endpoint) || (pbits != pResults->m_pbits))
+    {
+        evaluate_solution(minColor, maxColor, pbits, pParams, pResults, part_mask, partition, pPixels, tables);
+    }
     return pResults->m_best_overall_err;
 }
 
