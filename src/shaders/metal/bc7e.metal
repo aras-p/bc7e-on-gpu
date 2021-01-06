@@ -690,49 +690,25 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
         {
             if (N == 16)
             {
-                float lr = actualMinColor[0];
-                float lg = actualMinColor[1];
-                float lb = actualMinColor[2];
-
-                float dr = actualMaxColor[0] - lr;
-                float dg = actualMaxColor[1] - lg;
-                float db = actualMaxColor[2] - lb;
-            
-                const float f = N / (dr * dr + dg * dg + db * db);
-
-                lr *= -dr;
-                lg *= -dg;
-                lb *= -db;
+                float3 ll = float3(actualMinColor.rgb);
+                float3 dd = float3(actualMaxColor.rgb) - ll;
+                const float f = N / (dd.r * dd.r + dd.g * dd.g + dd.b * dd.b);
+                ll *= -dd;
 
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
                     if ((pm & 3) != partition)
                         continue;
-                    auto c = pPixels[i];
-                    float r = c.r;
-                    float g = c.g;
-                    float b = c.b;
+                    float3 pp = float3(pPixels[i].rgb);
 
-                    float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb)) * f + .5f);
+                    float best_sel = floor(((pp.r * dd.r + ll.r) + (pp.g * dd.g + ll.g) + (pp.b * dd.b + ll.b)) * f + .5f);
                     best_sel = clamp(best_sel, (float)1, (float)(N - 1));
-
                     float best_sel0 = best_sel - 1;
 
-                    float dr0 = weightedColors[(int)best_sel0][0] - r;
-
-                    float dg0 = weightedColors[(int)best_sel0][1] - g;
-
-                    float db0 = weightedColors[(int)best_sel0][2] - b;
-
-                    float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
-
-                    float dr1 = weightedColors[(int)best_sel][0] - r;
-
-                    float dg1 = weightedColors[(int)best_sel][1] - g;
-
-                    float db1 = weightedColors[(int)best_sel][2] - b;
-
-                    float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
+                    float3 d0 = weightedColors[(int)best_sel0].rgb - pp;
+                    float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b;
+                    float3 d1 = weightedColors[(int)best_sel].rgb - pp;
+                    float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b;
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
@@ -745,72 +721,41 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
                 {
                     if ((pm & 3) != partition)
                         continue;
-                    float pr = (float)pPixels[i][0];
-                    float pg = (float)pPixels[i][1];
-                    float pb = (float)pPixels[i][2];
-                
+                    float3 pp = float3(pPixels[i].rgb);
                     float best_err;
                     int best_sel;
-
                     {
-                        float dr0 = weightedColors[0][0] - pr;
-                        float dg0 = weightedColors[0][1] - pg;
-                        float db0 = weightedColors[0][2] - pb;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
-
-                        float dr1 = weightedColors[1][0] - pr;
-                        float dg1 = weightedColors[1][1] - pg;
-                        float db1 = weightedColors[1][2] - pb;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
-
-                        float dr2 = weightedColors[2][0] - pr;
-                        float dg2 = weightedColors[2][1] - pg;
-                        float db2 = weightedColors[2][2] - pb;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
-
-                        float dr3 = weightedColors[3][0] - pr;
-                        float dg3 = weightedColors[3][1] - pg;
-                        float db3 = weightedColors[3][2] - pb;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
+                        float3 d0 = weightedColors[0].rgb - pp;
+                        float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b;
+                        float3 d1 = weightedColors[1].rgb - pp;
+                        float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b;
+                        float3 d2 = weightedColors[2].rgb - pp;
+                        float err2 = wr * d2.r * d2.r + wg * d2.g * d2.g + wb * d2.b * d2.b;
+                        float3 d3 = weightedColors[3].rgb - pp;
+                        float err3 = wr * d3.r * d3.r + wg * d3.g * d3.g + wb * d3.b * d3.b;
 
                         best_err = min(min(min(err0, err1), err2), err3);
-                                    
                         best_sel = select(0, 1, best_err == err1);
                         best_sel = select(best_sel, 2, best_err == err2);
                         best_sel = select(best_sel, 3, best_err == err3);
                     }
-
                     {
-                        float dr0 = weightedColors[4][0] - pr;
-                        float dg0 = weightedColors[4][1] - pg;
-                        float db0 = weightedColors[4][2] - pb;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
-
-                        float dr1 = weightedColors[5][0] - pr;
-                        float dg1 = weightedColors[5][1] - pg;
-                        float db1 = weightedColors[5][2] - pb;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
-
-                        float dr2 = weightedColors[6][0] - pr;
-                        float dg2 = weightedColors[6][1] - pg;
-                        float db2 = weightedColors[6][2] - pb;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
-
-                        float dr3 = weightedColors[7][0] - pr;
-                        float dg3 = weightedColors[7][1] - pg;
-                        float db3 = weightedColors[7][2] - pb;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
+                        float3 d0 = weightedColors[4].rgb - pp;
+                        float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b;
+                        float3 d1 = weightedColors[5].rgb - pp;
+                        float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b;
+                        float3 d2 = weightedColors[6].rgb - pp;
+                        float err2 = wr * d2.r * d2.r + wg * d2.g * d2.g + wb * d2.b * d2.b;
+                        float3 d3 = weightedColors[7].rgb - pp;
+                        float err3 = wr * d3.r * d3.r + wg * d3.g * d3.g + wb * d3.b * d3.b;
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
-
                         best_sel = select(best_sel, 4, best_err == err0);
                         best_sel = select(best_sel, 5, best_err == err1);
                         best_sel = select(best_sel, 6, best_err == err2);
                         best_sel = select(best_sel, 7, best_err == err3);
                     }
-                
                     total_errf += best_err;
-
                     selectors[i] = best_sel;
                 }
             }
@@ -820,38 +765,23 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
                 {
                     if ((pm & 3) != partition)
                         continue;
-                    float pr = (float)pPixels[i][0];
-                    float pg = (float)pPixels[i][1];
-                    float pb = (float)pPixels[i][2];
-                
-                    float dr0 = weightedColors[0][0] - pr;
-                    float dg0 = weightedColors[0][1] - pg;
-                    float db0 = weightedColors[0][2] - pb;
-                    float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0;
+                    float3 pp = float3(pPixels[i].rgb);
 
-                    float dr1 = weightedColors[1][0] - pr;
-                    float dg1 = weightedColors[1][1] - pg;
-                    float db1 = weightedColors[1][2] - pb;
-                    float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1;
-
-                    float dr2 = weightedColors[2][0] - pr;
-                    float dg2 = weightedColors[2][1] - pg;
-                    float db2 = weightedColors[2][2] - pb;
-                    float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2;
-
-                    float dr3 = weightedColors[3][0] - pr;
-                    float dg3 = weightedColors[3][1] - pg;
-                    float db3 = weightedColors[3][2] - pb;
-                    float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3;
+                    float3 d0 = weightedColors[0].rgb - pp;
+                    float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b;
+                    float3 d1 = weightedColors[1].rgb - pp;
+                    float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b;
+                    float3 d2 = weightedColors[2].rgb - pp;
+                    float err2 = wr * d2.r * d2.r + wg * d2.g * d2.g + wb * d2.b * d2.b;
+                    float3 d3 = weightedColors[3].rgb - pp;
+                    float err3 = wr * d3.r * d3.r + wg * d3.g * d3.g + wb * d3.b * d3.b;
 
                     float best_err = min(min(min(err0, err1), err2), err3);
-
                     int best_sel = select(0, 1, best_err == err1);
                     best_sel = select(best_sel, 2, best_err == err2);
                     best_sel = select(best_sel, 3, best_err == err3);
                                 
                     total_errf += best_err;
-
                     selectors[i] = best_sel;
                 }
             }
@@ -861,50 +791,25 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             // alpha
             if (N == 16)
             {
-                float lr = actualMinColor[0];
-                float lg = actualMinColor[1];
-                float lb = actualMinColor[2];
-                float la = actualMinColor[3];
-
-                float dr = actualMaxColor[0] - lr;
-                float dg = actualMaxColor[1] - lg;
-                float db = actualMaxColor[2] - lb;
-                float da = actualMaxColor[3] - la;
-            
-                const float f = N / (dr * dr + dg * dg + db * db + da * da);
-
-                lr *= -dr;
-                lg *= -dg;
-                lb *= -db;
-                la *= -da;
+                float4 ll = float4(actualMinColor);
+                float4 dd = float4(actualMaxColor) - ll;
+                const float f = N / (dd.r * dd.r + dd.g * dd.g + dd.b * dd.b + dd.a * dd.a);
+                ll *= -dd;
 
                 for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
                 {
                     if ((pm & 3) != partition)
                         continue;
-                    auto c = pPixels[i];
-                    float r = c.r;
-                    float g = c.g;
-                    float b = c.b;
-                    float a = c.a;
+                    float4 pp = float4(pPixels[i]);
 
-                    float best_sel = floor(((r * dr + lr) + (g * dg + lg) + (b * db + lb) + (a * da + la)) * f + .5f);
+                    float best_sel = floor(((pp.r * dd.r + ll.r) + (pp.g * dd.g + ll.g) + (pp.b * dd.b + ll.b) + (pp.a * dd.a + ll.a)) * f + .5f);
                     best_sel = clamp(best_sel, (float)1, (float)(N - 1));
-
                     float best_sel0 = best_sel - 1;
-
-                    float dr0 = weightedColors[(int)best_sel0][0] - r;
-                    float dg0 = weightedColors[(int)best_sel0][1] - g;
-                    float db0 = weightedColors[(int)best_sel0][2] - b;
-                    float da0 = weightedColors[(int)best_sel0][3] - a;
-                    float err0 = (wr * dr0 * dr0) + (wg * dg0 * dg0) + (wb * db0 * db0) + (wa * da0 * da0);
-
-                    float dr1 = weightedColors[(int)best_sel][0] - r;
-                    float dg1 = weightedColors[(int)best_sel][1] - g;
-                    float db1 = weightedColors[(int)best_sel][2] - b;
-                    float da1 = weightedColors[(int)best_sel][3] - a;
-
-                    float err1 = (wr * dr1 * dr1) + (wg * dg1 * dg1) + (wb * db1 * db1) + (wa * da1 * da1);
+                    
+                    float4 d0 = weightedColors[(int)best_sel0] - pp;
+                    float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b + wa * d0.a * d0.a;
+                    float4 d1 = weightedColors[(int)best_sel] - pp;
+                    float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b + wa * d1.a * d1.a;
 
                     float min_err = min(err0, err1);
                     total_errf += min_err;
@@ -917,81 +822,41 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
                 {
                     if ((pm & 3) != partition)
                         continue;
-                    float pr = (float)pPixels[i][0];
-                    float pg = (float)pPixels[i][1];
-                    float pb = (float)pPixels[i][2];
-                    float pa = (float)pPixels[i][3];
-                
+                    float4 pp = float4(pPixels[i]);
                     float best_err;
                     int best_sel;
-
                     {
-                        float dr0 = weightedColors[0][0] - pr;
-                        float dg0 = weightedColors[0][1] - pg;
-                        float db0 = weightedColors[0][2] - pb;
-                        float da0 = weightedColors[0][3] - pa;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
-
-                        float dr1 = weightedColors[1][0] - pr;
-                        float dg1 = weightedColors[1][1] - pg;
-                        float db1 = weightedColors[1][2] - pb;
-                        float da1 = weightedColors[1][3] - pa;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
-
-                        float dr2 = weightedColors[2][0] - pr;
-                        float dg2 = weightedColors[2][1] - pg;
-                        float db2 = weightedColors[2][2] - pb;
-                        float da2 = weightedColors[2][3] - pa;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
-
-                        float dr3 = weightedColors[3][0] - pr;
-                        float dg3 = weightedColors[3][1] - pg;
-                        float db3 = weightedColors[3][2] - pb;
-                        float da3 = weightedColors[3][3] - pa;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
+                        float4 d0 = weightedColors[0] - pp;
+                        float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b + wa * d0.a * d0.a;
+                        float4 d1 = weightedColors[1] - pp;
+                        float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b + wa * d1.a * d1.a;
+                        float4 d2 = weightedColors[2] - pp;
+                        float err2 = wr * d2.r * d2.r + wg * d2.g * d2.g + wb * d2.b * d2.b + wa * d2.a * d2.a;
+                        float4 d3 = weightedColors[3] - pp;
+                        float err3 = wr * d3.r * d3.r + wg * d3.g * d3.g + wb * d3.b * d3.b + wa * d3.a * d3.a;
 
                         best_err = min(min(min(err0, err1), err2), err3);
-                                    
                         best_sel = select(0, 1, best_err == err1);
                         best_sel = select(best_sel, 2, best_err == err2);
                         best_sel = select(best_sel, 3, best_err == err3);
                     }
-
                     {
-                        float dr0 = weightedColors[4][0] - pr;
-                        float dg0 = weightedColors[4][1] - pg;
-                        float db0 = weightedColors[4][2] - pb;
-                        float da0 = weightedColors[4][3] - pa;
-                        float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
-
-                        float dr1 = weightedColors[5][0] - pr;
-                        float dg1 = weightedColors[5][1] - pg;
-                        float db1 = weightedColors[5][2] - pb;
-                        float da1 = weightedColors[5][3] - pa;
-                        float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
-
-                        float dr2 = weightedColors[6][0] - pr;
-                        float dg2 = weightedColors[6][1] - pg;
-                        float db2 = weightedColors[6][2] - pb;
-                        float da2 = weightedColors[6][3] - pa;
-                        float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
-
-                        float dr3 = weightedColors[7][0] - pr;
-                        float dg3 = weightedColors[7][1] - pg;
-                        float db3 = weightedColors[7][2] - pb;
-                        float da3 = weightedColors[7][3] - pa;
-                        float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
+                        float4 d0 = weightedColors[4] - pp;
+                        float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b + wa * d0.a * d0.a;
+                        float4 d1 = weightedColors[5] - pp;
+                        float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b + wa * d1.a * d1.a;
+                        float4 d2 = weightedColors[6] - pp;
+                        float err2 = wr * d2.r * d2.r + wg * d2.g * d2.g + wb * d2.b * d2.b + wa * d2.a * d2.a;
+                        float4 d3 = weightedColors[7] - pp;
+                        float err3 = wr * d3.r * d3.r + wg * d3.g * d3.g + wb * d3.b * d3.b + wa * d3.a * d3.a;
 
                         best_err = min(best_err, min(min(min(err0, err1), err2), err3));
-
                         best_sel = select(best_sel, 4, best_err == err0);
                         best_sel = select(best_sel, 5, best_err == err1);
                         best_sel = select(best_sel, 6, best_err == err2);
                         best_sel = select(best_sel, 7, best_err == err3);
                     }
-                
                     total_errf += best_err;
-
                     selectors[i] = best_sel;
                 }
             }
@@ -1001,43 +866,23 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
                 {
                     if ((pm & 3) != partition)
                         continue;
-                    float pr = (float)pPixels[i][0];
-                    float pg = (float)pPixels[i][1];
-                    float pb = (float)pPixels[i][2];
-                    float pa = (float)pPixels[i][3];
-                
-                    float dr0 = weightedColors[0][0] - pr;
-                    float dg0 = weightedColors[0][1] - pg;
-                    float db0 = weightedColors[0][2] - pb;
-                    float da0 = weightedColors[0][3] - pa;
-                    float err0 = wr * dr0 * dr0 + wg * dg0 * dg0 + wb * db0 * db0 + wa * da0 * da0;
+                    float4 pp = float4(pPixels[i]);
 
-                    float dr1 = weightedColors[1][0] - pr;
-                    float dg1 = weightedColors[1][1] - pg;
-                    float db1 = weightedColors[1][2] - pb;
-                    float da1 = weightedColors[1][3] - pa;
-                    float err1 = wr * dr1 * dr1 + wg * dg1 * dg1 + wb * db1 * db1 + wa * da1 * da1;
-
-                    float dr2 = weightedColors[2][0] - pr;
-                    float dg2 = weightedColors[2][1] - pg;
-                    float db2 = weightedColors[2][2] - pb;
-                    float da2 = weightedColors[2][3] - pa;
-                    float err2 = wr * dr2 * dr2 + wg * dg2 * dg2 + wb * db2 * db2 + wa * da2 * da2;
-
-                    float dr3 = weightedColors[3][0] - pr;
-                    float dg3 = weightedColors[3][1] - pg;
-                    float db3 = weightedColors[3][2] - pb;
-                    float da3 = weightedColors[3][3] - pa;
-                    float err3 = wr * dr3 * dr3 + wg * dg3 * dg3 + wb * db3 * db3 + wa * da3 * da3;
+                    float4 d0 = weightedColors[0] - pp;
+                    float err0 = wr * d0.r * d0.r + wg * d0.g * d0.g + wb * d0.b * d0.b + wa * d0.a * d0.a;
+                    float4 d1 = weightedColors[1] - pp;
+                    float err1 = wr * d1.r * d1.r + wg * d1.g * d1.g + wb * d1.b * d1.b + wa * d1.a * d1.a;
+                    float4 d2 = weightedColors[2] - pp;
+                    float err2 = wr * d2.r * d2.r + wg * d2.g * d2.g + wb * d2.b * d2.b + wa * d2.a * d2.a;
+                    float4 d3 = weightedColors[3] - pp;
+                    float err3 = wr * d3.r * d3.r + wg * d3.g * d3.g + wb * d3.b * d3.b + wa * d3.a * d3.a;
 
                     float best_err = min(min(min(err0, err1), err2), err3);
-
                     int best_sel = select(0, 1, best_err == err1);
                     best_sel = select(best_sel, 2, best_err == err2);
                     best_sel = select(best_sel, 3, best_err == err3);
                                 
                     total_errf += best_err;
-
                     selectors[i] = best_sel;
                 }
             }
@@ -1045,22 +890,16 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
     }
     else
     {
+        // perceptual
         wg *= pr_weight;
         wb *= pb_weight;
 
-        float weightedColorsY[16], weightedColorsCr[16], weightedColorsCb[16];
-        
+        float3 weightedColorsYCrCb[16];
         for (uint32_t i = 0; i < N; i++)
         {
-            float r = weightedColors[i][0];
-            float g = weightedColors[i][1];
-            float b = weightedColors[i][2];
-
-            float y = r * .2126f + g * .7152f + b * .0722f;
-                                    
-            weightedColorsY[i] = y;
-            weightedColorsCr[i] = r - y;
-            weightedColorsCb[i] = b - y;
+            float3 pp = weightedColors[i].rgb;
+            float y = pp.r * .2126f + pp.g * .7152f + pp.b * .0722f;
+            weightedColorsYCrCb[i] = float3(y, pp.r - y, pp.b - y);
         }
 
         if (pParams->m_has_alpha)
@@ -1069,35 +908,24 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             {
                 if ((pm & 3) != partition)
                     continue;
-                float r = pPixels[i][0];
-                float g = pPixels[i][1];
-                float b = pPixels[i][2];
-                float a = pPixels[i][3];
-
-                float y = r * .2126f + g * .7152f + b * .0722f;
-                float cr = r - y;
-                float cb = b - y;
+                float4 pp = float4(pPixels[i]);
+                float y = pp.r * .2126f + pp.g * .7152f + pp.b * .0722f;
+                float3 ycrcb = float3(y, pp.r - y, pp.b - y);
 
                 float best_err = 1e+10f;
                 int32_t best_sel;
-                                
                 for (uint32_t j = 0; j < N; j++)
                 {
-                    float dl = y - weightedColorsY[j];
-                    float dcr = cr - weightedColorsCr[j];
-                    float dcb = cb - weightedColorsCb[j];
-                    float da = a - weightedColors[j][3];
-
-                    float err = (wr * dl * dl) + (wg * dcr * dcr) + (wb * dcb * dcb) + (wa * da * da);
+                    float3 d = ycrcb - weightedColorsYCrCb[j];
+                    float da = pp.a - weightedColors[j].a;
+                    float err = (wr * d.x * d.x) + (wg * d.y * d.y) + (wb * d.z * d.z) + (wa * da * da);
                     if (err < best_err)
                     {
                         best_err = err;
                         best_sel = j;
                     }
                 }
-                
                 total_errf += best_err;
-
                 selectors[i] = best_sel;
             }
         }
@@ -1107,49 +935,35 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             {
                 if ((pm & 3) != partition)
                     continue;
-                float r = pPixels[i][0];
-                float g = pPixels[i][1];
-                float b = pPixels[i][2];
-
-                float y = r * .2126f + g * .7152f + b * .0722f;
-                float cr = r - y;
-                float cb = b - y;
+                float3 pp = float3(pPixels[i].rgb);
+                float y = pp.r * .2126f + pp.g * .7152f + pp.b * .0722f;
+                float3 ycrcb = float3(y, pp.r - y, pp.b - y);
 
                 float best_err = 1e+10f;
                 int32_t best_sel;
-                                
                 for (uint32_t j = 0; j < N; j++)
                 {
-                    float dl = y - weightedColorsY[j];
-                    float dcr = cr - weightedColorsCr[j];
-                    float dcb = cb - weightedColorsCb[j];
-
-                    float err = (wr * dl * dl) + (wg * dcr * dcr) + (wb * dcb * dcb);
+                    float3 d = ycrcb - weightedColorsYCrCb[j];
+                    float err = (wr * d.x * d.x) + (wg * d.y * d.y) + (wb * d.z * d.z);
                     if (err < best_err)
                     {
                         best_err = err;
                         best_sel = j;
                     }
                 }
-                
                 total_errf += best_err;
-
                 selectors[i] = best_sel;
             }
         }
     }
 
     uint32_t total_err = total_errf;
-
     if (total_err < pResults->m_best_overall_err)
     {
         pResults->m_best_overall_err = total_err;
-
         pResults->m_low_endpoint = pLow;
         pResults->m_high_endpoint = pHigh;
-
         pResults->m_pbits = pbits[0] | (pbits[1] << 1);
-
         for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
         {
             if ((pm & 3) != partition)
@@ -1157,7 +971,6 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, const t
             pResults->m_pSelectors[i] = selectors[i];
         }
     }
-                
     return total_err;
 }
 
