@@ -17,7 +17,7 @@
 #endif
 
 const bool kDoCapture = false;
-const int kQuality = 0;
+const int kQuality = 3;
 const int kRunCount = kDoCapture ? 1 : 8;
 const bool kAlwaysPerceptual = false;
 #ifdef _MSC_VER
