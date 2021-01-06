@@ -262,26 +262,39 @@ static void compute_least_squares_endpoints_a(const uint part_mask, const uint p
     *pXl = (float)(iz00 * q00_a + iz01 * q10_a); *pXh = (float)(iz10 * q00_a + iz11 * q10_a);
 }
 
+struct mode_desc
+{
+    uint m_num_selector_weights;
+    uint m_weights_index;
+    uint m_comp_bits;
+    uint m_has_pbits;
+};
+
+static const constant mode_desc g_bc7_modes[8 + 1] =
+{
+    {  8, kBC7Weights3Index, 4, true  }, // 0
+    {  8, kBC7Weights3Index, 6, true  }, // 1
+    {  4, kBC7Weights2Index, 5, false }, // 2
+    {  4, kBC7Weights2Index, 7, true  }, // 3
+    {  4, kBC7Weights2Index, 5, false }, // 4 index sel 0
+    {  4, kBC7Weights2Index, 7, false }, // 5
+    { 16, kBC7Weights4Index, 7, true  }, // 6
+    {  4, kBC7Weights2Index, 5, true  }, // 7
+    {  8, kBC7Weights3Index, 5, false }, // 4 index sel 1
+};
+
 struct color_cell_compressor_params
 {
-    uint32_t m_num_selector_weights;
-    uint32_t m_weights_index;
-    uint32_t m_comp_bits;
     uint4 m_weights;
     bool m_has_alpha;
-    bool m_has_pbits;
     bool m_perceptual;
 };
 
 static inline void color_cell_compressor_params_clear(thread color_cell_compressor_params* p, const constant bc7e_compress_block_params* pComp_params)
 {
-    p->m_num_selector_weights = 0;
-    p->m_weights_index = 0;
-    p->m_comp_bits = 0;
     p->m_perceptual = pComp_params->m_perceptual;
     p->m_weights = pComp_params->m_weights;
     p->m_has_alpha = false;
-    p->m_has_pbits = false;
 }
 
 struct color_cell_compressor_results
@@ -293,16 +306,20 @@ struct color_cell_compressor_results
     thread uchar* m_pSelectors;
 };
 
-static inline color_quad_i scale_color(const thread color_quad_i* pC, const thread color_cell_compressor_params* pParams)
+static inline color_quad_i scale_color(const thread color_quad_i* pC, uint nbits)
 {
     color_quad_i results;
 
-    const uint32_t n = pParams->m_comp_bits + (pParams->m_has_pbits ? 1 : 0);
-    assert((n >= 4) && (n <= 8));
-    uint4 v = uint4(*pC) << (8 - n);
-    v |= v >> n;
+    assert((nbits >= 4) && (nbits <= 8));
+    uint4 v = uint4(*pC) << (8 - nbits);
+    v |= v >> nbits;
     results = int4(v);
     return results;
+}
+
+static inline uint get_mode_scale_bits(uint mode)
+{
+    return g_bc7_modes[mode].m_comp_bits + (g_bc7_modes[mode].m_has_pbits ? 1 : 0);
 }
 
 static const constant float pr_weight = (.5f / (1.0f - .2126f)) * (.5f / (1.0f - .2126f));
@@ -373,7 +390,7 @@ struct ModePackSelColor
     int bestSelector;
 };
 
-static ModePackSelColor pack_mode1_to_one_color(const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
+static ModePackSelColor pack_mode1_to_one_color(thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
 {
     ModePackSelColor res;
 
@@ -413,12 +430,12 @@ static ModePackSelColor pack_mode1_to_one_color(const thread color_cell_compress
     return res;
 }
 
-static ModePackSelColor pack_mode24_to_one_color(const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
+static ModePackSelColor pack_mode24_to_one_color(bool isMode4_3, thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
 {
     ModePackSelColor res;
     uint32_t er, eg, eb;
 
-    if (pParams->m_num_selector_weights == 8)
+    if (isMode4_3)
     {
         er = tables->mode_4_3[c.r];
         eg = tables->mode_4_3[c.g];
@@ -434,7 +451,7 @@ static ModePackSelColor pack_mode24_to_one_color(const thread color_cell_compres
     pResults->m_low_endpoint = uchar4(er & 0xFF, eg & 0xFF, eb & 0xFF, 0);
     pResults->m_high_endpoint = uchar4(er >> 8, eg >> 8, eb >> 8, 0);
 
-    res.bestSelector = (pParams->m_num_selector_weights == 8) ? BC7E_MODE_4_OPTIMAL_INDEX3 : BC7E_MODE_4_OPTIMAL_INDEX2;
+    res.bestSelector = (isMode4_3) ? BC7E_MODE_4_OPTIMAL_INDEX3 : BC7E_MODE_4_OPTIMAL_INDEX2;
 
     color_quad_i p;
     {
@@ -444,7 +461,7 @@ static ModePackSelColor pack_mode24_to_one_color(const thread color_cell_compres
         uint3 high = uint3(pResults->m_high_endpoint.rgb << 3);
         high |= (high >> 5);
 
-        if (pParams->m_num_selector_weights == 8)
+        if (isMode4_3)
             p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_4_OPTIMAL_INDEX3]) + high * tables->g_bc7_weights[kBC7Weights3Index+BC7E_MODE_4_OPTIMAL_INDEX3] + 32) >> 6);
         else
             p.rgb = int3((low * (64 - tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_4_OPTIMAL_INDEX2]) + high * tables->g_bc7_weights[kBC7Weights2Index+BC7E_MODE_4_OPTIMAL_INDEX2] + 32) >> 6);
@@ -454,7 +471,7 @@ static ModePackSelColor pack_mode24_to_one_color(const thread color_cell_compres
     return res;
 }
 
-static ModePackSelColor pack_mode0_to_one_color(const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
+static ModePackSelColor pack_mode0_to_one_color(thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
 {
     ModePackSelColor res;
     uint32_t best_err = UINT_MAX;
@@ -496,7 +513,7 @@ static ModePackSelColor pack_mode0_to_one_color(const thread color_cell_compress
     return res;
 }
 
-static ModePackSelColor pack_mode6_to_one_color(const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
+static ModePackSelColor pack_mode6_to_one_color(thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
 {
     ModePackSelColor res;
     uint32_t best_err = UINT_MAX;
@@ -540,7 +557,7 @@ static ModePackSelColor pack_mode6_to_one_color(const thread color_cell_compress
     return res;
 }
 
-static ModePackSelColor pack_mode7_to_one_color(const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
+static ModePackSelColor pack_mode7_to_one_color(thread color_cell_compressor_results* pResults, uchar4 c, const constant LookupTables* tables)
 {
     ModePackSelColor res;
     uint32_t best_err = UINT_MAX;
@@ -592,7 +609,7 @@ struct ModePackResult
 };
 
 static ModePackResult pack_mode_to_one_color(
-    int mode,
+    uint mode,
     const thread color_cell_compressor_params* pParams,
     thread color_cell_compressor_results* pResults,
     uchar4 col,
@@ -603,15 +620,15 @@ static ModePackResult pack_mode_to_one_color(
 {
     ModePackSelColor sel;
     if (mode == 0)
-        sel = pack_mode0_to_one_color(pParams, pResults, col, tables);
+        sel = pack_mode0_to_one_color(pResults, col, tables);
     else if (mode == 1)
-        sel = pack_mode1_to_one_color(pParams, pResults, col, tables);
+        sel = pack_mode1_to_one_color(pResults, col, tables);
     else if (mode == 6)
-        sel = pack_mode6_to_one_color(pParams, pResults, col, tables);
+        sel = pack_mode6_to_one_color(pResults, col, tables);
     else if (mode == 7)
-        sel = pack_mode7_to_one_color(pParams, pResults, col, tables);
+        sel = pack_mode7_to_one_color(pResults, col, tables);
     else
-        sel = pack_mode24_to_one_color(pParams, pResults, col, tables);
+        sel = pack_mode24_to_one_color(mode == 8, pResults, col, tables);
 
     bool rgba = mode == 6 || mode == 7;
     uint err = 0;
@@ -632,22 +649,23 @@ static ModePackResult pack_mode_to_one_color(
     return res;
 }
 
-static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, uint pbits,
+static uint32_t evaluate_solution(uint mode, const uchar4 pLow, const uchar4 pHigh, uint pbits,
     const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults, const uint part_mask, const uint partition, const thread uchar4* pPixels, const constant LookupTables* tables)
 {
     color_quad_i quantMinColor = color_quad_i(pLow);
     color_quad_i quantMaxColor = color_quad_i(pHigh);
-
-    if (pParams->m_has_pbits)
+    
+    const uint nbits = get_mode_scale_bits(mode);
+    if (g_bc7_modes[mode].m_has_pbits)
     {
         uint minPBit = pbits & 1, maxPBit = pbits >> 1;
         quantMinColor = (quantMinColor << 1) | minPBit;
         quantMaxColor = (quantMaxColor << 1) | maxPBit;
     }
-    color_quad_i actualMinColor = scale_color(&quantMinColor, pParams);
-    color_quad_i actualMaxColor = scale_color(&quantMaxColor, pParams);
+    color_quad_i actualMinColor = scale_color(&quantMinColor, nbits);
+    color_quad_i actualMaxColor = scale_color(&quantMaxColor, nbits);
 
-    const uint32_t N = pParams->m_num_selector_weights;
+    const uint32_t N = g_bc7_modes[mode].m_num_selector_weights;
     float total_errf = 0;
 
     float4 ww = float4(pParams->m_weights);
@@ -656,7 +674,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, uint pb
     weightedColors[N-1] = float4(actualMaxColor);
     for (uint32_t i = 1; i < (N - 1); i++)
     {
-        float w = tables->g_bc7_weights[pParams->m_weights_index+i];
+        float w = tables->g_bc7_weights[g_bc7_modes[mode].m_weights_index+i];
         weightedColors[i] = floor((weightedColors[0] * (64.0f - w) + weightedColors[N - 1] * w + 32) * (1.0f / 64.0f));
     }
     
@@ -860,7 +878,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, uint pb
 
 static void fixDegenerateEndpoints(uint32_t mode, thread uchar4& pTrialMinColor, thread uchar4& pTrialMaxColor, const vec4F pXl, const vec4F pXh, uint32_t iscale)
 {
-    if ((mode == 1) || (mode == 4)) // also mode 2
+    if ((mode == 1) || (mode == 4) || (mode == 8)) // also mode 2
     {
         // fix degenerate case where the input collapses to a single colorspace voxel, and we loose all freedom (test with grayscale ramps)
         for (uint32_t i = 0; i < 3; i++)
@@ -885,7 +903,7 @@ static void fixDegenerateEndpoints(uint32_t mode, thread uchar4& pTrialMinColor,
                             pTrialMinColor[i]--;
                     }
 
-                    if (mode == 4)
+                    if ((mode == 4) || (mode == 8)) // "mode 8" is 4 with index selector 1
                     {
                         if (pTrialMinColor[i] > (iscale >> 1))
                         {
@@ -908,7 +926,7 @@ static void fixDegenerateEndpoints(uint32_t mode, thread uchar4& pTrialMinColor,
     }
 }
 
-static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread vec4F* pXh, const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults,
+static uint32_t find_optimal_solution(uint mode, thread vec4F* pXl, thread vec4F* pXh, const thread color_cell_compressor_params* pParams, thread color_cell_compressor_results* pResults,
     bool pbit_search, const uint part_mask, const uint partition, const thread uchar4* pPixels, const constant LookupTables* tables)
 {
     vec4F xl = saturate(*pXl);
@@ -917,7 +935,8 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
     uchar4 minColor, maxColor;
     uint pbits;
     int final_iscale;
-    if (pParams->m_has_pbits)
+    const uint nbits = get_mode_scale_bits(mode);
+    if (g_bc7_modes[mode].m_has_pbits)
     {
         /* @TODO: disable pbit_search for now
         if (pbit_search)
@@ -1004,7 +1023,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
         else*/
         {
             // compensated rounding
-            const int iscalep = (1 << (pParams->m_comp_bits + 1)) - 1;
+            const int iscalep = (1 << nbits) - 1;
             const float scalep = (float)iscalep;
 
             const int32_t totalComps = pParams->m_has_alpha ? 4 : 3;
@@ -1031,8 +1050,8 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                     xMaxColor = int4((xh * scalep - p) / 2.0f + 0.5f) * 2 + p;
                     xMaxColor = clamp(xMaxColor, p, iscalep - 1 + p);
                                                                                 
-                    color_quad_i scaledLow = scale_color(&xMinColor, pParams);
-                    color_quad_i scaledHigh = scale_color(&xMaxColor, pParams);
+                    color_quad_i scaledLow = scale_color(&xMinColor, nbits);
+                    color_quad_i scaledHigh = scale_color(&xMaxColor, nbits);
 
                     float err0 = 0;
                     float err1 = 0;
@@ -1069,8 +1088,8 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
                     xMaxColor = int4((xh * scalep - p) / 2.0f + 0.5f) * 2 + p;
                     xMaxColor = clamp(xMaxColor, p, iscalep - 1 + p);
                                         
-                    color_quad_i scaledLow = scale_color(&xMinColor, pParams);
-                    color_quad_i scaledHigh = scale_color(&xMaxColor, pParams);
+                    color_quad_i scaledLow = scale_color(&xMinColor, nbits);
+                    color_quad_i scaledHigh = scale_color(&xMaxColor, nbits);
 
                     float err = 0;
                     for (int i = 0; i < totalComps; i++)
@@ -1093,7 +1112,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
     }
     else
     {
-        const int iscale = (1 << pParams->m_comp_bits) - 1;
+        const int iscale = (1 << nbits) - 1;
         const float scale = (float)iscale;
 
         minColor = uchar4(clamp(int4(xl * scale + .5f), 0, 255));
@@ -1105,7 +1124,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
     fixDegenerateEndpoints(mode, minColor, maxColor, xl, xh, final_iscale);
     if ((pResults->m_best_overall_err == UINT_MAX) || color_quad_i_notequals(minColor, pResults->m_low_endpoint) || color_quad_i_notequals(maxColor, pResults->m_high_endpoint) || (pbits != pResults->m_pbits))
     {
-        evaluate_solution(minColor, maxColor, pbits, pParams, pResults, part_mask, partition, pPixels, tables);
+        evaluate_solution(mode, minColor, maxColor, pbits, pParams, pResults, part_mask, partition, pPixels, tables);
     }
     return pResults->m_best_overall_err;
 }
@@ -1327,7 +1346,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
     //for (uint32_t i = 0; i < pComp_params->m_refinement_passes; i++)
     {
         vec4F xl = 0.0f, xh = 0.0f;
-        compute_least_squares_endpoints_rgba(part_mask, partition, pResults->m_pSelectors, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+        compute_least_squares_endpoints_rgba(part_mask, partition, pResults->m_pSelectors, g_bc7_modes[mode].m_weights_index, &xl, &xh, pPixels, tables);
         if (!pParams->m_has_alpha)
         {
             xl.a = 255.0f;
@@ -1348,7 +1367,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
         for (uint i = 0; i < 16; i++)
             selectors_temp0[i] = pResults->m_pSelectors[i];
 
-        const uchar max_selector = pParams->m_num_selector_weights - 1;
+        const uchar max_selector = g_bc7_modes[mode].m_num_selector_weights - 1;
 
         uchar min_sel = 16;
         uchar max_sel = 0;
@@ -1379,7 +1398,7 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
                     sel--;
                 selectors_temp1[i] = sel;
             }
-            compute_least_squares_endpoints_rgba(part_mask, partition, selectors_temp1, pParams->m_weights_index, &xl, &xh, pPixels, tables);
+            compute_least_squares_endpoints_rgba(part_mask, partition, selectors_temp1, g_bc7_modes[mode].m_weights_index, &xl, &xh, pPixels, tables);
             if (!pParams->m_has_alpha)
             {
                 xl.a = 255.0f;
@@ -1567,9 +1586,6 @@ static uint32_t estimate_partition(uint32_t mode, const uchar4 pixels[16], const
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
 
-    params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
-    params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
-
     // Note: m_mode67_error_weight_mul was always 1, removed
 
     for (uint32_t partition = 0; partition < total_partitions; partition++)
@@ -1647,9 +1663,6 @@ static uint32_t estimate_partition_list(uint32_t mode, const thread uchar4* pixe
                         
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-
-    params.m_weights_index = (g_bc7_color_index_bitcount[mode] == 2) ? kBC7Weights2Index : kBC7Weights3Index;
-    params.m_num_selector_weights = 1 << g_bc7_color_index_bitcount[mode];
 
     // Note: m_mode67_error_weight_mul was always 1, removed
 
@@ -1964,28 +1977,19 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
 static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constant bc7e_compress_block_params* pComp_params, thread color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a,
                                      thread bc7_optimization_results& res, const constant LookupTables* tables, int rotation)
 {
-    for (uint32_t index_selector = 0; index_selector < 2; index_selector++)
+    for (uint index_selector = 0; index_selector < 2; index_selector++)
     {
         if ((pComp_params->m_mode4_index_mask & (1 << index_selector)) == 0)
             continue;
 
-        if (index_selector)
-        {
-            pParams->m_weights_index = kBC7Weights3Index;
-            pParams->m_num_selector_weights = 8;
-        }
-        else
-        {
-            pParams->m_weights_index = kBC7Weights2Index;
-            pParams->m_num_selector_weights = 4;
-        }
+        const uint mode = 4 + index_selector * 4;
                                 
         color_cell_compressor_results results;
         
         uchar selectors[16];
         results.m_pSelectors = selectors;
 
-        uint32_t trial_err = color_cell_compression(4, pParams, &results, pComp_params, 0, 0, pPixels, true, tables);
+        uint32_t trial_err = color_cell_compression(mode, pParams, &results, pComp_params, 0, 0, pPixels, true, tables);
         assert(trial_err == results.m_best_overall_err);
 
         uint32_t la = min((lo_a + 2) >> 2, 63u);
@@ -2424,8 +2428,6 @@ static void handle_block_mode4(
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
     params.m_has_alpha = false;
-    params.m_comp_bits = 5;
-    params.m_has_pbits = false;
 
     for (int rotation = 0; rotation < num_rotations; rotation++)
     {
@@ -2474,11 +2476,7 @@ static void handle_block_mode5(
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights2Index;
-    params.m_num_selector_weights = 4;
-    params.m_comp_bits = 7;
     params.m_has_alpha = false;
-    params.m_has_pbits = false;
 
     for (uint rotation = 0; rotation < num_rotations; rotation++)
     {
@@ -2534,10 +2532,6 @@ static void handle_alpha_block_mode7(
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights2Index;
-    params.m_num_selector_weights = 4;
-    params.m_comp_bits = 5;
-    params.m_has_pbits = true;
     params.m_has_alpha = true;
 
     const bool disable_faster_part_selection = false;
@@ -2637,10 +2631,6 @@ static void handle_block_mode6(
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights4Index;
-    params.m_num_selector_weights = 16;
-    params.m_comp_bits = 7;
-    params.m_has_pbits = true;
     params.m_has_alpha = has_alpha;
     // Note: m_mode67_error_weight_mul was always 1, removed
 
@@ -2672,10 +2662,6 @@ static void handle_opaque_block_mode1(
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights3Index;
-    params.m_num_selector_weights = 8;
-    params.m_comp_bits = 6;
-    params.m_has_pbits = true;
 
     const bool disable_faster_part_selection = false;
     solution solutions[4];
@@ -2775,10 +2761,6 @@ static void handle_opaque_block_mode0(
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights3Index;
-    params.m_num_selector_weights = 8;
-    params.m_comp_bits = 4;
-    params.m_has_pbits = true;
 
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.z, solutions);
@@ -2833,10 +2815,6 @@ static void handle_opaque_block_mode3(
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights2Index;
-    params.m_num_selector_weights = 4;
-    params.m_comp_bits = 7;
-    params.m_has_pbits = true;
 
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
@@ -2934,10 +2912,6 @@ static void handle_opaque_block_mode2(
 {
     color_cell_compressor_params params;
     color_cell_compressor_params_clear(&params, pComp_params);
-    params.m_weights_index = kBC7Weights2Index;
-    params.m_num_selector_weights = 4;
-    params.m_comp_bits = 5;
-    params.m_has_pbits = false;
 
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.w, solutions);
