@@ -1466,226 +1466,100 @@ static uint32_t color_cell_compression(uint32_t mode, const thread color_cell_co
     return pResults->m_best_overall_err;
 }
 
-static uint32_t color_cell_compression_est(uint32_t mode, const thread color_cell_compressor_params* pParams, uint32_t best_err_so_far, const uint part_mask, const uint partition, const thread uchar4* pPixels)
+static uint color_cell_compression_est(uint32_t mode, const thread color_cell_compressor_params* pParams, uint32_t best_err_so_far, const uint part_mask, const uint partition, const thread uchar4* pPixels)
 {
     assert((pParams->m_num_selector_weights == 4) || (pParams->m_num_selector_weights == 8));
 
-    float lr = 255, lg = 255, lb = 255;
-    float hr = 0, hg = 0, hb = 0;
+    float3 ll = 255;
+    float3 hh = 0;
     for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
     {
         if ((pm & 3) != partition)
             continue;
-        auto p = pPixels[i].rgb;
-
-        float r = p.r;
-        float g = p.g;
-        float b = p.b;
-        
-        lr = min(lr, r);
-        lg = min(lg, g);
-        lb = min(lb, b);
-
-        hr = max(hr, r);
-        hg = max(hg, g);
-        hb = max(hb, b);
+        float3 p = float3(pPixels[i].rgb);
+        ll = min(ll, p);
+        hh = max(hh, p);
     }
             
     const uint32_t N = 1 << g_bc7_color_index_bitcount[mode];
-                        
-    uint32_t total_err = 0;
     
-    float sr = lr;
-    float sg = lg;
-    float sb = lb;
+    float3 ss = ll;
+    float3 di = hh - ll;
+    float3 fa = di;
 
-    float dir = hr - lr;
-    float dig = hg - lg;
-    float dib = hb - lb;
-
-    float far = dir;
-    float fag = dig;
-    float fab = dib;
-
-    float low = far * sr + fag * sg + fab * sb;
-    float high = far * hr + fag * hg + fab * hb;
+    float low = fa.r * ll.r + fa.g * ll.g + fa.b * ll.b;
+    float high = fa.r * hh.r + fa.g * hh.g + fa.b * hh.b;
 
     float scale = ((float)N - 1) / (float)(high - low);
     float inv_n = 1.0f / ((float)N - 1);
 
-    float total_errf = 0;
-
+    float err = 0;
     // We don't handle perceptual very well here, but the difference is very slight (<.05 dB avg Luma PSNR across a large corpus) and the perf lost was high (2x slower).
-    if ((pParams->m_weights[0] != 1) || (pParams->m_weights[1] != 1) || (pParams->m_weights[2] != 1))
     {
-        float wr = pParams->m_weights[0];
-        float wg = pParams->m_weights[1];
-        float wb = pParams->m_weights[2];
-
+        float3 w = float3(pParams->m_weights.rgb);
         for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
         {
             if ((pm & 3) != partition)
                 continue;
-            auto c = pPixels[i];
+            float3 c = float3(pPixels[i].rgb);
 
-            float d = far * (float)c.r + fag * (float)c.g + fab * (float)c.b;
-
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
-
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
-
-            float dr = itr - (float)c.r;
-            float dg = itg - (float)c.g;
-            float db = itb - (float)c.b;
-
-            total_errf += wr * dr * dr + wg * dg * dg + wb * db * db;
+            float d = fa.r * c.r + fa.g * c.g + fa.b * c.b;
+            float s = saturate(floor((d - low) * scale + .5f) * inv_n);
+            
+            float3 it = ss + di * s;
+            float3 dd = it - c;
+            err += w.r * dd.r * dd.r + w.g * dd.g * dd.g + w.b * dd.b * dd.b;
         }
     }
-    else
-    {
-        for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
-        {
-            if ((pm & 3) != partition)
-                continue;
-            auto c = pPixels[i];
-
-            float d = far * (float)c.r + fag * (float)c.g + fab * (float)c.b;
-
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
-
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
-
-            float dr = itr - (float)c.r;
-            float dg = itg - (float)c.g;
-            float db = itb - (float)c.b;
-
-            total_errf += dr * dr + dg * dg + db * db;
-        }
-    }
-
-    total_err = (int32_t)total_errf;
-
-    return total_err;
+    return (uint)err;
 }
 
-static uint32_t color_cell_compression_est_mode7(uint32_t mode, const thread color_cell_compressor_params* pParams, uint32_t best_err_so_far, const uint part_mask, const uint partition, const thread uchar4* pPixels)
+static uint color_cell_compression_est_mode7(uint32_t mode, const thread color_cell_compressor_params* pParams, uint32_t best_err_so_far, const uint part_mask, const uint partition, const thread uchar4* pPixels)
 {
     assert((mode == 7) && (pParams->m_num_selector_weights == 4));
 
-    float lr = 255, lg = 255, lb = 255, la = 255;
-    float hr = 0, hg = 0, hb = 0, ha = 0;
+    float4 ll = 255;
+    float4 hh = 0;
     for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
     {
         if ((pm & 3) != partition)
             continue;
-        auto p = pPixels[i];
-        float r = p.r;
-        float g = p.g;
-        float b = p.b;
-        float a = p.a;
-        
-        lr = min(lr, r);
-        lg = min(lg, g);
-        lb = min(lb, b);
-        la = min(la, a);
-
-        hr = max(hr, r);
-        hg = max(hg, g);
-        hb = max(hb, b);
-        ha = max(ha, a);
+        float4 p = float4(pPixels[i]);
+        ll = min(ll, p);
+        hh = max(hh, p);
     }
             
     const uint32_t N = 4;
                         
-    uint32_t total_err = 0;
-    
-    float sr = lr;
-    float sg = lg;
-    float sb = lb;
-    float sa = la;
+    float4 ss = ll;
+    float4 di = hh - ll;
+    float4 fa = di;
 
-    float dir = hr - lr;
-    float dig = hg - lg;
-    float dib = hb - lb;
-    float dia = ha - la;
-
-    float far = dir;
-    float fag = dig;
-    float fab = dib;
-    float faa = dia;
-
-    float low = far * sr + fag * sg + fab * sb + faa * sa;
-    float high = far * hr + fag * hg + fab * hb + faa * ha;
+    float low = fa.r * ll.r + fa.g * ll.g + fa.b * ll.b + fa.a * ll.a;
+    float high = fa.r * hh.r + fa.g * hh.g + fa.b * hh.b + fa.a * hh.a;
 
     float scale = ((float)N - 1) / (float)(high - low);
     float inv_n = 1.0f / ((float)N - 1);
 
-    float total_errf = 0;
-
+    float err = 0;
     // We don't handle perceptual very well here, but the difference is very slight (<.05 dB avg Luma PSNR across a large corpus) and the perf lost was high (2x slower).
-    if ( (!pParams->m_perceptual) && ((pParams->m_weights[0] != 1) || (pParams->m_weights[1] != 1) || (pParams->m_weights[2] != 1) || (pParams->m_weights[3] != 1)) )
     {
-        float wr = pParams->m_weights[0];
-        float wg = pParams->m_weights[1];
-        float wb = pParams->m_weights[2];
-        float wa = pParams->m_weights[3];
-
+        float4 w = pParams->m_perceptual ? float4(1,1,1,1) : float4(pParams->m_weights);
         for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
         {
             if ((pm & 3) != partition)
                 continue;
-            const auto c = pPixels[i];
+            float4 c = float4(pPixels[i]);
 
-            float d = far * (float)c.r + fag * (float)c.g + fab * (float)c.b + faa * (float)c.a;
-
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
-
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
-            float ita = sa + dia * s;
-
-            float dr = itr - (float)c.r;
-            float dg = itg - (float)c.g;
-            float db = itb - (float)c.b;
-            float da = ita - (float)c.a;
-
-            total_errf += wr * dr * dr + wg * dg * dg + wb * db * db + wa * da * da;
+            float d = fa.r * c.r + fa.g * c.g + fa.b * c.b + fa.a * c.a;
+            float s = saturate(floor((d - low) * scale + .5f) * inv_n);
+            
+            float4 it = ss + di * s;
+            float4 dd = it - c;
+            err += w.r * dd.r * dd.r + w.g * dd.g * dd.g + w.b * dd.b * dd.b + w.a * dd.a * dd.a;
         }
     }
-    else
-    {
-        for (uint i = 0, pm = part_mask; i < 16; ++i, pm >>= 2)
-        {
-            if ((pm & 3) != partition)
-                continue;
-            const auto c = pPixels[i];
-
-            float d = far * (float)c.r + fag * (float)c.g + fab * (float)c.b + faa * (float)c.a;
-
-            float s = clamp(floor((d - low) * scale + .5f) * inv_n, 0.0f, 1.0f);
-
-            float itr = sr + dir * s;
-            float itg = sg + dig * s;
-            float itb = sb + dib * s;
-            float ita = sa + dia * s;
-
-            float dr = itr - (float)c.r;
-            float dg = itg - (float)c.g;
-            float db = itb - (float)c.b;
-            float da = ita - (float)c.a;
-
-            total_errf += dr * dr + dg * dg + db * db + da * da;
-        }
-    }
-
-    total_err = (int32_t)total_errf;
-
-    return total_err;
+    return (uint)err;
 }
 
 static uint32_t estimate_partition(uint32_t mode, const uchar4 pixels[16], const constant bc7e_compress_block_params* pComp_params)
