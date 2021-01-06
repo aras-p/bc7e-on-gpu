@@ -143,7 +143,7 @@ static int get_bc7_color_index_size(int mode, int index_selection_bit) { return 
 static const constant int g_bc7_alpha_index_bitcount[8] = { 0, 0, 0, 0, 3, 2, 4, 2 };
 static int get_bc7_alpha_index_size(int mode, int index_selection_bit) { return g_bc7_alpha_index_bitcount[mode] - index_selection_bit; }
 static const constant int g_bc7_mode_has_p_bits[8] = { 1, 1, 0, 1, 0, 0, 1, 1 };
-static const constant int g_bc7_mode_has_shared_p_bits[8] = { 0, 1, 0, 0, 0, 0, 0, 0 };
+static inline bool get_bc7_mode_shares_pbits(uint mode) { return mode == 1; }
 static const constant int g_bc7_color_precision_table[8] = { 4, 6, 5, 7, 5, 7, 7, 5 };
 static const constant int g_bc7_alpha_precision_table[8] = { 0, 0, 0, 0, 6, 8, 7, 5 };
 static bool get_bc7_mode_has_seperate_alpha_selectors(int mode) { return (mode == 4) || (mode == 5); }
@@ -270,7 +270,6 @@ struct color_cell_compressor_params
     uint4 m_weights;
     bool m_has_alpha;
     bool m_has_pbits;
-    bool m_endpoints_share_pbit;
     bool m_perceptual;
 };
 
@@ -283,7 +282,6 @@ static inline void color_cell_compressor_params_clear(thread color_cell_compress
     p->m_weights = pComp_params->m_weights;
     p->m_has_alpha = false;
     p->m_has_pbits = false;
-    p->m_endpoints_share_pbit = false;
 }
 
 struct color_cell_compressor_results
@@ -642,14 +640,7 @@ static uint32_t evaluate_solution(const uchar4 pLow, const uchar4 pHigh, uint pb
 
     if (pParams->m_has_pbits)
     {
-        uint minPBit, maxPBit;
-        if (pParams->m_endpoints_share_pbit)
-            maxPBit = minPBit = pbits & 1;
-        else
-        {
-            minPBit = pbits & 1;
-            maxPBit = pbits >> 1;
-        }
+        uint minPBit = pbits & 1, maxPBit = pbits >> 1;
         quantMinColor = (quantMinColor << 1) | minPBit;
         quantMaxColor = (quantMaxColor << 1) | maxPBit;
     }
@@ -935,7 +926,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
             const int iscalep = (1 << (pParams->m_comp_bits + 1)) - 1;
             const float scalep = (float)iscalep;
 
-            if (!pParams->m_endpoints_share_pbit)
+            if (!get_bc7_mode_shares_pbits(mode))
             {
                 color_quad_i lo[2], hi[2];
                                 
@@ -1021,7 +1012,7 @@ static uint32_t find_optimal_solution(uint32_t mode, thread vec4F* pXl, thread v
             uint best_pbits = 0;
             uchar4 bestMinColor, bestMaxColor;
                         
-            if (!pParams->m_endpoints_share_pbit)
+            if (!get_bc7_mode_shares_pbits(mode))
             {
                 float best_err0 = 1e+9;
                 float best_err1 = 1e+9;
@@ -1869,7 +1860,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
                 high[k] = tmp;
             }
 
-            if (!g_bc7_mode_has_shared_p_bits[best_mode])
+            if (!get_bc7_mode_shares_pbits(best_mode))
             {
                 uint32_t t = pbits[k][0];
                 pbits[k][0] = pbits[k][1];
@@ -1928,7 +1919,7 @@ static uint4 encode_bc7_block(const thread bc7_optimization_results* pResults)
         for (uint32_t subset = 0; subset < total_subsets; subset++)
         {
             set_block_bits(block, pbits[subset][0], 1, &cur_bit_ofs);
-            if (!g_bc7_mode_has_shared_p_bits[best_mode])
+            if (!get_bc7_mode_shares_pbits(best_mode))
                 set_block_bits(block, pbits[subset][1], 1, &cur_bit_ofs);
         }
     }
@@ -2435,7 +2426,6 @@ static void handle_block_mode4(
     params.m_has_alpha = false;
     params.m_comp_bits = 5;
     params.m_has_pbits = false;
-    params.m_endpoints_share_pbit = false;
 
     for (int rotation = 0; rotation < num_rotations; rotation++)
     {
@@ -2489,7 +2479,6 @@ static void handle_block_mode5(
     params.m_comp_bits = 7;
     params.m_has_alpha = false;
     params.m_has_pbits = false;
-    params.m_endpoints_share_pbit = false;
 
     for (uint rotation = 0; rotation < num_rotations; rotation++)
     {
@@ -2549,7 +2538,6 @@ static void handle_alpha_block_mode7(
     params.m_num_selector_weights = 4;
     params.m_comp_bits = 5;
     params.m_has_pbits = true;
-    params.m_endpoints_share_pbit = false;
     params.m_has_alpha = true;
 
     const bool disable_faster_part_selection = false;
@@ -2653,7 +2641,6 @@ static void handle_block_mode6(
     params.m_num_selector_weights = 16;
     params.m_comp_bits = 7;
     params.m_has_pbits = true;
-    params.m_endpoints_share_pbit = false;
     params.m_has_alpha = has_alpha;
     // Note: m_mode67_error_weight_mul was always 1, removed
 
@@ -2689,7 +2676,6 @@ static void handle_opaque_block_mode1(
     params.m_num_selector_weights = 8;
     params.m_comp_bits = 6;
     params.m_has_pbits = true;
-    params.m_endpoints_share_pbit = true;
 
     const bool disable_faster_part_selection = false;
     solution solutions[4];
@@ -2793,7 +2779,6 @@ static void handle_opaque_block_mode0(
     params.m_num_selector_weights = 8;
     params.m_comp_bits = 4;
     params.m_has_pbits = true;
-    params.m_endpoints_share_pbit = false;
 
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.z, solutions);
@@ -2852,7 +2837,6 @@ static void handle_opaque_block_mode3(
     params.m_num_selector_weights = 4;
     params.m_comp_bits = 7;
     params.m_has_pbits = true;
-    params.m_endpoints_share_pbit = false;
 
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.y, solutions);
@@ -2954,7 +2938,6 @@ static void handle_opaque_block_mode2(
     params.m_num_selector_weights = 4;
     params.m_comp_bits = 5;
     params.m_has_pbits = false;
-    params.m_endpoints_share_pbit = false;
 
     solution solutions[4];
     uint num_solutions = decode_solutions(solution_lists.w, solutions);
