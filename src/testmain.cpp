@@ -22,10 +22,11 @@ const int kRunCount = kDoCapture ? 1 : 8;
 const bool kAlwaysPerceptual = false;
 #ifdef _MSC_VER
 const bool kRequireExactResultsMatch = false;
+const float kAllowedPsnrDiff = 57;
 #else
 const bool kRequireExactResultsMatch = true;
+const float kAllowedPsnrDiff = 90;
 #endif
-const float kAllowedPsnrDiff = 57;
 
 
 static const char* kTestFileNames[] =
@@ -118,7 +119,12 @@ struct LookupTables // note: should match shader code struct
         0.451416f, 0.328125f, 0.165039f, 0.241211f, 0.352539f, 0.406250f, 0.219727f, 0.249023f, 0.282227f, 0.468750f, 0.282227f, 0.249023f, 0.219727f, 0.531250f, 0.352539f, 0.241211f, 0.165039f, 0.593750f, 0.451416f, 0.220459f, 0.107666f, 0.671875f, 0.539307f, 0.195068f, 0.070557f, 0.734375f,
         0.635010f, 0.161865f, 0.041260f, 0.796875f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 0.878906f, 0.058594f, 0.003906f, 0.937500f, 1.000000f, 0.000000f, 0.000000f, 1.000000f
     };
+
+    uint8_t weighted2[256*256*4];
+    uint8_t weighted3[256*256*8];
+    uint8_t weighted4[256*256*16];
 };
+static_assert(sizeof(LookupTables) == 16384 + 560 + 1835008, "unexpected LookupTables struct size");
 
 static LookupTables s_Tables;
 
@@ -347,6 +353,31 @@ static void gpu_bc7e_compress_block_init()
             } // hp
         } // lp
     } // c
+    
+    for (auto lo = 0u; lo < 256u; ++lo)
+    {
+        for (auto hi = 0u; hi < 256u; ++hi)
+        {
+            for (auto i = 0u; i < 4; ++i)
+            {
+                unsigned w = g_bc7_weights2[i];
+                unsigned v = (lo * (64 - w) + hi * w + 32) >> 6;
+                s_Tables.weighted2[(lo*256+hi)*4+i] = v;
+            }
+            for (auto i = 0u; i < 8; ++i)
+            {
+                unsigned w = g_bc7_weights3[i];
+                unsigned v = (lo * (64 - w) + hi * w + 32) >> 6;
+                s_Tables.weighted3[(lo*256+hi)*8+i] = v;
+            }
+            for (auto i = 0u; i < 16; ++i)
+            {
+                unsigned w = g_bc7_weights4[i];
+                unsigned v = (lo * (64 - w) + hi * w + 32) >> 6;
+                s_Tables.weighted4[(lo*256+hi)*16+i] = v;
+            }
+        }
+    }
 }
 
 
