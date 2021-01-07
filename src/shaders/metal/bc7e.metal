@@ -2072,24 +2072,18 @@ static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constan
                     la = clamp((int)best_la + ld, 0, 63);
                     ha = clamp((int)best_ha + hd, 0, 63);
                     
-                    int32_t vals[8];
-
+                    int vals[8];
+                    auto laidx = (la << 2) | (la >> 4);
+                    auto haidx = (ha << 2) | (ha >> 4);
                     if (index_selector == 0)
                     {
-                        vals[0] = (la << 2) | (la >> 4);
-                        vals[7] = (ha << 2) | (ha >> 4);
-
-                        for (uint32_t i = 1; i < 7; i++)
-                            vals[i] = (vals[0] * (64 - tables->g_bc7_weights[kBC7Weights3Index+i]) + vals[7] * tables->g_bc7_weights[kBC7Weights3Index+i] + 32) >> 6;
+                        for (int i = 0; i < 8; ++i)
+                            vals[i] = tables->weighted[kBC7WeightedIndexSize*kBC7Weights3Index + (laidx*256+haidx)*8+i];
                     }
                     else
                     {
-                        vals[0] = (la << 2) | (la >> 4);
-                        vals[3] = (ha << 2) | (ha >> 4);
-
-                        const int32_t w_s1 = 21, w_s2 = 43;
-                        vals[1] = (vals[0] * (64 - w_s1) + vals[3] * w_s1 + 32) >> 6;
-                        vals[2] = (vals[0] * (64 - w_s2) + vals[3] * w_s2 + 32) >> 6;
+                        for (int i = 0; i < 4; ++i)
+                            vals[i] = tables->weighted[kBC7WeightedIndexSize*kBC7Weights2Index + (laidx*256+haidx)*4+i];
                     }
 
                     uint32_t trial_alpha_err = 0;
