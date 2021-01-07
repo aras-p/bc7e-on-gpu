@@ -158,7 +158,6 @@ struct endpoint_err // note: should match C++ code struct
 #define kBC7Weights2Index 0
 #define kBC7Weights3Index 4
 #define kBC7Weights4Index 12
-#define kBC7WeightedIndexSize (256*256)
 
 struct LookupTables // note: should match C++ code struct
 {
@@ -175,10 +174,7 @@ struct LookupTables // note: should match C++ code struct
     // Precomputed weight constants used during least fit determination. For each entry in g_bc7_weights[]: w * w, (1.0f - w) * w, (1.0f - w) * (1.0f - w), w
     // (what was g_bc7_weights2x, g_bc7_weights3x, g_bc7_weights4x in ISPC)
     float4 g_bc7_weightsx[4+8+16];
-
-    uint8_t weighted[256*256*4 + 256*256*8 + 256*256*16];
 };
-static_assert(sizeof(LookupTables) == 16384 + 560 + 1835008, "unexpected LookupTables struct size");
 
 const constant uint32_t BC7E_MODE_1_OPTIMAL_INDEX = 2;
 
@@ -1998,19 +1994,24 @@ static void handle_alpha_block_mode4(const thread uchar4* pPixels, const constan
                         
         for (int32_t pass = 0; pass < 2; pass++)
         {
-            int vals[8];
+            int32_t vals[8];
 
-            auto laidx = (la << 2) | (la >> 4);
-            auto haidx = (ha << 2) | (ha >> 4);
             if (index_selector == 0)
             {
-                for (int i = 0; i < 8; ++i)
-                    vals[i] = tables->weighted[kBC7WeightedIndexSize*kBC7Weights3Index + (laidx*256+haidx)*8+i];
+                vals[0] = (la << 2) | (la >> 4);
+                vals[7] = (ha << 2) | (ha >> 4);
+
+                for (uint32_t i = 1; i < 7; i++)
+                    vals[i] = (vals[0] * (64 - tables->g_bc7_weights[kBC7Weights3Index+i]) + vals[7] * tables->g_bc7_weights[kBC7Weights3Index+i] + 32) >> 6;
             }
             else
             {
-                for (int i = 0; i < 4; ++i)
-                    vals[i] = tables->weighted[kBC7WeightedIndexSize*kBC7Weights2Index + (laidx*256+haidx)*4+i];
+                vals[0] = (la << 2) | (la >> 4);
+                vals[3] = (ha << 2) | (ha >> 4);
+
+                const int32_t w_s1 = 21, w_s2 = 43;
+                vals[1] = (vals[0] * (64 - w_s1) + vals[3] * w_s1 + 32) >> 6;
+                vals[2] = (vals[0] * (64 - w_s2) + vals[3] * w_s2 + 32) >> 6;
             }
 
             uint32_t trial_alpha_err = 0;
