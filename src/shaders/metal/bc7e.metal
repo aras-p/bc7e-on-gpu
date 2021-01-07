@@ -663,13 +663,15 @@ static uint32_t evaluate_solution(uint mode, const uchar4 pLow, const uchar4 pHi
     float total_errf = 0;
 
     float4 ww = float4(pParams->m_weights);
+    float4 fminColor = float4(actualMinColor);
+    float4 fmaxColor = float4(actualMaxColor);
     color_quad_f weightedColors[16];
-    weightedColors[0] = float4(actualMinColor);
-    weightedColors[N-1] = float4(actualMaxColor);
+    weightedColors[0] = fminColor;
+    weightedColors[N-1] = fmaxColor;
     for (uint32_t i = 1; i < (N - 1); i++)
     {
         float w = tables->g_bc7_weights[g_bc7_modes[mode].m_weights_index+i];
-        weightedColors[i] = floor((weightedColors[0] * (64.0f - w) + weightedColors[N - 1] * w + 32) * (1.0f / 64.0f));
+        weightedColors[i] = floor((fminColor * (64.0f - w) + fmaxColor * w + 32) * (1.0f / 64.0f));
     }
     
     uchar selectors[16];
@@ -680,8 +682,8 @@ static uint32_t evaluate_solution(uint mode, const uchar4 pLow, const uchar4 pHi
         {
             if (N == 16)
             {
-                float3 ll = float3(actualMinColor.rgb);
-                float3 dd = float3(actualMaxColor.rgb) - ll;
+                float3 ll = fminColor.rgb;
+                float3 dd = fmaxColor.rgb - ll;
                 const float f = N / (dd.r * dd.r + dd.g * dd.g + dd.b * dd.b);
                 ll *= -dd;
 
@@ -734,8 +736,8 @@ static uint32_t evaluate_solution(uint mode, const uchar4 pLow, const uchar4 pHi
             // alpha
             if (N == 16)
             {
-                float4 ll = float4(actualMinColor);
-                float4 dd = float4(actualMaxColor) - ll;
+                float4 ll = fminColor;
+                float4 dd = fmaxColor - ll;
                 const float f = N / (dd.r * dd.r + dd.g * dd.g + dd.b * dd.b + dd.a * dd.a);
                 ll *= -dd;
 
@@ -789,13 +791,12 @@ static uint32_t evaluate_solution(uint mode, const uchar4 pLow, const uchar4 pHi
         // perceptual
         ww.g *= pr_weight;
         ww.b *= pb_weight;
-
-        float3 weightedColorsYCrCb[16];
+        // change colors into YCrCb
         for (uint32_t i = 0; i < N; i++)
         {
             float3 pp = weightedColors[i].rgb;
             float y = pp.r * .2126f + pp.g * .7152f + pp.b * .0722f;
-            weightedColorsYCrCb[i] = float3(y, pp.r - y, pp.b - y);
+            weightedColors[i].rgb = float3(y, pp.r - y, pp.b - y);
         }
 
         if (pParams->m_has_alpha)
@@ -812,7 +813,7 @@ static uint32_t evaluate_solution(uint mode, const uchar4 pLow, const uchar4 pHi
                 int32_t best_sel;
                 for (uint32_t j = 0; j < N; j++)
                 {
-                    float3 d = ycrcb - weightedColorsYCrCb[j];
+                    float3 d = ycrcb - weightedColors[j].rgb;
                     float da = pp.a - weightedColors[j].a;
                     float err = (ww.r * d.x * d.x) + (ww.g * d.y * d.y) + (ww.b * d.z * d.z) + (ww.a * da * da);
                     if (err < best_err)
@@ -839,7 +840,7 @@ static uint32_t evaluate_solution(uint mode, const uchar4 pLow, const uchar4 pHi
                 int32_t best_sel;
                 for (uint32_t j = 0; j < N; j++)
                 {
-                    float3 d = ycrcb - weightedColorsYCrCb[j];
+                    float3 d = ycrcb - weightedColors[j].rgb;
                     float err = (ww.r * d.x * d.x) + (ww.g * d.y * d.y) + (ww.b * d.z * d.z);
                     if (err < best_err)
                     {
