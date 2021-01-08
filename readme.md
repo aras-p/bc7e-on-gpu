@@ -10,7 +10,7 @@ Currently it does nothing good, just resulted in some twitter rants :)
 * Thread 4: back to Metal, make it not terrible https://twitter.com/aras_p/status/1344341238217113601
 * TODO!
 
-Current state:
+Current state (2021 Jan):
 
 * Metal supports "ultrafast", "veryfast", "fast" and "basic" quality modes, produces identical results to CPU ISPC code, runs slightly faster than CPU code (except for "ultrafast" mode where CPU is faster).
 * DX11 & Vulkan support "ultrafast", "veryfast" and "fast" quality modes, does *not* produce idential results as CPU ISPC code, runs slightly (DX11) or a lot (Vulkan) slower than CPU.
