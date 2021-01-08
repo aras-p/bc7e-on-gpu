@@ -111,6 +111,7 @@ SmolKernel* SmolKernelCreate(const void* shaderCode, size_t shaderCodeSize);
 void SmolKernelDelete(SmolKernel* kernel);
 void SmolKernelSet(SmolKernel* kernel);
 void SmolKernelSetBuffer(SmolBuffer* buffer, int index, SmolBufferBinding binding = SmolBufferBinding::Input);
+void SmolKernelSetInlineBuffer(const void* data, size_t dataSize, int index, SmolBufferBinding binding = SmolBufferBinding::Input);
 void SmolKernelDispatch(int threadsX, int threadsY, int threadsZ, int groupSizeX, int groupSizeY, int groupSizeZ);
 
 
@@ -2177,6 +2178,12 @@ void SmolKernelSetBuffer(SmolBuffer* buffer, int index, SmolBufferBinding bindin
     if (binding == SmolBufferBinding::Output)
         buffer->writtenByGpuSinceLastRead = true;
     [s_MetalComputeEncoder setBuffer:buffer->buffer offset:0 atIndex:index];
+}
+
+void SmolKernelSetInlineBuffer(const void* data, size_t dataSize, int index, SmolBufferBinding binding)
+{
+    SMOL_ASSERT(s_MetalComputeEncoder != nil);
+    [s_MetalComputeEncoder setBytes:data length:dataSize atIndex:index];
 }
 
 void SmolKernelDispatch(int threadsX, int threadsY, int threadsZ, int groupSizeX, int groupSizeY, int groupSizeZ)

@@ -805,7 +805,20 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
+            const int num_rotations = (glob.params.m_perceptual || (!glob.params.m_alpha_settings.m_use_mode4_rotation)) ? 1 : 4;
+            for (int rot = 0; rot < num_rotations; ++rot)
+            {
+                if ((glob.params.m_mode4_rotation_mask & (1 << rot)) == 0)
+                    continue;
+                for (int isel = 0; isel < 2; ++isel)
+                {
+                    if ((glob.params.m_mode4_index_mask & (1 << isel)) == 0)
+                        continue;
+                    int idata[2] = { rot, isel };
+                    SmolKernelSetInlineBuffer(idata, 8, 5);
+                    SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
+                }
+            }
         }
         if (settings.m_opaque_settings.m_use_mode[6] || (hasAlpha && settings.m_alpha_settings.m_use_mode6))
         {
@@ -875,7 +888,20 @@ static bool TestOnFile(TestFile& tf, bool perceptual)
             SmolKernelSetBuffer(s_Bc7OutputBuffer, 2, SmolBufferBinding::Input);
             SmolKernelSetBuffer(s_Bc7TempBuffer, 3, SmolBufferBinding::Output);
             SmolKernelSetBuffer(s_Bc7TablesBuffer, 4, SmolBufferBinding::Constant);
-            SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
+            const int num_rotations = 4;
+            for (int rot = 0; rot < num_rotations; ++rot)
+            {
+                if ((glob.params.m_mode4_rotation_mask & (1 << rot)) == 0)
+                    continue;
+                for (int isel = 0; isel < 2; ++isel)
+                {
+                    if ((glob.params.m_mode4_index_mask & (1 << isel)) == 0)
+                        continue;
+                    int idata[2] = { rot, isel };
+                    SmolKernelSetInlineBuffer(idata, 8, 5);
+                    SmolKernelDispatch(tf.widthInBlocks, tf.heightInBlocks, 1, kGroupSize, 1, 1);
+                }
+            }
         }
         if (hasAlpha && settings.m_alpha_settings.m_use_mode7)
         {
